@@ -1,8 +1,35 @@
-# Welcome to your Expo app 👋
+# Khaaonow Delivery Partner App 🚴
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The official delivery partner application for Khaaonow - empowering delivery partners to manage orders, track deliveries, and maximize earnings.
 
-## Get started
+## Features ✨
+
+- **📦 Order Management**: View and accept available delivery orders in real-time
+- **💰 Earnings Dashboard**: Track daily, weekly, and monthly earnings with detailed breakdowns
+- **📊 Performance Metrics**: Monitor your delivery stats, ratings, and completion streaks
+- **🎯 Smart Matching**: Get matched with nearby orders based on your location
+- **📍 Real-time Tracking**: GPS-enabled order tracking and navigation
+- **👤 Profile Management**: Manage your profile, documents, and verification status
+- **🌙 Dark Mode**: Full dark mode support for comfortable viewing
+
+## Tech Stack 🛠️
+
+- **Framework**: React Native with Expo
+- **Language**: TypeScript
+- **Navigation**: Expo Router (file-based routing)
+- **Styling**: NativeWind (Tailwind CSS for React Native)
+- **UI Components**: Custom themed components with SF Symbols icons
+
+## Getting Started 🚀
+
+### Prerequisites
+
+- Node.js (v18 or higher)
+- npm or yarn
+- Expo Go app (for testing on physical device)
+- Android Studio or Xcode (for emulator testing)
+
+### Installation
 
 1. Install dependencies
 
@@ -10,41 +37,77 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Start the development server
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. Run on your preferred platform:
+   - Press `a` for Android emulator
+   - Press `i` for iOS simulator
+   - Scan QR code with Expo Go app for physical device
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## App Structure 📁
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+app/
+├── (tabs)/              # Tab navigation screens
+│   ├── index.tsx       # Orders screen (Home)
+│   └── explore.tsx     # Earnings screen
+├── _layout.tsx         # Root layout with navigation setup
+├── modal.tsx           # Profile/Settings modal
+└── splash.tsx          # App splash screen
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Key Screens 📱
 
-## Learn more
+### Orders Screen
 
-To learn more about developing your project with Expo, look at the following resources:
+- View all available orders
+- Online/Offline status toggle
+- Quick stats (deliveries & earnings today)
+- Order details with distance, items, and payment info
+- Accept order functionality
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Earnings Screen
 
-## Join the community
+- Weekly earnings summary
+- Daily earnings breakdown
+- Performance metrics (rating, avg time, streak)
+- Withdraw earnings option
+- Detailed delivery history
 
-Join our community of developers creating universal apps.
+### Profile Modal
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Personal information
+- Document verification status
+- Performance statistics
+- App settings
+- Help & support access
+
+## Development 💻
+
+### Scripts
+
+- `npm start` - Start Expo development server
+- `npm run android` - Run on Android
+- `npm run ios` - Run on iOS
+- `npm run web` - Run on web browser
+- `npm run lint` - Run ESLint
+
+### Customization
+
+The app uses a themed approach with support for light and dark modes. You can customize:
+
+- Colors in `constants/theme.ts`
+- Tailwind styles in `tailwind.config.js`
+- Component themes in `components/themed-*` files
+
+## Contributing 🤝
+
+This is the delivery partner app for Khaaonow food delivery platform. For contributions or issues, please contact the development team.
+
+## License
+
+© 2025 Khaaonow. All rights reserved.
