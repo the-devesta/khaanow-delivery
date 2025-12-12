@@ -1,316 +1,359 @@
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useState } from "react";
+import OrderRequestModal from "@/components/orders/OrderRequestModal";
+import StatCard from "@/components/ui/stat-card";
+import StatusToggle from "@/components/ui/status-toggle";
+import { useOrderStore } from "@/store/orders";
+import { usePartnerStore } from "@/store/partner";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   RefreshControl,
+  SafeAreaView,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 
-// Mock data for orders
-const mockOrders = [
-  {
-    id: 1,
-    restaurant: "Burger Palace",
-    customer: "John Doe",
-    status: "ready",
-    distance: "2.3 km",
-    amount: 450,
-    items: 3,
-  },
-  {
-    id: 2,
-    restaurant: "Pizza Corner",
-    customer: "Jane Smith",
-    status: "preparing",
-    distance: "1.8 km",
-    amount: 780,
-    items: 2,
-  },
-  {
-    id: 3,
-    restaurant: "Desi Dhaba",
-    customer: "Mike Johnson",
-    status: "ready",
-    distance: "3.5 km",
-    amount: 620,
-    items: 4,
-  },
-];
-
-export default function OrdersScreen() {
-  const colorScheme = useColorScheme();
-  const [isOnline, setIsOnline] = useState(true);
+export default function HomeScreen() {
+  const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
-  const [orders, setOrders] = useState(mockOrders);
+  const [toggleLoading, setToggleLoading] = useState(false);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  };
+  const { isOnline, toggleOnline, initializeStore } = usePartnerStore();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "ready":
-        return "#10b981";
-      case "preparing":
-        return "#f59e0b";
-      case "picked":
-        return "#3b82f6";
-      default:
-        return "#6b7280";
+  const {
+    pendingOrder,
+    activeOrder,
+    orderHistory,
+    acceptOrder,
+    rejectOrder,
+    simulateNewOrder,
+  } = useOrderStore();
+
+  // Calculate stats from orderHistory to match orders and earnings tabs
+  const { todayEarnings, completedOrders } = useMemo(() => {
+    const completedOrdersList = orderHistory.filter(
+      (o) => o.status === "delivered"
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayOrders = completedOrdersList.filter((o) => {
+      const orderDate = new Date(o.createdAt);
+      orderDate.setHours(0, 0, 0, 0);
+      return orderDate.getTime() === today.getTime();
+    });
+
+    const todayEarnings = todayOrders.reduce((sum, o) => sum + o.earnings, 0);
+
+    return {
+      todayEarnings,
+      completedOrders: todayOrders.length,
+    };
+  }, [orderHistory]);
+
+  useEffect(() => {
+    initializeStore();
+  }, [initializeStore]);
+
+  // Simulate new orders when online (for development)
+  useEffect(() => {
+    if (isOnline && !pendingOrder && !activeOrder) {
+      const timer = setTimeout(() => {
+        simulateNewOrder();
+      }, 10000); // New order every 10 seconds when online
+
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline, pendingOrder, activeOrder, simulateNewOrder]);
+
+  const handleAcceptOrder = () => {
+    if (pendingOrder) {
+      acceptOrder(pendingOrder.id);
+      router.push(`/orders/${pendingOrder.id}`);
     }
   };
 
+  const handleRejectOrder = () => {
+    if (pendingOrder) {
+      rejectOrder(pendingOrder.id);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await initializeStore();
+    setTimeout(() => setRefreshing(false), 800);
+  };
+
+  const handleToggleOnline = () => {
+    setToggleLoading(true);
+    setTimeout(() => {
+      toggleOnline();
+      setToggleLoading(false);
+      if (!isOnline) {
+        Alert.alert(
+          "You're Online! 🎉",
+          "You'll start receiving order requests now."
+        );
+      }
+    }, 500);
+  };
+
+  const handleViewOrderDetails = () => {
+    if (activeOrder) {
+      router.push(`/orders/${activeOrder.id}`);
+    }
+  };
+
+  const partnerName = "Rahul Kumar";
+  const currentDate = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+
   return (
-    <ThemedView style={styles.container}>
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          { backgroundColor: colorScheme === "dark" ? "#1a1a1a" : "#ffffff" },
-        ]}
-      >
-        <View>
-          <ThemedText type="title" style={styles.headerTitle}>
-            Active Orders
-          </ThemedText>
-          <ThemedText style={styles.headerSubtitle}>
-            {orders.length} orders available
-          </ThemedText>
-        </View>
-        <TouchableOpacity
-          onPress={() => setIsOnline(!isOnline)}
-          style={[
-            styles.statusButton,
-            { backgroundColor: isOnline ? "#10b981" : "#ef4444" },
-          ]}
-        >
-          <Text style={styles.statusText}>
-            {isOnline ? "🟢 Online" : "🔴 Offline"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <View className="flex-1 bg-blue-500 rounded-2xl p-4 mr-2">
-          <IconSymbol name="shippingbox.fill" size={24} color="#ffffff" />
-          <Text className="text-white text-2xl font-bold mt-2">12</Text>
-          <Text className="text-white/80 text-sm">Today's Deliveries</Text>
-        </View>
-        <View className="flex-1 bg-green-500 rounded-2xl p-4 ml-2">
-          <IconSymbol name="dollarsign.circle.fill" size={24} color="#ffffff" />
-          <Text className="text-white text-2xl font-bold mt-2">₹2,450</Text>
-          <Text className="text-white/80 text-sm">Today's Earnings</Text>
-        </View>
-      </View>
-
-      {/* Orders List */}
+    <SafeAreaView className="flex-1 bg-[#FAFAFA]">
       <ScrollView
-        style={styles.ordersList}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {orders.map((order) => (
-          <View
-            key={order.id}
-            style={[
-              styles.orderCard,
-              {
-                backgroundColor: colorScheme === "dark" ? "#1f1f1f" : "#ffffff",
-                borderColor: colorScheme === "dark" ? "#333" : "#e5e5e5",
-              },
-            ]}
-          >
-            <View style={styles.orderHeader}>
-              <View>
-                <ThemedText
-                  type="defaultSemiBold"
-                  style={styles.restaurantName}
-                >
-                  {order.restaurant}
-                </ThemedText>
-                <ThemedText style={styles.customerName}>
-                  → {order.customer}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: getStatusColor(order.status) + "20" },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.statusText,
-                    { color: getStatusColor(order.status) },
-                  ]}
-                >
-                  {order.status.toUpperCase()}
-                </Text>
-              </View>
+        {/* Header */}
+        <View className="bg-white px-6 pt-16 rounded-3xl pb-5 shadow-sm">
+          <View className="flex-row items-center justify-between mb-2">
+            <View className="flex-1">
+              <Text className="text-sm text-[#7A7A7A]">{currentDate}</Text>
+              <Text className="text-2xl font-bold text-[#1A1A1A] mt-1">
+                Hello, {partnerName}! 👋
+              </Text>
             </View>
-
-            <View style={styles.orderDetails}>
-              <View style={styles.detailItem}>
-                <IconSymbol
-                  name="mappin.circle.fill"
-                  size={18}
-                  color={Colors[colorScheme ?? "light"].icon}
-                />
-                <ThemedText style={styles.detailText}>
-                  {order.distance}
-                </ThemedText>
-              </View>
-              <View style={styles.detailItem}>
-                <IconSymbol
-                  name="bag.fill"
-                  size={18}
-                  color={Colors[colorScheme ?? "light"].icon}
-                />
-                <ThemedText style={styles.detailText}>
-                  {order.items} items
-                </ThemedText>
-              </View>
-              <View style={styles.detailItem}>
-                <IconSymbol
-                  name="indianrupeesign.circle.fill"
-                  size={18}
-                  color={Colors[colorScheme ?? "light"].icon}
-                />
-                <ThemedText style={styles.detailText}>
-                  ₹{order.amount}
-                </ThemedText>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.acceptButton}>
-              <Text style={styles.acceptButtonText}>Accept Order</Text>
-              <IconSymbol name="arrow.right" size={18} color="#ffffff" />
+            <TouchableOpacity
+              className="w-12 h-12 bg-[#FFF5EB] rounded-full items-center justify-center"
+              activeOpacity={0.7}
+            >
+              <Ionicons name="notifications" size={22} color="#FF6A00" />
             </TouchableOpacity>
           </View>
-        ))}
+        </View>
+
+        {/* Status Toggle */}
+        <View className="px-6 mt-5">
+          <StatusToggle
+            isOnline={isOnline}
+            onToggle={handleToggleOnline}
+            loading={toggleLoading}
+          />
+        </View>
+
+        {/* Today's Stats */}
+        <View className="px-6 mt-5">
+          <Text className="text-lg font-bold text-[#1A1A1A] mb-4">
+            Today&apos;s Overview
+          </Text>
+          <View className="flex-row gap-4">
+            <StatCard
+              icon="wallet"
+              label="Today Earnings"
+              value={`₹${todayEarnings.toFixed(2)}`}
+              color="#10B981"
+              bgColor="#D1FAE5"
+              onPress={() => router.push("/(tabs)/earnings")}
+            />
+            <StatCard
+              icon="checkmark-done-circle"
+              label="Completed"
+              value={completedOrders}
+              color="#3B82F6"
+              bgColor="#DBEAFE"
+              onPress={() => router.push("/(tabs)/orders")}
+            />
+          </View>
+        </View>
+
+        {/* Active Order Section */}
+        <View className="px-6 mt-5">
+          <Text className="text-lg font-bold text-[#1A1A1A] mb-4">
+            Active Order
+          </Text>
+          {activeOrder ? (
+            <TouchableOpacity
+              onPress={handleViewOrderDetails}
+              activeOpacity={0.8}
+              className="bg-white rounded-3xl shadow-md overflow-hidden"
+            >
+              {/* Status Header */}
+              <View className="px-5 py-3 flex-row items-center justify-between bg-[#DBEAFE]">
+                <View className="flex-row items-center">
+                  <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
+                  <Text className="text-sm font-bold ml-2 text-[#3B82F6]">
+                    {activeOrder.status === "accepted" && "Order Accepted"}
+                    {activeOrder.status === "picked_up" && "Picked Up"}
+                    {activeOrder.status === "on_the_way" && "On the Way"}
+                  </Text>
+                </View>
+                <View className="flex-row items-center">
+                  <Ionicons name="time-outline" size={16} color="#3B82F6" />
+                  <Text className="text-sm font-semibold ml-1 text-[#3B82F6]">
+                    {activeOrder.estimatedTime}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Order Details */}
+              <View className="p-5">
+                <View className="mb-4">
+                  <Text className="text-xs text-[#7A7A7A] mb-1">ORDER ID</Text>
+                  <Text className="text-sm font-bold text-[#1A1A1A]">
+                    #{activeOrder.id.slice(-8)}
+                  </Text>
+                </View>
+
+                {/* Restaurant */}
+                <View className="flex-row items-start mb-4">
+                  <View className="w-10 h-10 bg-[#FFF5EB] rounded-xl items-center justify-center">
+                    <Ionicons name="restaurant" size={20} color="#FF6A00" />
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <Text className="text-xs text-[#7A7A7A] mb-0.5">
+                      PICK UP FROM
+                    </Text>
+                    <Text className="text-base font-bold text-[#1A1A1A]">
+                      {activeOrder.restaurantName}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Customer */}
+                <View className="flex-row items-start mb-4">
+                  <View className="w-10 h-10 bg-[#D1FAE5] rounded-xl items-center justify-center">
+                    <Ionicons name="location" size={20} color="#10B981" />
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <Text className="text-xs text-[#7A7A7A] mb-0.5">
+                      DELIVER TO
+                    </Text>
+                    <Text className="text-base font-bold text-[#1A1A1A] mb-1">
+                      {activeOrder.customerName}
+                    </Text>
+                    <Text className="text-sm text-[#6B7280]">
+                      {activeOrder.customerAddress}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Action Button */}
+                <View className="flex-row items-center justify-between pt-4 border-t border-[#F3F4F6]">
+                  <View>
+                    <Text className="text-xs text-[#7A7A7A] mb-0.5">
+                      EARNINGS
+                    </Text>
+                    <Text className="text-lg font-bold text-[#10B981]">
+                      ₹{activeOrder.earnings}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center bg-[#FF6A00] px-4 py-2 rounded-full">
+                    <Text className="text-white font-semibold mr-2">
+                      View Details
+                    </Text>
+                    <Ionicons name="arrow-forward" size={16} color="white" />
+                  </View>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <View className="bg-white rounded-3xl p-8 shadow-md items-center">
+              <View className="w-20 h-20 bg-[#F9FAFB] rounded-full items-center justify-center mb-4">
+                <Ionicons name="cube-outline" size={36} color="#D1D5DB" />
+              </View>
+              <Text className="text-lg font-bold text-[#1A1A1A] mb-2">
+                No Active Orders
+              </Text>
+              <Text className="text-sm text-[#7A7A7A] text-center mb-4">
+                {isOnline
+                  ? "You'll receive notifications when orders are assigned to you"
+                  : "Go online to start receiving orders"}
+              </Text>
+              {!isOnline && (
+                <TouchableOpacity
+                  onPress={handleToggleOnline}
+                  className="bg-[#FF6A00] px-6 py-3 rounded-full"
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-white font-semibold">Go Online</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Quick Actions */}
+        <View className="px-6 mt-5">
+          <Text className="text-lg font-bold text-[#1A1A1A] mb-4">
+            Quick Actions
+          </Text>
+          <View className="flex-row gap-4">
+            <TouchableOpacity
+              activeOpacity={0.7}
+              className="flex-1 bg-white rounded-3xl p-5 shadow-md items-center"
+              onPress={() => router.push("/(tabs)/orders")}
+            >
+              <View className="w-12 h-12 bg-[#FEF3C7] rounded-2xl items-center justify-center mb-3">
+                <Ionicons name="time-outline" size={24} color="#F59E0B" />
+              </View>
+              <Text className="text-sm font-bold text-[#1A1A1A] text-center">
+                Order History
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              className="flex-1 bg-white rounded-3xl p-5 shadow-md items-center"
+              onPress={() => router.push("/(tabs)/earnings")}
+            >
+              <View className="w-12 h-12 bg-[#DBEAFE] rounded-2xl items-center justify-center mb-3">
+                <Ionicons name="stats-chart" size={24} color="#3B82F6" />
+              </View>
+              <Text className="text-sm font-bold text-[#1A1A1A] text-center">
+                Earnings
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Tips Section */}
+        <View className="px-6 mt-5 mb-6">
+          <View className="bg-[#FFF5EB] rounded-3xl p-5 flex-row items-start">
+            <View className="w-10 h-10 bg-[#FF6A00] rounded-xl items-center justify-center">
+              <Ionicons name="bulb" size={20} color="white" />
+            </View>
+            <View className="ml-4 flex-1">
+              <Text className="text-base font-bold text-[#1A1A1A] mb-1">
+                Pro Tip
+              </Text>
+              <Text className="text-sm text-[#6B7280] leading-5">
+                Going online during peak hours (12-2 PM & 7-9 PM) can help you
+                earn more deliveries and tips!
+              </Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
-    </ThemedView>
+
+      {/* Order Request Modal - Only show when no active order */}
+      {pendingOrder && !activeOrder && (
+        <OrderRequestModal
+          order={pendingOrder}
+          onAccept={handleAcceptOrder}
+          onReject={handleRejectOrder}
+        />
+      )}
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 50,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    opacity: 0.7,
-    marginTop: 4,
-  },
-  statusButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  statusText: {
-    color: "#ffffff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  ordersList: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  orderCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  orderHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  restaurantName: {
-    fontSize: 18,
-    marginBottom: 4,
-  },
-  customerName: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  orderDetails: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  detailText: {
-    fontSize: 14,
-  },
-  acceptButton: {
-    backgroundColor: "#ff6b35",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 14,
-    borderRadius: 12,
-    gap: 8,
-  },
-  acceptButtonText: {
-    color: "#ffffff",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: "absolute",
-  },
-});

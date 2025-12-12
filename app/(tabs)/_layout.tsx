@@ -1,55 +1,54 @@
-import { Tabs, useRouter } from "expo-router";
-import React from "react";
-import { TouchableOpacity } from "react-native";
-
-import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
+import AnimatedBottomDock from "@/components/AnimatedBottomDock";
+import { DockProvider, useDock } from "@/context/DockContext";
 import "@/global.css";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Tabs } from "expo-router";
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const router = useRouter();
+function TabsContent() {
+  const { isDockVisible } = useDock();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        headerShown: true,
-        tabBarButton: HapticTab,
-        headerRight: () => (
-          <TouchableOpacity
-            onPress={() => router.push("/modal")}
-            style={{ marginRight: 16 }}
-          >
-            <IconSymbol
-              name="person.circle.fill"
-              size={28}
-              color={Colors[colorScheme ?? "light"].icon}
-            />
-          </TouchableOpacity>
-        ),
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarStyle: { display: "none" },
       }}
+      tabBar={(props) => (
+        <AnimatedBottomDock {...props} isVisible={isDockVisible} />
+      )}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Orders",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="shippingbox.fill" color={color} />
-          ),
+          title: "Home",
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="orders"
+        options={{
+          title: "Orders",
+        }}
+      />
+      <Tabs.Screen
+        name="earnings"
         options={{
           title: "Earnings",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="dollarsign.circle.fill" color={color} />
-          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
         }}
       />
     </Tabs>
+  );
+}
+
+export default function TabLayout() {
+  return (
+    <DockProvider>
+      <TabsContent />
+    </DockProvider>
   );
 }
