@@ -6,14 +6,8 @@ import { useOrderStore } from "@/store/orders";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import {
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const STEPS = [
   { label: "Pickup", icon: "restaurant-outline" },
@@ -90,26 +84,29 @@ export default function OrderDetailsScreen() {
 
     setLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    switch (order.status) {
-      case "accepted":
-        updateOrderStatus("picked_up");
-        Alert.alert("Success", "Order marked as picked up!");
-        break;
-      case "picked_up":
-        updateOrderStatus("on_the_way");
-        Alert.alert("Success", "Delivery started!");
-        break;
-      case "on_the_way":
-        completeOrder();
-        Alert.alert("Success", "Order delivered successfully!", [
-          { text: "OK", onPress: () => router.replace("/(tabs)") },
-        ]);
-        break;
+    try {
+      switch (order.status) {
+        case "accepted":
+          await updateOrderStatus("picked_up");
+          Alert.alert("Success", "Order marked as picked up!");
+          break;
+        case "picked_up":
+          await updateOrderStatus("on_the_way");
+          Alert.alert("Success", "Delivery started!");
+          break;
+        case "on_the_way":
+          completeOrder();
+          Alert.alert("Success", "Order delivered successfully!", [
+            { text: "OK", onPress: () => router.replace("/(tabs)") },
+          ]);
+          break;
+      }
+    } catch (error) {
+      console.error("Update order status error:", error);
+      Alert.alert("Error", "Failed to update order status. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const currentStep = getCurrentStep();

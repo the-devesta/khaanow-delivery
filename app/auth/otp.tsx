@@ -1,26 +1,30 @@
 import PrimaryButton from "@/components/ui/primary-button";
-import { ApiService } from "@/services/api";
+import { usePhoneAuth } from "@/hooks/use-phone-auth";
+import { useAuthStore } from "@/store/auth";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function OtpScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const phoneNumber = params.phoneNumber as string;
-  const exists = params.exists === "true";
 
-  const [loading, setLoading] = useState(false);
+  const { sendOtp, verifyOtp, loading, error, clearError } = usePhoneAuth();
+  const { setAuthenticated, getNavigationRoute } = useAuthStore();
+  
+  const [resendLoading, setResendLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputRefs = useRef<(TextInput | null)[]>([]);
@@ -53,38 +57,73 @@ export default function OtpScreen() {
     const otpValue = otp.join("");
     if (otpValue.length !== 6) return;
 
-    setLoading(true);
     try {
-      const response = await ApiService.verifyOtp(phoneNumber, otpValue);
-      if (response.success) {
-        // Import auth store
-        const { useAuthStore } = await import("@/store/auth");
-        const { setAuthenticated } = useAuthStore.getState();
+      clearError();
+      console.log('🔐 [OTP] Verifying OTP...');
 
-        if (exists) {
-          // Set authenticated and navigate to home
-          setAuthenticated(true, response.partnerId || "USER_ID", phoneNumber);
-          router.replace("/(tabs)");
-        } else {
-          // New user - proceed to registration
-          router.replace("/registration/basic-details");
-        }
+      // Verify OTP with Firebase and backend
+      const response = await verifyOtp(otpValue);
+
+      if (response.success && response.data) {
+        console.log('✅ [OTP] Verification successful:', {
+          deliveryPartnerId: response.data.deliveryPartnerId,
+          onboardingStatus: response.data.onboardingStatus,
+          onboardingProgress: response.data.onboardingProgress,
+          isApproved: response.data.isApproved,
+          profileComplete: response.data.profileComplete,
+        });
+
+        const formattedPhone = `+91${phoneNumber}`;
+
+        // Store full authentication data including onboarding status
+        // Backend now returns isApproved directly
+        await setAuthenticated(
+          true,
+          response.data.deliveryPartnerId,
+          formattedPhone,
+          response.data.token,
+          response.data.onboardingStatus,
+          response.data.onboardingProgress,
+          response.data.isApproved || false
+        );
+
+        // Get the correct navigation route based on state
+        const route = getNavigationRoute();
+        console.log('🧭 [OTP] Navigating to:', route);
+        
+        router.replace(route as any);
       } else {
-        // Show error - invalid OTP
-        console.warn("OTP verification failed:", response.message);
-        // In a real app, show an alert or toast here
+        Alert.alert(
+          "Verification Failed",
+          response.message || "Failed to verify OTP. Please try again."
+        );
       }
-    } catch (error) {
-      console.error("OTP verification error:", error);
-      // In a real app, show an error alert here
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      console.error("❌ [OTP] Verification error:", err);
+      Alert.alert("Error", err.message || "Invalid OTP. Please try again.");
     }
   };
 
   const handleResendOtp = async () => {
-    setResendTimer(30);
-    await ApiService.sendOtp(phoneNumber);
+    setResendLoading(true);
+    try {
+      clearError();
+      console.log('📤 [OTP] Resending OTP...');
+      const success = await sendOtp(phoneNumber);
+
+      if (success) {
+        setResendTimer(30);
+        setOtp(["", "", "", "", "", ""]);
+        Alert.alert("Success", "OTP sent successfully!");
+      } else if (error) {
+        Alert.alert("Error", error);
+      }
+    } catch (err: any) {
+      console.error("❌ [OTP] Resend error:", err);
+      Alert.alert("Error", err.message || "Failed to resend OTP.");
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   return (
@@ -121,30 +160,12 @@ export default function OtpScreen() {
               </Text>
             </View>
 
-            {/* Dev Hint - Remove in production */}
-            <View className="bg-[#FFF5E6] border border-[#FFE5D9] rounded-2xl p-4 mb-6">
-              <View className="flex-row items-start">
-                <Ionicons name="information-circle" size={20} color="#FF6A00" />
-                <View className="flex-1 ml-2">
-                  <Text className="text-sm font-semibold text-[#FF6A00] mb-1">
-                    Demo Mode
-                  </Text>
-                  <Text className="text-xs text-[#7A7A7A]">
-                    Any 6-digit code will work for testing. Tap on the boxes to
-                    enter OTP.
-                  </Text>
-                </View>
-              </View>
-            </View>
-
             {/* OTP Input */}
             <View className="flex-row justify-between mb-8">
               {otp.map((digit, index) => (
-                <TouchableOpacity
+                <View
                   key={index}
-                  activeOpacity={1}
-                  onPress={() => inputRefs.current[index]?.focus()}
-                  className="w-14 h-16 bg-[#F8F8F8] rounded-2xl border-2 border-[#E5E5E5] items-center justify-center"
+                  className="w-14 h-16 bg-[#F8F8F8] rounded-2xl border-2 items-center justify-center"
                   style={{
                     borderColor: digit ? "#FF6A00" : "#E5E5E5",
                   }}
@@ -159,9 +180,16 @@ export default function OtpScreen() {
                     keyboardType="number-pad"
                     maxLength={1}
                     className="text-2xl font-bold text-[#1A1A1A] text-center"
-                    style={{ padding: 0 }}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      padding: 0,
+                      textAlign: 'center',
+                    }}
+                    autoFocus={index === 0}
+                    selectTextOnFocus
                   />
-                </TouchableOpacity>
+                </View>
               ))}
             </View>
 
@@ -174,8 +202,14 @@ export default function OtpScreen() {
                     {resendTimer}s
                   </Text>
                 </Text>
+              ) : resendLoading ? (
+                <Text className="text-sm text-[#7A7A7A]">Sending...</Text>
               ) : (
-                <TouchableOpacity onPress={handleResendOtp} activeOpacity={0.7}>
+                <TouchableOpacity
+                  onPress={handleResendOtp}
+                  activeOpacity={0.7}
+                  disabled={resendLoading}
+                >
                   <Text className="text-sm font-semibold text-[#FF6A00]">
                     Resend OTP
                   </Text>

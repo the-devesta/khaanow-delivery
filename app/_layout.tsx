@@ -1,8 +1,8 @@
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
+    DarkTheme,
+    DefaultTheme,
+    ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -43,6 +43,10 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="registration/account-pending"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="registration/account-rejected"
             options={{ headerShown: false }}
           />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

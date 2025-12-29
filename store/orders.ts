@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { ApiService } from "../services/api";
 
 export interface Location {
   latitude: number;
@@ -37,74 +38,22 @@ interface OrderState {
   pendingOrder: Order | null;
   orderHistory: Order[];
   driverLocation: Location;
+  availableOrders: Order[];
+  loading: boolean;
   
   // Actions
   setIncomingOrder: (order: Order | null) => void;
-  acceptOrder: (orderId: string) => void;
+  acceptOrder: (orderId: string) => Promise<void>;
   rejectOrder: (orderId: string) => void;
-  updateOrderStatus: (status: OrderStatus) => void;
+  updateOrderStatus: (status: OrderStatus) => Promise<void>;
   completeOrder: () => void;
   setDriverLocation: (location: Location) => void;
   simulateDriverMovement: () => void;
-  
-  // Mock data generator
-  simulateNewOrder: () => void;
+  fetchAvailableOrders: () => Promise<void>;
+  fetchAssignedOrders: () => Promise<void>;
+  fetchOrderHistory: (page?: number) => Promise<void>;
+  updateLocation: (latitude: number, longitude: number) => Promise<void>;
 }
-
-const mockOrders: Omit<Order, "id" | "status" | "createdAt">[] = [
-  {
-    restaurantName: "Spice Garden",
-    restaurantAddress: "Shop 12, Sector 18, Noida",
-    customerName: "Rahul Sharma",
-    customerAddress: "B-204, Palm Greens, Sector 22, Noida",
-    customerPhone: "+91 98765 43210",
-    distance: 3.2,
-    estimatedTime: "25 min",
-    earnings: 85,
-    items: [
-      { name: "Chicken Biryani", quantity: 2 },
-      { name: "Raita", quantity: 1 },
-    ],
-    paymentType: "online",
-    pickupLocation: { latitude: 28.5355, longitude: 77.3910 },
-    dropLocation: { latitude: 28.5470, longitude: 77.4010 },
-  },
-  {
-    restaurantName: "Pizza Paradise",
-    restaurantAddress: "GF-34, Mall Road, Noida",
-    customerName: "Priya Verma",
-    customerAddress: "A-101, Sky Heights, Sector 15, Noida",
-    customerPhone: "+91 87654 32109",
-    distance: 2.8,
-    estimatedTime: "20 min",
-    earnings: 95,
-    items: [
-      { name: "Margherita Pizza", quantity: 1 },
-      { name: "Garlic Bread", quantity: 1 },
-    ],
-    paymentType: "cash",
-    pickupLocation: { latitude: 28.5380, longitude: 77.3950 },
-    dropLocation: { latitude: 28.5510, longitude: 77.4050 },
-  },
-  {
-    restaurantName: "Burger Junction",
-    restaurantAddress: "Shop 5, Food Court, Sector 16, Noida",
-    customerName: "Amit Patel",
-    customerAddress: "C-302, Green Valley, Sector 19, Noida",
-    customerPhone: "+91 76543 21098",
-    distance: 4.5,
-    estimatedTime: "30 min",
-    earnings: 110,
-    items: [
-      { name: "Classic Burger", quantity: 3 },
-      { name: "Fries", quantity: 2 },
-      { name: "Coke", quantity: 3 },
-    ],
-    paymentType: "online",
-    pickupLocation: { latitude: 28.5400, longitude: 77.3980 },
-    dropLocation: { latitude: 28.5550, longitude: 77.4100 },
-  },
-];
 
 export const useOrderStore = create<OrderState>((set, get) => ({
   activeOrder: null,
@@ -112,18 +61,34 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   pendingOrder: null,
   orderHistory: [],
   driverLocation: { latitude: 28.5355, longitude: 77.3910 },
+  availableOrders: [],
+  loading: false,
 
   setIncomingOrder: (order) => set({ incomingOrder: order, pendingOrder: order }),
 
-  acceptOrder: (orderId: string) => {
-    const { pendingOrder } = get();
-    if (pendingOrder && pendingOrder.id === orderId) {
-      set({
-        activeOrder: { ...pendingOrder, status: "accepted" },
-        incomingOrder: null,
-        pendingOrder: null,
-        driverLocation: pendingOrder.pickupLocation || { latitude: 28.5355, longitude: 77.3910 },
-      });
+  acceptOrder: async (orderId: string) => {
+    try {
+      set({ loading: true });
+      
+      const response = await ApiService.acceptOrder(orderId);
+      
+      if (response.success) {
+        const { pendingOrder } = get();
+        if (pendingOrder && pendingOrder.id === orderId) {
+          set({
+            activeOrder: { ...pendingOrder, status: "accepted" },
+            incomingOrder: null,
+            pendingOrder: null,
+            driverLocation: pendingOrder.pickupLocation || { latitude: 28.5355, longitude: 77.3910 },
+          });
+        }
+      } else {
+        console.error('Failed to accept order:', response.message);
+      }
+    } catch (error) {
+      console.error('Accept order error:', error);
+    } finally {
+      set({ loading: false });
     }
   },
 
@@ -134,10 +99,24 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     }
   },
 
-  updateOrderStatus: (status) => {
-    const { activeOrder } = get();
-    if (activeOrder) {
-      set({ activeOrder: { ...activeOrder, status } });
+  updateOrderStatus: async (status: OrderStatus) => {
+    try {
+      const { activeOrder } = get();
+      if (!activeOrder) return;
+      
+      set({ loading: true });
+      
+      const response = await ApiService.updateOrderStatus(activeOrder.id, status);
+      
+      if (response.success) {
+        set({ activeOrder: { ...activeOrder, status } });
+      } else {
+        console.error('Failed to update order status:', response.message);
+      }
+    } catch (error) {
+      console.error('Update order status error:', error);
+    } finally {
+      set({ loading: false });
     }
   },
 
@@ -177,15 +156,129 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     });
   },
 
-  simulateNewOrder: () => {
-    const randomOrder =
-      mockOrders[Math.floor(Math.random() * mockOrders.length)];
-    const order: Order = {
-      ...randomOrder,
-      id: `ORD${Date.now()}`,
-      status: "pending",
-      createdAt: new Date(),
-    };
-    set({ incomingOrder: order, pendingOrder: order });
+  fetchAvailableOrders: async () => {
+    try {
+      set({ loading: true });
+      
+      const response = await ApiService.getAvailableOrders();
+      
+      if (response.success && response.data) {
+        // Transform API data to Order format
+        const orders: Order[] = response.data.map((order: any) => ({
+          id: order._id || order.id,
+          restaurantName: order.restaurant?.name || 'Unknown Restaurant',
+          restaurantAddress: order.restaurant?.address || '',
+          customerName: order.user?.name || 'Customer',
+          customerAddress: order.deliveryAddress?.fullAddress || '',
+          customerPhone: order.user?.phone || '',
+          distance: order.distance || 0,
+          estimatedTime: order.estimatedDeliveryTime || '30 min',
+          earnings: order.deliveryFee || 0,
+          items: order.items?.map((item: any) => ({
+            name: item.food?.name || item.name,
+            quantity: item.quantity,
+          })) || [],
+          paymentType: order.paymentMethod === 'card' ? 'online' : 'cash',
+          status: order.status,
+          createdAt: new Date(order.createdAt),
+          pickupLocation: order.restaurant?.location,
+          dropLocation: order.deliveryAddress?.location,
+        }));
+        
+        set({ availableOrders: orders });
+      }
+    } catch (error) {
+      console.error('Fetch available orders error:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchAssignedOrders: async () => {
+    try {
+      set({ loading: true });
+      
+      const response = await ApiService.getAssignedOrders();
+      
+      if (response.success && response.data) {
+        // Get active order (first assigned order)
+        if (response.data.length > 0) {
+          const order = response.data[0];
+          const transformedOrder: Order = {
+            id: order._id || order.id,
+            restaurantName: order.restaurant?.name || 'Unknown Restaurant',
+            restaurantAddress: order.restaurant?.address || '',
+            customerName: order.user?.name || 'Customer',
+            customerAddress: order.deliveryAddress?.fullAddress || '',
+            customerPhone: order.user?.phone || '',
+            distance: order.distance || 0,
+            estimatedTime: order.estimatedDeliveryTime || '30 min',
+            earnings: order.deliveryFee || 0,
+            items: order.items?.map((item: any) => ({
+              name: item.food?.name || item.name,
+              quantity: item.quantity,
+            })) || [],
+            paymentType: order.paymentMethod === 'card' ? 'online' : 'cash',
+            status: order.status,
+            createdAt: new Date(order.createdAt),
+            pickupLocation: order.restaurant?.location,
+            dropLocation: order.deliveryAddress?.location,
+          };
+          
+          set({ activeOrder: transformedOrder });
+        }
+      }
+    } catch (error) {
+      console.error('Fetch assigned orders error:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchOrderHistory: async (page = 1) => {
+    try {
+      set({ loading: true });
+      
+      const response = await ApiService.getOrderHistory(page);
+      
+      if (response.success && response.data) {
+        const orders: Order[] = response.data.map((order: any) => ({
+          id: order._id || order.id,
+          restaurantName: order.restaurant?.name || 'Unknown Restaurant',
+          restaurantAddress: order.restaurant?.address || '',
+          customerName: order.user?.name || 'Customer',
+          customerAddress: order.deliveryAddress?.fullAddress || '',
+          customerPhone: order.user?.phone || '',
+          distance: order.distance || 0,
+          estimatedTime: order.estimatedDeliveryTime || '30 min',
+          earnings: order.deliveryFee || 0,
+          items: order.items?.map((item: any) => ({
+            name: item.food?.name || item.name,
+            quantity: item.quantity,
+          })) || [],
+          paymentType: order.paymentMethod === 'card' ? 'online' : 'cash',
+          status: order.status,
+          createdAt: new Date(order.createdAt),
+          pickupLocation: order.restaurant?.location,
+          dropLocation: order.deliveryAddress?.location,
+        }));
+        
+        set({ orderHistory: orders });
+      }
+    } catch (error) {
+      console.error('Fetch order history error:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  updateLocation: async (latitude: number, longitude: number) => {
+    try {
+      await ApiService.updateLocation(latitude, longitude);
+      set({ driverLocation: { latitude, longitude } });
+    } catch (error) {
+      console.error('Update location error:', error);
+    }
   },
 }));
+

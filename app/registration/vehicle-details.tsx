@@ -1,5 +1,6 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
+import { ApiService } from "@/services/api";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -9,13 +10,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const VEHICLE_TYPES = [
   { id: "bicycle", name: "Bicycle", icon: "🚲", color: "#D1FAE5" },
@@ -136,7 +137,7 @@ export default function VehicleDetailsScreen() {
     return "";
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const newErrors: typeof errors = {};
 
     if (!selectedVehicle) {
@@ -145,58 +146,66 @@ export default function VehicleDetailsScreen() {
       return;
     }
 
-    // Bicycle doesn't need vehicle documents
-    if (selectedVehicle === "bicycle") {
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
+    setLoading(true);
+
+    try {
+      let vehicleData: any = {
+        vehicleType: selectedVehicle,
+      };
+
+      // Bicycle doesn't need vehicle documents
+      if (selectedVehicle === "bicycle") {
+        vehicleData.vehicleNumber = "BICYCLE";
+        vehicleData.drivingLicenseNumber = "N/A";
+      } else {
+        // For motorized vehicles, validate documents
+        if (validateVehicleNumber(vehicleNumber)) {
+          newErrors.vehicleNum = validateVehicleNumber(vehicleNumber);
+        }
+        if (validateDL(dlNumber)) {
+          newErrors.dl = validateDL(dlNumber);
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+          setErrors(newErrors);
+          setLoading(false);
+          return;
+        }
+
+        if (!rcPhoto || !licensePhoto) {
+          Alert.alert(
+            "Documents Required",
+            "Please upload both RC Book and Driving License photos."
+          );
+          setLoading(false);
+          return;
+        }
+
+        vehicleData.vehicleNumber = vehicleNumber.toUpperCase();
+        vehicleData.drivingLicenseNumber = dlNumber.toUpperCase();
+        vehicleData.rcPhoto = rcPhoto;
+        vehicleData.drivingLicensePhoto = licensePhoto;
+      }
+
+      const response = await ApiService.uploadDocuments(vehicleData);
+
+      if (response.success) {
         router.push({
           pathname: "/registration/profile-photo",
-          params: {
-            vehicleType: selectedVehicle,
-            vehicleNumber: "BICYCLE",
-            drivingLicenseNumber: "N/A",
-          },
+          params: vehicleData,
         });
-      }, 400);
-      return;
-    }
-
-    // For motorized vehicles, validate documents
-    if (validateVehicleNumber(vehicleNumber)) {
-      newErrors.vehicleNum = validateVehicleNumber(vehicleNumber);
-    }
-    if (validateDL(dlNumber)) {
-      newErrors.dl = validateDL(dlNumber);
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    if (!rcPhoto || !licensePhoto) {
-      Alert.alert(
-        "Documents Required",
-        "Please upload both RC Book and Driving License photos."
-      );
-      return;
-    }
-
-    setLoading(true);
-    setTimeout(() => {
+      } else {
+        Alert.alert(
+          "Error",
+          response.message || "Failed to save vehicle details"
+        );
+      }
+    } catch (error: any) {
+      console.error("Vehicle details upload error:", error);
+      Alert.alert("Error", "Failed to save vehicle details. Please try again.");
+    } finally {
       setLoading(false);
-      router.push({
-        pathname: "/registration/profile-photo",
-        params: {
-          vehicleType: selectedVehicle,
-          vehicleNumber: vehicleNumber.toUpperCase(),
-          drivingLicenseNumber: dlNumber.toUpperCase(),
-          rcPhoto,
-          licensePhoto,
-        },
-      });
-    }, 400);
+    }
   };
   return (
     <SafeAreaView className="flex-1 bg-[#FAFAFA]">

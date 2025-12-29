@@ -1,5 +1,6 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
+import { ApiService } from "@/services/api";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -9,13 +10,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // Document upload component
 function DocumentUploadCard({
@@ -124,7 +125,7 @@ export default function KycDocumentsScreen() {
     return "";
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const aadhaarError = validateAadhaar(aadhaarNumber);
     const panError = validatePan(panNumber);
 
@@ -142,18 +143,33 @@ export default function KycDocumentsScreen() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      router.push({
-        pathname: "/registration/vehicle-details",
-        params: {
-          aadhaarNumber,
-          panNumber: panNumber.toUpperCase(),
-          aadhaarPhoto,
-          panPhoto,
-        },
+    try {
+      const response = await ApiService.uploadDocuments({
+        aadhaarNumber,
+        panNumber: panNumber.toUpperCase(),
+        aadhaarPhoto,
+        panPhoto,
       });
-    }, 400);
+
+      if (response.success) {
+        router.push({
+          pathname: "/registration/vehicle-details",
+          params: {
+            aadhaarNumber,
+            panNumber: panNumber.toUpperCase(),
+            aadhaarPhoto,
+            panPhoto,
+          },
+        });
+      } else {
+        Alert.alert("Error", response.message || "Failed to upload documents");
+      }
+    } catch (error: any) {
+      console.error("Document upload error:", error);
+      Alert.alert("Error", "Failed to upload documents. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

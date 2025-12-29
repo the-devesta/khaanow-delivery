@@ -10,19 +10,23 @@ SplashScreen.preventAutoHideAsync();
 
 export default function CustomSplashScreen() {
   const router = useRouter();
-  const { isAuthenticated, initializeAuth } = useAuthStore();
+  const { isAuthenticated, initializeAuth, getNavigationRoute, loading } = useAuthStore();
 
   // Animation values
-  const scaleAnim = useRef(new Animated.Value(1)).current; // Start normal
+  const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const initialize = async () => {
+      console.log('🚀 [Splash] Starting initialization...');
+      
       // Hide the Expo splash screen
       await SplashScreen.hideAsync();
 
       // Initialize auth state from storage
       await initializeAuth();
+      
+      console.log('✅ [Splash] Auth initialized, starting animation...');
 
       // Smooth fade in and scale sequence
       Animated.sequence([
@@ -50,17 +54,15 @@ export default function CustomSplashScreen() {
           }),
         ]),
       ]).start(() => {
-        // Navigate based on auth state
-        if (isAuthenticated) {
-          router.replace("/(tabs)");
-        } else {
-          router.replace("/auth/login");
-        }
+        // Get the appropriate route based on auth state
+        const route = getNavigationRoute();
+        console.log('🧭 [Splash] Navigating to:', route);
+        router.replace(route as any);
       });
     };
 
     initialize();
-  }, [opacityAnim, router, scaleAnim, isAuthenticated, initializeAuth]);
+  }, [opacityAnim, router, scaleAnim, initializeAuth, getNavigationRoute]);
 
   // Dynamic shadow based on scale
   const shadowOpacity = scaleAnim.interpolate({

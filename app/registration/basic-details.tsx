@@ -1,34 +1,58 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
+import { ApiService } from "@/services/api";
+import { OnboardingStatus, useAuthStore } from "@/store/auth";
 import { BasicDetailsSchema } from "@/utils/validations";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Formik } from "formik";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function BasicDetailsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { updateOnboardingStatus } = useAuthStore();
 
   const handleNext = async (values: { name: string; email: string }) => {
+    console.log('📝 [BasicDetails] Submitting profile:', values);
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      router.push({
-        pathname: "/registration/kyc-documents",
-        params: values,
+    
+    try {
+      const response = await ApiService.completeProfile(values);
+      console.log('📡 [BasicDetails] API response:', {
+        success: response.success,
+        message: response.message,
       });
-    }, 400);
+      
+      if (response.success) {
+        // Update local auth store with new onboarding status
+        await updateOnboardingStatus(OnboardingStatus.PERSONAL_INFO, 20);
+        console.log('✅ [BasicDetails] Local state updated, navigating to KYC...');
+        
+        router.push({
+          pathname: "/registration/kyc-documents",
+          params: values,
+        });
+      } else {
+        Alert.alert("Error", response.message || "Failed to save profile");
+      }
+    } catch (error: any) {
+      console.error("❌ [BasicDetails] Profile completion error:", error);
+      Alert.alert("Error", "Failed to complete profile. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

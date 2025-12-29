@@ -1,16 +1,11 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
-import { ApiService } from "@/services/api";
+import { useAuthStore } from "@/store/auth";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import {
-  SafeAreaView,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 function InfoRow({
   icon,
@@ -48,35 +43,58 @@ function InfoRow({
 
 export default function ReviewAndSubmitScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const { partner, phoneNumber } = useAuthStore();
 
-  // In a real app, you'd collect all data from previous screens
+  // Collect registration data from auth store and route params
   const registrationData = {
-    name: "Rahul Kumar",
-    email: "rahul@example.com",
-    phone: "+91 98765 43210",
-    aadhaarNumber: "••••••••9012",
-    panNumber: "ABCDE••••F",
-    vehicleType: "Bike",
-    vehicleNumber: "KA01AB1234",
-    drivingLicenseNumber: "DL••••••7890",
+    name: partner?.name || "",
+    email: partner?.email || "",
+    phone: phoneNumber || "",
+    aadhaarNumber: params.aadhaarNumber
+      ? `••••••••${String(params.aadhaarNumber).slice(-4)}`
+      : "",
+    panNumber: params.panNumber
+      ? `${String(params.panNumber).slice(0, 5)}••••${String(
+          params.panNumber
+        ).slice(-1)}`
+      : "",
+    vehicleType: (params.vehicleType as string) || "",
+    vehicleNumber: (params.vehicleNumber as string) || "",
+    drivingLicenseNumber: params.drivingLicenseNumber
+      ? `DL••••••${String(params.drivingLicenseNumber).slice(-4)}`
+      : "",
   };
 
   const handleSubmit = async () => {
     if (!agreed) {
+      Alert.alert(
+        "Agreement Required",
+        "Please agree to the Terms of Service and Privacy Policy to continue."
+      );
       return;
     }
+
+    console.log('📤 [ReviewSubmit] Submitting application...');
     setLoading(true);
+    
     try {
-      const response = await ApiService.submitRegistration(
-        registrationData as any
-      );
-      if (response.success) {
-        router.replace("/registration/account-pending");
-      }
+      // Update local state to COMPLETED (not yet approved)
+      const { updateOnboardingStatus } = useAuthStore.getState();
+      await updateOnboardingStatus('completed', 100);
+      
+      console.log('✅ [ReviewSubmit] Application submitted, navigating to pending screen...');
+      
+      // Navigate to account pending status
+      router.replace("/registration/account-pending");
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error("❌ [ReviewSubmit] Registration error:", error);
+      Alert.alert(
+        "Error",
+        "Failed to complete registration. Please try again."
+      );
     } finally {
       setLoading(false);
     }

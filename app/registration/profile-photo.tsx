@@ -1,5 +1,6 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
+import { ApiService } from "@/services/api";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -7,12 +8,12 @@ import React, { useState } from "react";
 import {
   Alert,
   Image,
-  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const PHOTO_GUIDELINES = [
   {
@@ -80,7 +81,7 @@ export default function ProfilePhotoScreen() {
     ]);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!profilePhoto) {
       Alert.alert(
         "Photo Required",
@@ -90,13 +91,28 @@ export default function ProfilePhotoScreen() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      router.push({
-        pathname: "/registration/review-submit",
-        params: { profilePhoto },
+    try {
+      const response = await ApiService.uploadDocuments({
+        profilePhoto,
       });
-    }, 400);
+
+      if (response.success) {
+        router.push({
+          pathname: "/registration/review-submit",
+          params: { profilePhoto },
+        });
+      } else {
+        Alert.alert(
+          "Error",
+          response.message || "Failed to upload profile photo"
+        );
+      }
+    } catch (error: any) {
+      console.error("Profile photo upload error:", error);
+      Alert.alert("Error", "Failed to upload profile photo. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

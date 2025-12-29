@@ -3,5 +3,11 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
-  }
+  },
+  "json.schemas": [
+    {
+      "fileMatch": ["app.json"],
+      "url": "https://json.schemastore.org/expo-53.0.0.json"
+    }
+  ]
 }

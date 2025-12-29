@@ -1,142 +1,724 @@
-// Mock API Service for KhaoNow Delivery Partner App
-// This is a frontend simulation - will be replaced with real API calls later
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios, { AxiosError, AxiosInstance } from 'axios';
+import Constants from 'expo-constants';
+
+// API Configuration
+// Priority order:
+// 1. EXPO_PUBLIC_API_URL environment variable (for production builds)
+// 2. __DEV__ mode: Uses local backend 
+// 3. Fallback: Production backend
+
+const getApiUrl = () => {
+  // Check environment variable first (set in .env.local or eas.json)
+  const envApiUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL;
+  
+  if (envApiUrl) {
+    console.log('🌐 [API] Using environment API URL:', envApiUrl);
+    return envApiUrl;
+  }
+  
+  // Development mode: use local backend
+  if (__DEV__) {
+    // For local testing, you can override this by setting EXPO_PUBLIC_API_URL in .env.local
+    const localUrl = 'http://localhost:7071/'; // Update this to your current IP
+    console.log('🌐 [API] DEV mode - Using local backend:', localUrl);
+    console.log('💡 [API] To use a different URL, set EXPO_PUBLIC_API_URL in .env.local');
+    return localUrl;
+  }
+  
+  // Production fallback
+  const productionUrl = 'https://khaaonow-be.azurewebsites.net/api';
+  console.log('🌐 [API] Using production backend:', productionUrl);
+  return productionUrl;
+};
+
+const API_BASE_URL = getApiUrl();
+const TOKEN_KEY = 'delivery_partner_token';
+
+console.log('🌐 [API] Final backend URL:', API_BASE_URL);
+
+// Interfaces
+interface ApiResponse<T = any> {
+  success: boolean;
+  message: string;
+  data?: T;
+  error?: string;
+}
 
 interface LoginResponse {
   success: boolean;
-  exists: boolean;
+  exists?: boolean;
   partnerId?: string;
   message?: string;
+  data?: {
+    phone: string;
+    deliveryPartnerId: string;
+    token: string;
+    onboardingStatus: string;
+    onboardingProgress: number;
+    isApproved?: boolean;
+    profileComplete: boolean;
+  };
 }
 
-interface OtpResponse {
-  success: boolean;
-  token?: string;
-  partnerId?: string;
-  message?: string;
-}
-
-interface RegistrationData {
+interface ProfileData {
   name: string;
   email: string;
-  aadhaarNumber: string;
-  panNumber: string;
+}
+
+interface DocumentsData {
+  aadhaarNumber?: string;
+  panNumber?: string;
   aadhaarPhoto?: string;
   panPhoto?: string;
-  vehicleType: string;
-  vehicleNumber: string;
+  vehicleType?: string;
+  vehicleNumber?: string;
   rcPhoto?: string;
-  drivingLicenseNumber: string;
+  drivingLicenseNumber?: string;
   drivingLicensePhoto?: string;
   profilePhoto?: string;
 }
 
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+interface BankDetailsData {
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankIFSC: string;
+  bankAccountPhoto?: string;
+}
 
-// Mock storage for demo purposes
-const mockDatabase: Record<string, any> = {
-  '+919876543210': {
-    exists: true,
-    partnerId: 'PARTNER001',
-    name: 'Rahul Kumar',
-    status: 'active',
-  },
-};
+interface DeliveryPartner {
+  id: string;
+  phone: string;
+  email?: string;
+  name?: string;
+  avatar?: string;
+  provider: string;
+  isPhoneVerified: boolean;
+  isEmailVerified: boolean;
+  isApproved: boolean;
+  onboardingStatus: string;
+  onboardingProgress: number;
+  rating: number;
+  totalOrders: number;
+  completedOrders: number;
+  isActive: boolean;
+}
 
+// Axios Instance
+class ApiClient {
+  private client: AxiosInstance;
+
+  constructor() {
+    this.client = axios.create({
+      baseURL: API_BASE_URL,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Request Interceptor
+    this.client.interceptors.request.use(
+      async (config) => {
+        const token = await AsyncStorage.getItem(TOKEN_KEY);
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // Response Interceptor
+    this.client.interceptors.response.use(
+      (response) => response,
+      async (error: AxiosError) => {
+        if (error.response?.status === 401) {
+          // Token expired or invalid
+          await AsyncStorage.removeItem(TOKEN_KEY);
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  async get<T = any>(url: string, config?: any): Promise<T> {
+    const response = await this.client.get<T>(url, config);
+    return response.data;
+  }
+
+  async post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    const response = await this.client.post<T>(url, data, config);
+    return response.data;
+  }
+
+  async put<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    const response = await this.client.put<T>(url, data, config);
+    return response.data;
+  }
+
+  async patch<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    const response = await this.client.patch<T>(url, data, config);
+    return response.data;
+  }
+
+  async delete<T = any>(url: string, config?: any): Promise<T> {
+    const response = await this.client.delete<T>(url, config);
+    return response.data;
+  }
+}
+
+const apiClient = new ApiClient();
+
+// API Service
 export const ApiService = {
-  // Send OTP to phone number
-  async sendOtp(phoneNumber: string): Promise<LoginResponse> {
-    await delay(1000);
-    
-    const exists = !!mockDatabase[phoneNumber];
-    
-    // Mock: In development, log the OTP for easy testing
-    const mockOtp = '123456';
-    console.log('📱 Mock OTP for', phoneNumber, ':', mockOtp);
-    console.log('💡 Hint: Any 6-digit number will work in this demo');
-    
-    return {
-      success: true,
-      exists,
-      partnerId: exists ? mockDatabase[phoneNumber].partnerId : undefined,
-      message: 'OTP sent successfully',
-    };
-  },
-
-  // Verify OTP
-  async verifyOtp(phoneNumber: string, otp: string): Promise<OtpResponse> {
-    await delay(800);
-    
-    // Mock: For demo, accept any 6-digit OTP
-    // In production, this would validate against the backend
-    if (otp.length === 6 && /^\d{6}$/.test(otp)) {
-      const isExistingUser = !!mockDatabase[phoneNumber];
-      const partnerId = isExistingUser 
-        ? mockDatabase[phoneNumber].partnerId 
-        : 'PARTNER' + Math.floor(Math.random() * 100000);
+  // ==================== AUTHENTICATION ====================
+  
+  /**
+   * Verify Firebase Phone Token
+   * This is the primary authentication method using Firebase
+   */
+  async verifyPhoneToken(idToken: string, phone: string): Promise<LoginResponse> {
+    try {
+      const response = await apiClient.post<LoginResponse>(
+        '/delivery-partners/auth/verify-phone-token',
+        { idToken, phone }
+      );
+      
+      // Store token if available
+      if (response.data?.token) {
+        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
+      }
+      
+      return response;
+    } catch (error: any) {
+      console.error('Verify phone token error:', error);
+      
+      // Check if this is an "account already exists" error - treat as successful login
+      const errorMessage = error.response?.data?.message || '';
+      const errorData = error.response?.data?.data;
+      
+      if (errorMessage.toLowerCase().includes('already exists') && errorData) {
+        // Backend returned existing account data - treat as successful login
+        console.log('📱 [Auth] Existing account detected, treating as login');
+        
+        if (errorData.token) {
+          await AsyncStorage.setItem(TOKEN_KEY, errorData.token);
+        }
+        
+        return {
+          success: true,
+          message: 'Login successful',
+          data: errorData,
+        };
+      }
+      
+      // Also check if the error response contains success data (some API versions)
+      if (error.response?.data?.success && error.response?.data?.data) {
+        const data = error.response.data.data;
+        if (data.token) {
+          await AsyncStorage.setItem(TOKEN_KEY, data.token);
+        }
+        return {
+          success: true,
+          message: error.response.data.message || 'Login successful',
+          data: data,
+        };
+      }
       
       return {
-        success: true,
-        token: 'mock-jwt-token-' + Date.now(),
-        partnerId,
-        message: 'OTP verified successfully',
+        success: false,
+        message: error.response?.data?.message || 'Failed to verify phone token',
       };
     }
-    
-    return {
-      success: false,
-      message: 'Invalid OTP. Please enter a valid 6-digit code.',
-    };
   },
 
-  // Submit registration
-  async submitRegistration(data: RegistrationData): Promise<{ success: boolean; message: string; partnerId?: string }> {
-    await delay(1500);
-    
-    // Mock: always succeed
-    const partnerId = 'PARTNER' + Math.floor(Math.random() * 100000);
-    
-    return {
-      success: true,
-      message: 'Registration submitted successfully',
-      partnerId,
-    };
+  /**
+   * Send OTP to phone number
+   * Backend handles OTP generation and storage
+   */
+  async sendOtp(phoneNumber: string): Promise<LoginResponse> {
+    try {
+      // Format phone number to E.164 format (+91XXXXXXXXXX)
+      const phone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+      
+      const response = await apiClient.post<LoginResponse>(
+        '/delivery-partners/auth/send-otp',
+        { phone }
+      );
+      
+      return response;
+    } catch (error: any) {
+      console.error('Send OTP error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to send OTP',
+      };
+    }
   },
 
-  // Get partner dashboard data
-  async getDashboardData(partnerId: string): Promise<any> {
-    await delay(500);
-    
-    return {
-      earnings: {
-        today: 850,
-        week: 4250,
-        month: 18500,
-      },
-      stats: {
-        deliveriesToday: 12,
-        shiftsCompleted: 3,
-        activeOrders: 1,
-      },
-      onlineStatus: true,
-      activeOrder: {
-        orderId: 'ORD123456',
-        restaurant: 'Burger King',
-        customer: 'Amit Sharma',
-        address: '123, MG Road, Bangalore',
-        amount: 385,
-        status: 'picked_up',
-      },
-    };
+  /**
+   * Verify OTP and authenticate
+   * Returns JWT token on success
+   */
+  async verifyOtp(phoneNumber: string, otp: string): Promise<LoginResponse> {
+    try {
+      // Format phone number to E.164 format (+91XXXXXXXXXX)
+      const phone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+      
+      const response = await apiClient.post<LoginResponse>(
+        '/delivery-partners/auth/verify-otp',
+        { phone, otp }
+      );
+      
+      // Store token if available
+      if (response.data?.token) {
+        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
+      }
+      
+      return response;
+    } catch (error: any) {
+      console.error('Verify OTP error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to verify OTP',
+      };
+    }
   },
 
-  // Toggle online/offline status
-  async toggleOnlineStatus(partnerId: string, status: boolean): Promise<{ success: boolean; status: boolean }> {
-    await delay(300);
-    
-    return {
-      success: true,
-      status,
-    };
+  // ==================== PROFILE MANAGEMENT ====================
+  
+  /**
+   * Complete delivery partner profile
+   */
+  async completeProfile(data: ProfileData): Promise<ApiResponse<{ partner: DeliveryPartner; token: string }>> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        '/delivery-partners/profile/complete',
+        data
+      );
+      
+      // Update token if new one is provided
+      if (response.data?.token) {
+        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
+      }
+      
+      return response;
+    } catch (error: any) {
+      console.error('Complete profile error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to complete profile',
+      };
+    }
+  },
+
+  /**
+   * Upload registration documents
+   */
+  async uploadDocuments(data: DocumentsData): Promise<ApiResponse<{ partner: DeliveryPartner }>> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        '/delivery-partners/documents/upload',
+        data
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Upload documents error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to upload documents',
+      };
+    }
+  },
+
+  /**
+   * Add bank details
+   */
+  async addBankDetails(data: BankDetailsData): Promise<ApiResponse<{ partner: DeliveryPartner }>> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        '/delivery-partners/bank-details',
+        data
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Add bank details error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to add bank details',
+      };
+    }
+  },
+
+  /**
+   * Submit complete registration (combines all steps)
+   * Legacy method - kept for backward compatibility
+   */
+  async submitRegistration(data: any): Promise<{ success: boolean; message: string; partnerId?: string }> {
+    try {
+      // Step 1: Complete Profile
+      await this.completeProfile({
+        name: data.name,
+        email: data.email,
+      });
+
+      // Step 2: Upload Documents
+      await this.uploadDocuments({
+        aadhaarNumber: data.aadhaarNumber,
+        panNumber: data.panNumber,
+        aadhaarPhoto: data.aadhaarPhoto,
+        panPhoto: data.panPhoto,
+        vehicleType: data.vehicleType,
+        vehicleNumber: data.vehicleNumber,
+        rcPhoto: data.rcPhoto,
+        drivingLicenseNumber: data.drivingLicenseNumber,
+        drivingLicensePhoto: data.drivingLicensePhoto,
+        profilePhoto: data.profilePhoto,
+      });
+
+      return {
+        success: true,
+        message: 'Registration submitted successfully',
+      };
+    } catch (error: any) {
+      console.error('Submit registration error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to submit registration',
+      };
+    }
+  },
+
+  // ==================== PARTNER PROFILE ====================
+  
+  /**
+   * Get current partner profile
+   */
+  async getProfile(): Promise<ApiResponse<DeliveryPartner>> {
+    try {
+      const response = await apiClient.get<ApiResponse>('/delivery-partners/profile');
+      return response;
+    } catch (error: any) {
+      console.error('Get profile error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to get profile',
+      };
+    }
+  },
+
+  /**
+   * Update partner location
+   */
+  async updateLocation(latitude: number, longitude: number): Promise<ApiResponse> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        '/delivery-partners/location',
+        { latitude, longitude }
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Update location error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to update location',
+      };
+    }
+  },
+
+  /**
+   * Toggle online/offline status
+   */
+  async toggleOnlineStatus(isOnline: boolean): Promise<ApiResponse<{ isActive: boolean }>> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        '/delivery-partners/toggle-status',
+        { isActive: isOnline }
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Toggle status error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to toggle status',
+      };
+    }
+  },
+
+  // ==================== ORDERS ====================
+  
+  /**
+   * Get available orders for the delivery partner
+   */
+  async getAvailableOrders(): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get<ApiResponse>(
+        '/delivery-partners/orders/available'
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Get available orders error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to get available orders',
+        data: [],
+      };
+    }
+  },
+
+  /**
+   * Get assigned orders
+   */
+  async getAssignedOrders(): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get<ApiResponse>(
+        '/delivery-partners/orders/assigned'
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Get assigned orders error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to get assigned orders',
+        data: [],
+      };
+    }
+  },
+
+  /**
+   * Get order details by ID
+   */
+  async getOrderById(orderId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get<ApiResponse>(
+        `/delivery-partners/orders/${orderId}`
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Get order error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to get order details',
+      };
+    }
+  },
+
+  /**
+   * Accept an order
+   */
+  async acceptOrder(orderId: string): Promise<ApiResponse> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        `/delivery-partners/orders/${orderId}/accept`
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Accept order error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to accept order',
+      };
+    }
+  },
+
+  /**
+   * Reject/skip an order
+   */
+  async rejectOrder(orderId: string): Promise<ApiResponse> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        `/delivery-partners/orders/${orderId}/reject`
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Reject order error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to reject order',
+      };
+    }
+  },
+
+  /**
+   * Get current active order
+   */
+  async getActiveOrder(): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get<ApiResponse>(
+        '/delivery-partners/orders/active'
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Get active order error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to get active order',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Update order status
+   */
+  async updateOrderStatus(orderId: string, status: string): Promise<ApiResponse> {
+    try {
+      const response = await apiClient.patch<ApiResponse>(
+        `/delivery-partners/orders/${orderId}/status`,
+        { status }
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Update order status error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to update order status',
+      };
+    }
+  },
+
+  /**
+   * Get order history
+   */
+  async getOrderHistory(page: number = 1, limit: number = 20): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get<ApiResponse>(
+        `/delivery-partners/orders/history?page=${page}&limit=${limit}`
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Get order history error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to get order history',
+        data: [],
+      };
+    }
+  },
+
+  // ==================== EARNINGS ====================
+  
+  /**
+   * Get earnings summary
+   */
+  async getEarnings(period: 'today' | 'week' | 'month' = 'today'): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get<ApiResponse>(
+        `/delivery-partners/earnings?period=${period}`
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Get earnings error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to get earnings',
+        data: {
+          today: 0,
+          week: 0,
+          month: 0,
+        },
+      };
+    }
+  },
+
+  /**
+   * Get dashboard data
+   */
+  async getDashboardData(): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get<ApiResponse>('/delivery-partners/dashboard');
+      return response;
+    } catch (error: any) {
+      console.error('Get dashboard data error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to get dashboard data',
+        data: {
+          earnings: { today: 0, week: 0, month: 0 },
+          stats: { deliveriesToday: 0, shiftsCompleted: 0, activeOrders: 0 },
+          onlineStatus: false,
+        },
+      };
+    }
+  },
+
+  // ==================== GOOGLE AUTHENTICATION ====================
+
+  /**
+   * Authenticate with Google
+   * Sends Google user data to backend
+   */
+  async googleLogin(googleData: {
+    googleId: string;
+    email: string;
+    name: string;
+    picture?: string;
+  }): Promise<LoginResponse> {
+    try {
+      const response = await apiClient.post<any>(
+        '/delivery-partners/auth/google',
+        googleData
+      );
+      
+      // Store token if available
+      if (response.data?.token) {
+        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
+      }
+      
+      return {
+        success: response.success,
+        message: response.message,
+        data: {
+          phone: response.data?.partner?.phone || '',
+          deliveryPartnerId: response.data?.partner?.id || response.data?.partner?._id,
+          token: response.data?.token,
+          onboardingStatus: response.data?.partner?.onboardingStatus,
+          onboardingProgress: response.data?.onboardingProgress || response.data?.partner?.onboardingProgress,
+          profileComplete: response.data?.partner?.onboardingStatus === 'completed',
+        },
+      };
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to authenticate with Google',
+      };
+    }
+  },
+
+  // ==================== UTILITY ====================
+  
+  /**
+   * Store authentication token
+   */
+  async storeToken(token: string): Promise<void> {
+    await AsyncStorage.setItem(TOKEN_KEY, token);
+  },
+
+  /**
+   * Get stored token
+   */
+  async getToken(): Promise<string | null> {
+    return await AsyncStorage.getItem(TOKEN_KEY);
+  },
+
+  /**
+   * Remove stored token
+   */
+  async removeToken(): Promise<void> {
+    await AsyncStorage.removeItem(TOKEN_KEY);
+  },
+
+  /**
+   * Check if user is authenticated
+   */
+  async isAuthenticated(): Promise<boolean> {
+    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    return !!token;
   },
 };
+
+export default ApiService;

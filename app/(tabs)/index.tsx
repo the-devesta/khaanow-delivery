@@ -1,74 +1,103 @@
 import OrderRequestModal from "@/components/orders/OrderRequestModal";
 import StatCard from "@/components/ui/stat-card";
 import StatusToggle from "@/components/ui/status-toggle";
+import { useLocationTracking } from "@/hooks/useLocationTracking";
+import { ApiService } from "@/services/api";
 import { useOrderStore } from "@/store/orders";
 import { usePartnerStore } from "@/store/partner";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+interface DashboardData {
+  earnings: {
+    today: number;
+    week: number;
+    month: number;
+  };
+  stats: {
+    deliveriesToday: number;
+    weekOrders: number;
+    totalOrders: number;
+    completedOrders: number;
+    activeOrders: number;
+  };
+  rating: number;
+  onlineStatus: boolean;
+  activeOrder: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    restaurantName: string;
+    customerAddress: string;
+    totalAmount: number;
+    estimatedTime?: string;
+  } | null;
+}
+
+interface ProfileData {
+  name?: string;
+  phone: string;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [toggleLoading, setToggleLoading] = useState(false);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
 
-  const { isOnline, toggleOnline, initializeStore } = usePartnerStore();
+  const { isOnline, toggleOnline, syncOnlineStatus } = usePartnerStore();
 
-  const {
-    pendingOrder,
-    activeOrder,
-    orderHistory,
-    acceptOrder,
-    rejectOrder,
-    simulateNewOrder,
-  } = useOrderStore();
+  const { pendingOrder, activeOrder, acceptOrder, rejectOrder } =
+    useOrderStore();
 
-  // Calculate stats from orderHistory to match orders and earnings tabs
-  const { todayEarnings, completedOrders } = useMemo(() => {
-    const completedOrdersList = orderHistory.filter(
-      (o) => o.status === "delivered"
-    );
+  // Location tracking - auto-starts when online, auto-stops when offline
+  // The hook handles location updates to backend internally
+  useLocationTracking({
+    updateInterval: 30000, // Update every 30 seconds
+    distanceThreshold: 50, // Update if moved 50 meters
+  });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const fetchDashboard = async () => {
+    try {
+      // Fetch dashboard data
+      const dashboardResponse = await ApiService.getDashboardData();
+      if (dashboardResponse.success && dashboardResponse.data) {
+        setDashboardData(dashboardResponse.data);
+        // Sync online status with backend
+        if (dashboardResponse.data.onlineStatus !== undefined) {
+          syncOnlineStatus(dashboardResponse.data.onlineStatus);
+        }
+      }
 
-    const todayOrders = completedOrdersList.filter((o) => {
-      const orderDate = new Date(o.createdAt);
-      orderDate.setHours(0, 0, 0, 0);
-      return orderDate.getTime() === today.getTime();
-    });
-
-    const todayEarnings = todayOrders.reduce((sum, o) => sum + o.earnings, 0);
-
-    return {
-      todayEarnings,
-      completedOrders: todayOrders.length,
-    };
-  }, [orderHistory]);
-
-  useEffect(() => {
-    initializeStore();
-  }, [initializeStore]);
-
-  // Simulate new orders when online (for development)
-  useEffect(() => {
-    if (isOnline && !pendingOrder && !activeOrder) {
-      const timer = setTimeout(() => {
-        simulateNewOrder();
-      }, 10000); // New order every 10 seconds when online
-
-      return () => clearTimeout(timer);
+      // Fetch profile for name
+      const profileResponse = await ApiService.getProfile();
+      if (profileResponse.success && profileResponse.data) {
+        setProfile(profileResponse.data as any);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [isOnline, pendingOrder, activeOrder, simulateNewOrder]);
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAcceptOrder = () => {
     if (pendingOrder) {
@@ -85,36 +114,66 @@ export default function HomeScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await initializeStore();
-    setTimeout(() => setRefreshing(false), 800);
+    await fetchDashboard();
+    setRefreshing(false);
   };
 
-  const handleToggleOnline = () => {
+  const handleToggleOnline = async () => {
     setToggleLoading(true);
-    setTimeout(() => {
-      toggleOnline();
-      setToggleLoading(false);
+    try {
+      await toggleOnline();
+      // Refresh dashboard to get updated status
+      await fetchDashboard();
       if (!isOnline) {
         Alert.alert(
           "You're Online! 🎉",
           "You'll start receiving order requests now."
         );
       }
-    }, 500);
+    } catch (error) {
+      console.error("Toggle online error:", error);
+      Alert.alert("Error", "Failed to update status. Please try again.");
+    } finally {
+      setToggleLoading(false);
+    }
   };
 
   const handleViewOrderDetails = () => {
     if (activeOrder) {
       router.push(`/orders/${activeOrder.id}`);
+    } else if (dashboardData?.activeOrder) {
+      router.push(`/orders/${dashboardData.activeOrder.id}`);
     }
   };
 
-  const partnerName = "Rahul Kumar";
+  const partnerName = profile?.name || "Delivery Partner";
   const currentDate = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
   });
+
+  // Use dashboard data for stats
+  const todayEarnings = dashboardData?.earnings?.today || 0;
+  const completedOrders = dashboardData?.stats?.deliveriesToday || 0;
+  const currentActiveOrder = activeOrder || (dashboardData?.activeOrder ? {
+    id: dashboardData.activeOrder.id,
+    restaurantName: dashboardData.activeOrder.restaurantName,
+    customerName: "Customer",
+    customerAddress: dashboardData.activeOrder.customerAddress,
+    earnings: dashboardData.activeOrder.totalAmount * 0.1,
+    status: dashboardData.activeOrder.status,
+    estimatedTime: dashboardData.activeOrder.estimatedTime || "15 mins",
+  } : null);
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#FAFAFA] items-center justify-center">
+        <ActivityIndicator size="large" color="#FF6A00" />
+        <Text className="text-gray-500 mt-4">Loading dashboard...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#FAFAFA]">
@@ -182,7 +241,7 @@ export default function HomeScreen() {
           <Text className="text-lg font-bold text-[#1A1A1A] mb-4">
             Active Order
           </Text>
-          {activeOrder ? (
+          {currentActiveOrder ? (
             <TouchableOpacity
               onPress={handleViewOrderDetails}
               activeOpacity={0.8}
@@ -193,15 +252,18 @@ export default function HomeScreen() {
                 <View className="flex-row items-center">
                   <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
                   <Text className="text-sm font-bold ml-2 text-[#3B82F6]">
-                    {activeOrder.status === "accepted" && "Order Accepted"}
-                    {activeOrder.status === "picked_up" && "Picked Up"}
-                    {activeOrder.status === "on_the_way" && "On the Way"}
+                    {currentActiveOrder.status === "accepted" && "Order Accepted"}
+                    {currentActiveOrder.status === "picked_up" && "Picked Up"}
+                    {currentActiveOrder.status === "on_the_way" && "On the Way"}
+                    {currentActiveOrder.status === "confirmed" && "Order Confirmed"}
+                    {currentActiveOrder.status === "preparing" && "Preparing"}
+                    {currentActiveOrder.status === "out_for_delivery" && "Out for Delivery"}
                   </Text>
                 </View>
                 <View className="flex-row items-center">
                   <Ionicons name="time-outline" size={16} color="#3B82F6" />
                   <Text className="text-sm font-semibold ml-1 text-[#3B82F6]">
-                    {activeOrder.estimatedTime}
+                    {currentActiveOrder.estimatedTime}
                   </Text>
                 </View>
               </View>
@@ -211,7 +273,7 @@ export default function HomeScreen() {
                 <View className="mb-4">
                   <Text className="text-xs text-[#7A7A7A] mb-1">ORDER ID</Text>
                   <Text className="text-sm font-bold text-[#1A1A1A]">
-                    #{activeOrder.id.slice(-8)}
+                    #{currentActiveOrder.id.slice(-8)}
                   </Text>
                 </View>
 
@@ -225,7 +287,7 @@ export default function HomeScreen() {
                       PICK UP FROM
                     </Text>
                     <Text className="text-base font-bold text-[#1A1A1A]">
-                      {activeOrder.restaurantName}
+                      {currentActiveOrder.restaurantName}
                     </Text>
                   </View>
                 </View>
@@ -240,10 +302,10 @@ export default function HomeScreen() {
                       DELIVER TO
                     </Text>
                     <Text className="text-base font-bold text-[#1A1A1A] mb-1">
-                      {activeOrder.customerName}
+                      {currentActiveOrder.customerName}
                     </Text>
                     <Text className="text-sm text-[#6B7280]">
-                      {activeOrder.customerAddress}
+                      {currentActiveOrder.customerAddress}
                     </Text>
                   </View>
                 </View>
@@ -255,7 +317,7 @@ export default function HomeScreen() {
                       EARNINGS
                     </Text>
                     <Text className="text-lg font-bold text-[#10B981]">
-                      ₹{activeOrder.earnings}
+                      ₹{currentActiveOrder.earnings}
                     </Text>
                   </View>
                   <View className="flex-row items-center bg-[#FF6A00] px-4 py-2 rounded-full">
