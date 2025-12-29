@@ -35,14 +35,22 @@ module.exports = {
     scheme: "khaaonowdelivery",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
+    extra: {
+      eas: {
+        projectId: "18e5d747-329a-48f8-b821-16f514594caf"
+      }
+    },
     ios: {
+      "infoPlist": {
+      "ITSAppUsesNonExemptEncryption": false
+    },
       supportsTablet: true,
       bundleIdentifier: "com.khaaonow.delivery",
-      googleServicesFile: "./GoogleService-Info.plist"
+      googleServicesFile: process.env.IOS_GOOGLE_SERVICES_PLIST
     },
     android: {
       package: "com.khaaonow.delivery",
-      googleServicesFile: "./google-services.json",
+      googleServicesFile: process.env.ANDROID_GOOGLE_SERVICES_JSON,
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
         foregroundImage: "./assets/images/logo2.png",

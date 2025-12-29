@@ -33,7 +33,18 @@ yarn-error.*
 # local env files
 .env*.local
 .env.local
-.env.example
+.env
+
+# Sensitive configuration files
+google-services.json
+GoogleService-Info.plist
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
 # typescript
 *.tsbuildinfo
 
@@ -43,8 +54,10 @@ app-example
 /ios
 /android
 
-# Firebase
-google-services.json
-GoogleService-Info.plist
+# EAS Build
+*.aab
+*.apk
+build/
 
 eas.json
+
