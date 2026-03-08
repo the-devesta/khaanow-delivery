@@ -17,60 +17,55 @@ export default function ProgressTracker({
   steps,
 }: ProgressTrackerProps) {
   return (
-    <View className="bg-white px-6 py-5">
-      <View className="flex-row items-center justify-between">
-        {steps.map((step, index) => {
-          const stepNumber = index + 1;
-          const isCompleted = stepNumber < currentStep;
-          const isActive = stepNumber === currentStep;
+    <View className="flex-row items-center justify-between">
+      {steps.map((step, index) => {
+        const stepNumber = index + 1;
+        const isCompleted = stepNumber < currentStep;
+        const isActive = stepNumber === currentStep;
 
-          return (
-            <React.Fragment key={index}>
-              <View className="items-center flex-1">
-                <View
-                  className={`w-12 h-12 rounded-full items-center justify-center mb-2 ${
-                    isCompleted
-                      ? "bg-[#10B981]"
-                      : isActive
-                      ? "bg-[#FF6A00]"
-                      : "bg-[#E5E7EB]"
-                  }`}
-                >
-                  {isCompleted ? (
-                    <Ionicons name="checkmark" size={24} color="white" />
-                  ) : (
-                    <Ionicons
-                      name={step.icon as any}
-                      size={22}
-                      color={isActive ? "white" : "#9CA3AF"}
-                    />
-                  )}
-                </View>
-                <Text
-                  className={`text-xs font-semibold text-center ${
-                    isCompleted || isActive
-                      ? "text-[#1A1A1A]"
-                      : "text-[#9CA3AF]"
-                  }`}
-                >
-                  {step.label}
-                </Text>
-              </View>
-
-              {index < steps.length - 1 && (
-                <View className="flex-1 h-0.5 bg-[#E5E7EB] mx-1 -mt-8">
-                  <View
-                    className={`h-full ${
-                      isCompleted ? "bg-[#10B981]" : "bg-[#E5E7EB]"
-                    }`}
-                    style={{ width: isCompleted ? "100%" : "0%" }}
+        return (
+          <React.Fragment key={index}>
+            <View className="items-center flex-1">
+              <View
+                className={`w-12 h-12 rounded-full items-center justify-center mb-2  border-2 border-white ${
+                  isCompleted
+                    ? "bg-green-500"
+                    : isActive
+                      ? "bg-amber-500"
+                      : "bg-gray-200"
+                }`}>
+                {isCompleted ? (
+                  <Ionicons name="checkmark" size={20} color="white" />
+                ) : (
+                  <Ionicons
+                    name={step.icon as any}
+                    size={20}
+                    color={isActive ? "white" : "#9CA3AF"}
                   />
-                </View>
-              )}
-            </React.Fragment>
-          );
-        })}
-      </View>
+                )}
+              </View>
+              <Text
+                className={`text-[9px] font-semibold text-center leading-3 mt-1 ${
+                  isCompleted || isActive ? "text-gray-900" : "text-gray-400"
+                }`}
+                numberOfLines={1}>
+                {step.label}
+              </Text>
+            </View>
+
+            {index < steps.length - 1 && (
+              <View className="flex-1 h-0.5 bg-gray-200 mx-1 -mt-7 rounded-full">
+                <View
+                  className={`h-full rounded-full ${
+                    isCompleted ? "bg-green-500" : "bg-gray-200"
+                  }`}
+                  style={{ width: isCompleted ? "100%" : "0%" }}
+                />
+              </View>
+            )}
+          </React.Fragment>
+        );
+      })}
     </View>
   );
 }

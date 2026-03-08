@@ -156,7 +156,7 @@ export default function PaymentsScreen() {
           <ScrollView
             contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
             {/* Bank Details Card */}
-            <View className="bg-white rounded-3xl p-6 shadow-sm mb-6">
+            <View className="bg-white rounded-3xl p-6  mb-6">
               <View className="flex-row items-center justify-between mb-6">
                 <Text className="text-lg font-bold text-gray-900">
                   Bank Account
@@ -239,7 +239,7 @@ export default function PaymentsScreen() {
             </View>
 
             {/* UPI ID Card */}
-            <View className="bg-white rounded-3xl p-6 shadow-sm mb-6">
+            <View className="bg-white rounded-3xl p-6  mb-6">
               <View className="flex-row items-center justify-between mb-6">
                 <Text className="text-lg font-bold text-gray-900">
                   UPI Information

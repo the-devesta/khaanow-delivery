@@ -36,9 +36,8 @@ export default function PrimaryButton({
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      className={`w-full py-4 rounded-3xl ${getButtonStyle()}`}
-      activeOpacity={0.8}
-    >
+      className={`w-full py-3.5 rounded-xl  ${getButtonStyle()}`}
+      activeOpacity={0.8}>
       <View className="flex-row items-center justify-center">
         {loading ? (
           <ActivityIndicator
@@ -46,7 +45,8 @@ export default function PrimaryButton({
           />
         ) : (
           <>
-            <Text className={`text-center text-lg font-bold ${getTextStyle()}`}>
+            <Text
+              className={`text-center text-base font-bold ${getTextStyle()}`}>
               {title}
             </Text>
             {icon && <View className="ml-2">{icon}</View>}

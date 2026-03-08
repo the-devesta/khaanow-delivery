@@ -9,6 +9,7 @@ import { useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StatusBar,
   Text,
@@ -127,15 +128,22 @@ export default function ReviewAndSubmitScreen() {
       {/* Background Image with Blur */}
       <View className="absolute w-full h-full overflow-hidden">
         <Image
-          source={require("../../assets/images/reg-docs.png")} // Reusing docs image for review
+          source={require("../../assets/images/reg-docs.png")}
           className="w-full h-full"
           resizeMode="cover"
         />
-        <BlurView
-          intensity={40}
-          tint="dark"
-          className="absolute w-full h-full"
-        />
+        {Platform.OS === "ios" ? (
+          <BlurView
+            intensity={40}
+            tint="dark"
+            className="absolute w-full h-full"
+          />
+        ) : (
+          <View
+            className="absolute w-full h-full"
+            style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          />
+        )}
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.8)"]}
           style={{ position: "absolute", width: "100%", height: "100%" }}
@@ -153,7 +161,12 @@ export default function ReviewAndSubmitScreen() {
         <View className="px-6 mb-6">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="w-10 h-10 bg-white rounded-full items-center justify-center border border-white/10 mb-6"
+            className="w-10 h-10 rounded-full items-center justify-center mb-6"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.45)",
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.3)",
+            }}
             activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
           </TouchableOpacity>
@@ -165,7 +178,7 @@ export default function ReviewAndSubmitScreen() {
 
         {/* Title Section */}
         <View className="px-6 mb-8">
-          <Text className="text-4xl font-extrabold text-white mb-2 shadow-sm tracking-tight">
+          <Text className="text-4xl font-extrabold text-white mb-2  tracking-tight">
             Review & Submit
           </Text>
           <Text className="text-lg text-white/80 font-medium tracking-wide">

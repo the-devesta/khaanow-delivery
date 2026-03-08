@@ -32,7 +32,7 @@ export default function SupportScreen() {
       </View>
 
       <View className="p-6">
-        <View className="bg-white rounded-3xl p-6 shadow-sm mb-4">
+        <View className="bg-white rounded-3xl p-6  mb-4">
           <Text className="text-lg font-bold text-gray-900 mb-2">
             Contact Support
           </Text>

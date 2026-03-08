@@ -1,3 +1,4 @@
+import MissedOrderCard from "@/components/orders/MissedOrderCard";
 import OrderRequestModal from "@/components/orders/OrderRequestModal";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { ApiService } from "@/services/api";
@@ -10,7 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -68,8 +69,32 @@ export default function HomeScreen() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
 
   const { isOnline, toggleOnline, syncOnlineStatus } = usePartnerStore();
-  const { pendingOrder, activeOrder, acceptOrder, rejectOrder } =
-    useOrderStore();
+  const {
+    pendingOrder,
+    pendingOrderReceivedAt,
+    activeOrder,
+    missedOrders,
+    acceptOrder,
+    rejectOrder,
+    fetchAssignedOrders,
+    fetchAvailableOrders,
+    dismissMissedOrder,
+    pruneMissedOrders,
+  } = useOrderStore();
+
+  // Only show active (still-acceptable) orders in "Pending Requests" on the home screen.
+  // Expired / cancelled ones are visible in the Orders tab.
+  const activePendingRequests = missedOrders.filter(
+    (m) => m.expiresAt.getTime() > Date.now() && m.stillAvailable,
+  );
+
+  // Remaining seconds for a persisted pendingOrder (so the modal starts the timer at the right point)
+  const pendingInitialTimeLeft = useMemo(() => {
+    if (!pendingOrder || !pendingOrderReceivedAt) return undefined;
+    const elapsed = Math.floor((Date.now() - pendingOrderReceivedAt) / 1000);
+    return Math.max(0, (pendingOrder.acceptanceTimeoutSeconds ?? 30) - elapsed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingOrder?.id, pendingOrderReceivedAt]);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -119,6 +144,14 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchDashboard();
+    fetchAssignedOrders();
+    fetchAvailableOrders(); // immediately surface any waiting orders from the backend
+
+    // Poll available orders every 60s so "stillAvailable" stays accurate
+    const availablePoll = setInterval(() => {
+      fetchAvailableOrders();
+      pruneMissedOrders();
+    }, 60_000);
 
     // Register for push notifications
     const registerPush = async () => {
@@ -133,13 +166,19 @@ export default function HomeScreen() {
     };
 
     registerPush();
+    return () => clearInterval(availablePoll);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleAcceptOrder = () => {
+  const handleAcceptOrder = async () => {
     if (pendingOrder) {
-      acceptOrder(pendingOrder.id);
-      router.push(`/orders/${pendingOrder.id}`);
+      const id = pendingOrder.id;
+      await acceptOrder(id);
+      // Only navigate if accept succeeded (activeOrder will be set)
+      const { activeOrder: newActive } = useOrderStore.getState();
+      if (newActive?.id === id) {
+        router.push(`/orders/${id}`);
+      }
     }
   };
 
@@ -191,18 +230,20 @@ export default function HomeScreen() {
   const completedOrders = dashboardData?.stats?.deliveriesToday || 0;
 
   const currentActiveOrder =
-    activeOrder ||
-    (dashboardData?.activeOrder
-      ? {
-          id: dashboardData.activeOrder.id,
-          restaurantName: dashboardData.activeOrder.restaurantName,
-          customerName: "Customer",
-          customerAddress: dashboardData.activeOrder.customerAddress,
-          earnings: dashboardData.activeOrder.totalAmount * 0.1,
-          status: dashboardData.activeOrder.status,
-          estimatedTime: dashboardData.activeOrder.estimatedTime || "15 mins",
-        }
-      : null);
+    activeOrder && activeOrder.status !== "delivered"
+      ? activeOrder
+      : dashboardData?.activeOrder &&
+          dashboardData.activeOrder.status !== "delivered"
+        ? {
+            id: dashboardData.activeOrder.id,
+            restaurantName: dashboardData.activeOrder.restaurantName,
+            customerName: "Customer",
+            customerAddress: dashboardData.activeOrder.customerAddress,
+            earnings: dashboardData.activeOrder.totalAmount * 0.1,
+            status: dashboardData.activeOrder.status,
+            estimatedTime: dashboardData.activeOrder.estimatedTime || "15 mins",
+          }
+        : null;
 
   if (loading) {
     return (
@@ -266,7 +307,7 @@ export default function HomeScreen() {
               </Text>
             </View>
             <TouchableOpacity
-              className="w-12 h-12 bg-white rounded-full items-center justify-center shadow-sm"
+              className="w-12 h-12 bg-white rounded-full items-center justify-center "
               activeOpacity={0.7}
               onPress={() => router.push("/(tabs)/profile")}>
               <Ionicons
@@ -283,7 +324,7 @@ export default function HomeScreen() {
             <View className="bg-gray-50 rounded-[28px] p-5 flex-row items-center justify-between">
               <View className="flex-row items-center flex-1 pr-4">
                 <View
-                  className={`w-14 h-14 rounded-full items-center justify-center mr-4 shadow-sm ${
+                  className={`w-14 h-14 rounded-full items-center justify-center mr-4  ${
                     isOnline ? "bg-[#10B981]" : "bg-[#EF4444]"
                   }`}>
                   {toggleLoading ? (
@@ -318,6 +359,19 @@ export default function HomeScreen() {
               />
             </View>
           </View>
+
+          {/* Pending Requests - only show actively-available orders */}
+          {activePendingRequests.length > 0 && (
+            <>
+              <Text className="text-lg font-bold text-[#1A1A1A] mb-4 ml-1">
+                Pending Requests 🔔
+              </Text>
+              {activePendingRequests.map((missed) => (
+                <MissedOrderCard key={missed.order.id} missed={missed} />
+              ))}
+              <View className="mb-4" />
+            </>
+          )}
 
           {/* Stats Overview */}
           <Text className="text-lg font-bold text-[#1A1A1A] mb-4 ml-1">
@@ -380,38 +434,58 @@ export default function HomeScreen() {
               className="bg-white rounded-[32px] p-1 mb-8"
               style={glassStyle}>
               <View className="bg-gray-50 rounded-[28px] overflow-hidden">
-                {/* Status Bar */}
-                <LinearGradient
-                  colors={["#DBEAFE", "#EFF6FF"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  className="px-5 py-4 flex-row items-center justify-between border-b border-gray-200">
-                  <View className="flex-row items-center">
-                    <View className="w-2 h-2 bg-[#3B82F6] rounded-full mr-2 animate-pulse" />
-                    <Text className="text-sm font-bold text-[#3B82F6] tracking-wide">
-                      {currentActiveOrder.status === "accepted" &&
-                        "ORDER ACCEPTED"}
-                      {currentActiveOrder.status === "picked_up" && "PICKED UP"}
-                      {currentActiveOrder.status === "on_the_way" &&
-                        "ON THE WAY"}
-                      {currentActiveOrder.status === "confirmed" && "CONFIRMED"}
-                      {currentActiveOrder.status === "preparing" && "PREPARING"}
-                      {currentActiveOrder.status === "out_for_delivery" &&
-                        "OUT FOR DELIVERY"}
-                    </Text>
-                  </View>
-                  <View className="bg-white/80 px-2.5 py-1 rounded-full flex-row items-center">
-                    <Ionicons name="time" size={12} color="#3B82F6" />
-                    <Text className="text-xs font-bold text-[#3B82F6] ml-1">
-                      {currentActiveOrder.estimatedTime}
-                    </Text>
-                  </View>
-                </LinearGradient>
+                <View className="p-5" style={{ position: "relative" }}>
+                  {/* Status & Time Pills */}
+                  <View className="flex-row items-center justify-between mb-5">
+                    <View className="bg-blue-50 px-3 py-1.5 rounded-full flex-row items-center border border-blue-100">
+                      <View className="w-2 h-2 bg-[#3B82F6] rounded-full mr-2" />
+                      <Text className="text-sm font-bold text-[#3B82F6]">
+                        {(() => {
+                          const s = currentActiveOrder.status;
+                          const labels: Record<string, string> = {
+                            delivery_partner_accepted: "Accepted",
+                            accepted: "Accepted",
+                            delivery_partner_reached: "At Restaurant",
+                            delivery_partner_picked_up: "Picked Up",
+                            picked_up: "Picked Up",
+                            delivery_partner_reached_user_dest: "On The Way",
+                            on_the_way: "On The Way",
+                            delivered: "Delivered",
+                            confirmed: "Confirmed",
+                            preparing: "Preparing",
+                            ready: "Ready",
+                            out_for_delivery: "Out For Delivery",
+                          };
+                          return (
+                            labels[s] ??
+                            s
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (c) => c.toUpperCase())
+                          );
+                        })()}
+                      </Text>
+                    </View>
 
-                <View className="p-5">
+                    <View className="bg-blue-50 px-3 py-1.5 rounded-full flex-row items-center border border-blue-100">
+                      <Ionicons name="time" size={14} color="#3B82F6" />
+                      <Text className="text-xs font-bold text-[#3B82F6] ml-1.5">
+                        {(() => {
+                          const t = currentActiveOrder.estimatedTime;
+                          if (!t) return "–";
+                          if (typeof t === "string" && t.includes("min"))
+                            return t;
+                          const num = parseFloat(String(t));
+                          if (isNaN(num)) return t;
+                          if (num > 120) return `${Math.ceil(num / 60)} min`;
+                          return `${Math.ceil(num)} min`;
+                        })()}
+                      </Text>
+                    </View>
+                  </View>
+
                   {/* Restaurant */}
-                  <View className="flex-row items-start mb-6">
-                    <View className="w-12 h-12 bg-[#FFFBEB] rounded-2xl items-center justify-center shadow-sm">
+                  <View className="flex-row items-start mb-2">
+                    <View className="w-12 h-12 bg-[#FFFBEB] rounded-2xl items-center justify-center ">
                       <Ionicons name="restaurant" size={24} color="#F59E0B" />
                     </View>
                     <View className="ml-4 flex-1 justify-center">
@@ -427,11 +501,13 @@ export default function HomeScreen() {
                   </View>
 
                   {/* Connect Line */}
-                  <View className="absolute left-[43px] top-[90px] w-[2px] h-8 bg-gray-200" />
+                  <View className="ml-5 pl-[3.5px] py-1">
+                    <View className="w-[2px] h-6 bg-gray-200 ml-3" />
+                  </View>
 
                   {/* Customer */}
                   <View className="flex-row items-start mb-6">
-                    <View className="w-12 h-12 bg-[#D1FAE5] rounded-2xl items-center justify-center shadow-sm">
+                    <View className="w-12 h-12 bg-[#D1FAE5] rounded-2xl items-center justify-center ">
                       <Ionicons name="location" size={24} color="#10B981" />
                     </View>
                     <View className="ml-4 flex-1 justify-center">
@@ -458,7 +534,7 @@ export default function HomeScreen() {
                         Est. Earnings
                       </Text>
                       <Text className="text-xl font-bold text-[#10B981]">
-                        ₹{currentActiveOrder.earnings}
+                        ₹{currentActiveOrder.earnings || 0}
                       </Text>
                     </View>
 
@@ -476,7 +552,7 @@ export default function HomeScreen() {
             <View
               className="bg-white rounded-[32px] p-8 items-center justify-center mb-8"
               style={glassStyle}>
-              <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4 shadow-sm">
+              <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4 ">
                 <Ionicons name="cube-outline" size={36} color="#9CA3AF" />
               </View>
               <Text className="text-lg font-bold text-[#1A1A1A] mb-2">
@@ -510,7 +586,7 @@ export default function HomeScreen() {
               className="flex-1 bg-white rounded-[28px] p-5 items-center"
               style={glassStyle}
               onPress={() => router.push("/(tabs)/orders")}>
-              <View className="w-14 h-14 bg-[#FFF7ED] rounded-2xl items-center justify-center mb-3 shadow-sm">
+              <View className="w-14 h-14 bg-[#FFF7ED] rounded-2xl items-center justify-center mb-3 ">
                 <Ionicons name="time" size={26} color="#F59E0B" />
               </View>
               <Text className="text-sm font-bold text-[#1A1A1A]">History</Text>
@@ -522,7 +598,7 @@ export default function HomeScreen() {
               className="flex-1 bg-white rounded-[28px] p-5 items-center"
               style={glassStyle}
               onPress={() => router.push("/(tabs)/earnings")}>
-              <View className="w-14 h-14 bg-[#EFF6FF] rounded-2xl items-center justify-center mb-3 shadow-sm">
+              <View className="w-14 h-14 bg-[#EFF6FF] rounded-2xl items-center justify-center mb-3 ">
                 <Ionicons name="bar-chart" size={26} color="#3B82F6" />
               </View>
               <Text className="text-sm font-bold text-[#1A1A1A]">Reports</Text>
@@ -549,11 +625,12 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Order Request Modal */}
-      {pendingOrder && !activeOrder && (
+      {pendingOrder && (
         <OrderRequestModal
           order={pendingOrder}
           onAccept={handleAcceptOrder}
           onReject={handleRejectOrder}
+          initialTimeLeft={pendingInitialTimeLeft}
         />
       )}
     </View>

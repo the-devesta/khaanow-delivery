@@ -82,7 +82,7 @@ function DocumentUploadCard({
     <TouchableOpacity
       onPress={showOptions}
       activeOpacity={0.7}
-      className="bg-white/5 rounded-2xl border-2 border-dashed border-white/20 overflow-hidden mb-4 mt-2"
+      className="bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 overflow-hidden mb-4 mt-2"
       style={{ minHeight: 140, justifyContent: "center" }}>
       {imageUri ? (
         <View className="relative w-full h-40">
@@ -91,22 +91,24 @@ function DocumentUploadCard({
             className="w-full h-full"
             resizeMode="cover"
           />
-          <View className="absolute top-2 right-2 bg-green-500 rounded-full p-1.5 shadow-sm">
+          <View className="absolute top-2 right-2 bg-green-500 rounded-full p-1.5 ">
             <Ionicons name="checkmark" size={16} color="white" />
           </View>
           <TouchableOpacity
             onPress={showOptions}
-            className="absolute bottom-2 right-2 bg-white rounded-full p-2 border border-white/30">
-            <Ionicons name="camera" size={18} color="#FFFFFF" />
+            className="absolute bottom-2 right-2 bg-white rounded-full p-2 border border-gray-200">
+            <Ionicons name="camera" size={18} color="#374151" />
           </TouchableOpacity>
         </View>
       ) : (
         <View className="py-6 px-4 items-center">
-          <View className="w-12 h-12 bg-gray-100 rounded-full items-center justify-center mb-3 border border-gray-200">
+          <View className="w-12 h-12 bg-amber-50 rounded-full items-center justify-center mb-3 border border-amber-200">
             <Ionicons name="cloud-upload-outline" size={24} color="#F59E0B" />
           </View>
-          <Text className="text-sm font-bold text-white mb-0.5">{title}</Text>
-          <Text className="text-xs text-white/50 text-center max-w-[200px]">
+          <Text className="text-sm font-bold text-gray-700 mb-0.5">
+            {title}
+          </Text>
+          <Text className="text-xs text-gray-400 text-center max-w-[200px]">
             {subtitle}
           </Text>
         </View>
@@ -239,11 +241,18 @@ export default function VehicleDetailsScreen() {
           className="w-full h-full"
           resizeMode="cover"
         />
-        <BlurView
-          intensity={40}
-          tint="dark"
-          className="absolute w-full h-full"
-        />
+        {Platform.OS === "ios" ? (
+          <BlurView
+            intensity={40}
+            tint="dark"
+            className="absolute w-full h-full"
+          />
+        ) : (
+          <View
+            className="absolute w-full h-full"
+            style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          />
+        )}
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.8)"]}
           style={{ position: "absolute", width: "100%", height: "100%" }}
@@ -264,8 +273,18 @@ export default function VehicleDetailsScreen() {
           <View className="px-6 mb-6">
             <TouchableOpacity
               onPress={() => router.back()}
-              className="w-10 h-10 bg-white rounded-full items-center justify-center border border-white/10 mb-6"
-              activeOpacity={0.8}>
+              activeOpacity={0.8}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 24,
+                backgroundColor: "rgba(0,0,0,0.45)",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.3)",
+              }}>
               <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
             </TouchableOpacity>
 
@@ -277,7 +296,7 @@ export default function VehicleDetailsScreen() {
           {/* Main Content */}
           <View className="px-6 flex-1 justify-end pb-8">
             <View className="mb-8">
-              <Text className="text-4xl font-extrabold text-white mb-2 shadow-sm tracking-tight">
+              <Text className="text-4xl font-extrabold text-white mb-2  tracking-tight">
                 Vehicle Details
               </Text>
               <Text className="text-lg text-white/80 font-medium tracking-wide">
@@ -287,7 +306,7 @@ export default function VehicleDetailsScreen() {
 
             {/* Glassmorphism Form Card */}
             <View
-              className="bg-white rounded-[32px] p-6 border-2 border-white/20 shadow-lg shadow-black/20"
+              className="bg-white rounded-[32px] p-6 border-2 border-gray-200 shadow-lg shadow-black/20"
               style={{
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: 10 },
@@ -296,10 +315,11 @@ export default function VehicleDetailsScreen() {
               }}>
               {/* Vehicle Type Selection */}
               <View className="mb-6">
-                <Text className="text-xs font-bold text-white/70 mb-3 ml-1 uppercase tracking-wider">
+                <Text className="text-xs font-bold text-gray-600 mb-3 ml-1 uppercase tracking-wider">
                   Select Vehicle Type
                 </Text>
-                <View className="flex-row justify-between flex-wrap gap-2">
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
                   {VEHICLE_TYPES.map((vehicle) => (
                     <Pressable
                       key={vehicle.id}
@@ -308,43 +328,87 @@ export default function VehicleDetailsScreen() {
                         if (errors.vehicle)
                           setErrors({ ...errors, vehicle: "" });
                       }}
-                      style={({ pressed }) => ({
-                        width: "48%",
-                        aspectRatio: 1.3,
-                        borderRadius: 16,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginBottom: 8,
-                        borderWidth: 1,
-                        borderColor:
-                          selectedVehicle === vehicle.id
-                            ? "transparent"
-                            : "rgba(255,255,255,0.1)",
-                        backgroundColor:
-                          selectedVehicle === vehicle.id
-                            ? "rgba(255,255,255,0.9)"
-                            : "rgba(255,255,255,0.05)",
-                        opacity: pressed ? 0.7 : 1,
-                      })}>
-                      <View className="mb-2">
-                        <Ionicons
-                          name={vehicle.icon as any}
-                          size={32}
-                          color={
+                      style={{
+                        width: "22%",
+                        marginBottom: 4,
+                      }}
+                      android_ripple={{
+                        color: "rgba(245,158,11,0.2)",
+                        borderless: false,
+                      }}>
+                      <View
+                        style={{
+                          width: "100%",
+                          aspectRatio: 0.9,
+                          borderRadius: 16,
+                          paddingVertical: 10,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderWidth: 2,
+                          borderColor:
                             selectedVehicle === vehicle.id
-                              ? "#000000"
-                              : "rgba(255,255,255,0.7)"
-                          }
-                        />
+                              ? "#D97706"
+                              : "#D1D5DB",
+                          backgroundColor:
+                            selectedVehicle === vehicle.id
+                              ? "#F59E0B"
+                              : "#F3F4F6",
+                          overflow: "hidden",
+                          shadowColor:
+                            selectedVehicle === vehicle.id ? "#F59E0B" : "#000",
+                          shadowOffset: {
+                            width: 0,
+                            height: selectedVehicle === vehicle.id ? 4 : 1,
+                          },
+                          shadowOpacity:
+                            selectedVehicle === vehicle.id ? 0.4 : 0.06,
+                          shadowRadius: selectedVehicle === vehicle.id ? 8 : 2,
+                          elevation: selectedVehicle === vehicle.id ? 6 : 1,
+                        }}>
+                        {/* Selected checkmark badge */}
+                        {selectedVehicle === vehicle.id && (
+                          <View
+                            style={{
+                              position: "absolute",
+                              top: 6,
+                              right: 6,
+                              width: 18,
+                              height: 18,
+                              borderRadius: 9,
+                              backgroundColor: "#FFFFFF",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}>
+                            <Ionicons
+                              name="checkmark"
+                              size={11}
+                              color="#D97706"
+                            />
+                          </View>
+                        )}
+                        <View style={{ marginBottom: 6 }}>
+                          <Ionicons
+                            name={vehicle.icon as any}
+                            size={32}
+                            color={
+                              selectedVehicle === vehicle.id
+                                ? "#FFFFFF"
+                                : "#4B5563"
+                            }
+                          />
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "700",
+                            color:
+                              selectedVehicle === vehicle.id
+                                ? "#FFFFFF"
+                                : "#374151",
+                          }}>
+                          {vehicle.name}
+                        </Text>
                       </View>
-                      <Text
-                        className={`text-xs font-bold ${
-                          selectedVehicle === vehicle.id
-                            ? "text-black"
-                            : "text-white/60"
-                        }`}>
-                        {vehicle.name}
-                      </Text>
                     </Pressable>
                   ))}
                 </View>
@@ -377,18 +441,14 @@ export default function VehicleDetailsScreen() {
                 <View>
                   {/* Vehicle Number */}
                   <View className="mb-6">
-                    <Text className="text-xs font-bold text-white/70 mb-2 ml-1 uppercase tracking-wider">
+                    <Text className="text-xs font-bold text-gray-600 mb-2 ml-1 uppercase tracking-wider">
                       Vehicle Number
                     </Text>
-                    <View className="flex-row items-center bg-white/10 rounded-2xl border border-white/10 h-14 px-4 shadow-sm">
-                      <Ionicons
-                        name="car-outline"
-                        size={20}
-                        color="rgba(255,255,255,0.7)"
-                      />
+                    <View className="flex-row items-center bg-gray-50 rounded-2xl border border-gray-200 h-14 px-4 ">
+                      <Ionicons name="car-outline" size={20} color="#6B7280" />
                       <TextInput
                         placeholder="e.g., KA01AB1234"
-                        placeholderTextColor="rgba(255,255,255,0.4)"
+                        placeholderTextColor="#9CA3AF"
                         autoCapitalize="characters"
                         maxLength={10}
                         value={vehicleNumber}
@@ -397,7 +457,7 @@ export default function VehicleDetailsScreen() {
                           if (errors.vehicleNum)
                             setErrors({ ...errors, vehicleNum: "" });
                         }}
-                        className="flex-1 ml-3 text-lg text-white font-semibold h-full"
+                        className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
                         selectionColor="#F59E0B"
                       />
                       {vehicleNumber &&
@@ -423,29 +483,25 @@ export default function VehicleDetailsScreen() {
                     />
                   </View>
 
-                  <View className="h-[1px] bg-white/10 mb-6" />
+                  <View className="h-[1px] bg-gray-200 mb-6" />
 
                   {/* Driving License */}
                   <View className="mb-6">
-                    <Text className="text-xs font-bold text-white/70 mb-2 ml-1 uppercase tracking-wider">
+                    <Text className="text-xs font-bold text-gray-600 mb-2 ml-1 uppercase tracking-wider">
                       Driving License
                     </Text>
-                    <View className="flex-row items-center bg-white/10 rounded-2xl border border-white/10 h-14 px-4 shadow-sm">
-                      <Ionicons
-                        name="card-outline"
-                        size={20}
-                        color="rgba(255,255,255,0.7)"
-                      />
+                    <View className="flex-row items-center bg-gray-50 rounded-2xl border border-gray-200 h-14 px-4 ">
+                      <Ionicons name="card-outline" size={20} color="#6B7280" />
                       <TextInput
                         placeholder="Enter DL number"
-                        placeholderTextColor="rgba(255,255,255,0.4)"
+                        placeholderTextColor="#9CA3AF"
                         autoCapitalize="characters"
                         value={dlNumber}
                         onChangeText={(text) => {
                           setDlNumber(text.toUpperCase());
                           if (errors.dl) setErrors({ ...errors, dl: "" });
                         }}
-                        className="flex-1 ml-3 text-lg text-white font-semibold h-full"
+                        className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
                         selectionColor="#F59E0B"
                       />
                       {dlNumber && !validateDL(dlNumber) && (

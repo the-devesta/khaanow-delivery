@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StatusBar,
   Text,
@@ -66,11 +67,18 @@ export default function AccountRejectedScreen() {
           className="w-full h-full"
           resizeMode="cover"
         />
-        <BlurView
-          intensity={50}
-          tint="dark"
-          className="absolute w-full h-full"
-        />
+        {Platform.OS === "ios" ? (
+          <BlurView
+            intensity={50}
+            tint="dark"
+            className="absolute w-full h-full"
+          />
+        ) : (
+          <View
+            className="absolute w-full h-full"
+            style={{ backgroundColor: "rgba(0,0,0,0.65)" }}
+          />
+        )}
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.9)"]}
           style={{ position: "absolute", width: "100%", height: "100%" }}
@@ -85,14 +93,16 @@ export default function AccountRejectedScreen() {
           paddingTop: insets.top + 20,
           paddingBottom: insets.bottom + 20,
         }}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <View className="flex-1 px-5">
           {/* Header with Logout */}
           <View className="flex-row items-center justify-end mb-8">
             <TouchableOpacity
               onPress={handleLogout}
               className="flex-row items-center px-4 py-2 bg-white rounded-full border border-white/20"
-              activeOpacity={0.7}>
+              activeOpacity={0.7}
+            >
               <Ionicons name="log-out-outline" size={18} color="#EF4444" />
               <Text className="text-red-400 font-semibold ml-2 text-sm">
                 Logout
@@ -119,30 +129,30 @@ export default function AccountRejectedScreen() {
           {/* Reason Card */}
           <View className="bg-white rounded-[24px] p-6 mb-4 border border-gray-200">
             <View className="flex-row items-start mb-4">
-              <View className="w-12 h-12 bg-amber-500/20 rounded-2xl items-center justify-center border border-amber-500/30">
+              <View className="w-12 h-12 bg-amber-100 rounded-2xl items-center justify-center border border-amber-200">
                 <Ionicons name="information-circle" size={26} color="#F59E0B" />
               </View>
               <View className="ml-4 flex-1 pt-1">
-                <Text className="text-lg font-bold text-white mb-2">
+                <Text className="text-lg font-bold text-gray-900 mb-2">
                   Possible Reasons
                 </Text>
 
                 <View className="space-y-3">
                   <View className="flex-row items-start">
-                    <View className="w-1.5 h-1.5 bg-white/50 rounded-full mt-2.5 mr-3" />
-                    <Text className="flex-1 text-[15px] text-white/70 leading-5">
+                    <View className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2.5 mr-3" />
+                    <Text className="flex-1 text-[15px] text-gray-600 leading-5">
                       Documents were unclear or invalid
                     </Text>
                   </View>
                   <View className="flex-row items-start">
-                    <View className="w-1.5 h-1.5 bg-white/50 rounded-full mt-2.5 mr-3" />
-                    <Text className="flex-1 text-[15px] text-white/70 leading-5">
+                    <View className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2.5 mr-3" />
+                    <Text className="flex-1 text-[15px] text-gray-600 leading-5">
                       Information mismatch in submitted documents
                     </Text>
                   </View>
                   <View className="flex-row items-start">
-                    <View className="w-1.5 h-1.5 bg-white/50 rounded-full mt-2.5 mr-3" />
-                    <Text className="flex-1 text-[15px] text-white/70 leading-5">
+                    <View className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2.5 mr-3" />
+                    <Text className="flex-1 text-[15px] text-gray-600 leading-5">
                       Background verification did not pass
                     </Text>
                   </View>
@@ -153,7 +163,7 @@ export default function AccountRejectedScreen() {
 
           {/* What You Can Do Card */}
           <View className="bg-white rounded-[24px] p-6 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-white mb-6 uppercase tracking-wider opacity-90">
+            <Text className="text-lg font-bold text-gray-900 mb-6 uppercase tracking-wider opacity-90">
               What You Can Do
             </Text>
 
@@ -161,8 +171,9 @@ export default function AccountRejectedScreen() {
               <TouchableOpacity
                 onPress={handleContactSupport}
                 className="flex-row items-center p-4 bg-gray-50 rounded-2xl border border-gray-200"
-                activeOpacity={0.7}>
-                <View className="w-11 h-11 bg-green-500/20 rounded-xl items-center justify-center border border-green-500/30">
+                activeOpacity={0.7}
+              >
+                <View className="w-11 h-11 bg-green-100 rounded-xl items-center justify-center border border-green-200">
                   <Ionicons
                     name="chatbubble-ellipses"
                     size={22}
@@ -170,40 +181,33 @@ export default function AccountRejectedScreen() {
                   />
                 </View>
                 <View className="ml-4 flex-1">
-                  <Text className="text-[15px] font-bold text-white">
+                  <Text className="text-[15px] font-bold text-gray-900">
                     Contact Support
                   </Text>
-                  <Text className="text-sm text-white/60">
+                  <Text className="text-sm text-gray-500">
                     Get help with your application
                   </Text>
                 </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={22}
-                  color="rgba(255,255,255,0.3)"
-                />
+                <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={handleTryAgain}
                 className="flex-row items-center p-4 bg-gray-50 rounded-2xl border border-gray-200"
-                activeOpacity={0.7}>
-                <View className="w-11 h-11 bg-indigo-500/20 rounded-xl items-center justify-center border border-indigo-500/30">
+                activeOpacity={0.7}
+              >
+                <View className="w-11 h-11 bg-indigo-100 rounded-xl items-center justify-center border border-indigo-200">
                   <Ionicons name="reload" size={22} color="#818CF8" />
                 </View>
                 <View className="ml-4 flex-1">
-                  <Text className="text-[15px] font-bold text-white">
+                  <Text className="text-[15px] font-bold text-gray-900">
                     Apply Again
                   </Text>
-                  <Text className="text-sm text-white/60">
+                  <Text className="text-sm text-gray-500">
                     Restart the application process
                   </Text>
                 </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={22}
-                  color="rgba(255,255,255,0.3)"
-                />
+                <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
           </View>

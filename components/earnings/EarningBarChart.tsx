@@ -14,37 +14,128 @@ export default function EarningBarChart({
   data,
   maxValue,
 }: EarningBarChartProps) {
+  const chartHeight = 160;
+
   return (
     <View className="w-full">
-      <Text className="text-lg font-bold text-[#1A1A1A] mb-6 tracking-wide">
-        Weekly Earnings
-      </Text>
-      <View className="flex-row items-end justify-between h-48 w-full">
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "flex-end",
+          height: chartHeight,
+        }}
+      >
         {data.map((item, index) => {
-          const heightPercentage = (item.value / maxValue) * 100;
-          // Ensure min height for visibility
-          const barHeight = Math.max((heightPercentage / 100) * 180, 8);
+          const ratio = maxValue > 0 ? item.value / maxValue : 0;
+          const barH = Math.max(
+            ratio * (chartHeight - 20),
+            item.value > 0 ? 12 : 4,
+          );
+          const isToday = index === data.length - 1;
 
           return (
-            <View key={index} className="items-center flex-1 mx-1">
-              <View className="items-center justify-end flex-1 w-full">
-                {item.value > 0 && (
-                  <Text className="text-[10px] font-bold text-[#6B7280] mb-1">
-                    ₹{item.value}
-                  </Text>
-                )}
-                <View
-                  className="w-full rounded-t-lg shadow-sm"
+            <View
+              key={index}
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "flex-end",
+                height: chartHeight,
+                paddingHorizontal: 2,
+              }}
+            >
+              {/* Value label */}
+              {item.value > 0 && (
+                <Text
                   style={{
-                    height: barHeight,
-                    backgroundColor: "#F59E0B", // Amber/Yellow
-                    opacity: item.value > 0 ? 1 : 0.3,
+                    fontSize: 9,
+                    fontWeight: "700",
+                    color: isToday ? "#F59E0B" : "#9CA3AF",
+                    marginBottom: 3,
+                    textAlign: "center",
                   }}
-                />
+                  numberOfLines={1}
+                >
+                  ₹
+                  {item.value >= 1000
+                    ? `${(item.value / 1000).toFixed(1)}k`
+                    : item.value}
+                </Text>
+              )}
+
+              {/* Bar */}
+              <View
+                style={{
+                  width: "75%",
+                  height: barH,
+                  borderRadius: 12,
+                  backgroundColor: isToday
+                    ? "#FFD026"
+                    : item.value > 0
+                      ? "#FFE066"
+                      : "#F3F4F6",
+                  opacity: item.value > 0 ? 1 : 0.5,
+                  ...(item.value > 0
+                    ? {
+                        borderColor: isToday ? "#D97706" : "#EAB308",
+                        borderWidth: 1,
+                        borderBottomWidth: 2,
+                      }
+                    : {}),
+                }}
+              >
+                {item.value > 0 && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      borderTopLeftRadius: 10,
+                      borderTopRightRadius: 10,
+                      borderTopWidth: 2,
+                      borderTopColor: "rgba(255, 255, 255, 0.6)",
+                      borderLeftWidth: 1,
+                      borderLeftColor: "rgba(255, 255, 255, 0.4)",
+                    }}
+                  />
+                )}
               </View>
-              <Text className="text-[10px] font-medium text-[#9CA3AF] mt-2 uppercase tracking-wider">
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Base line */}
+      <View className="h-px bg-gray-100 mt-1 mb-2" />
+
+      {/* Day labels */}
+      <View style={{ flexDirection: "row" }}>
+        {data.map((item, index) => {
+          const isToday = index === data.length - 1;
+          return (
+            <View key={index} style={{ flex: 1, alignItems: "center" }}>
+              <Text
+                style={{
+                  fontSize: data.length > 10 ? 8 : 10,
+                  fontWeight: isToday ? "800" : "600",
+                  color: isToday ? "#F59E0B" : "#9CA3AF",
+                }}
+              >
                 {item.label}
               </Text>
+              {isToday && (
+                <View
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: "#F59E0B",
+                    marginTop: 2,
+                  }}
+                />
+              )}
             </View>
           );
         })}

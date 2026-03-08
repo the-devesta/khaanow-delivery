@@ -24,7 +24,7 @@ export default function SettingsScreen() {
       </View>
 
       <View className="p-6">
-        <View className="bg-white rounded-3xl p-6 shadow-sm mb-6">
+        <View className="bg-white rounded-3xl p-6  mb-6">
           <Text className="text-gray-900 font-bold mb-4 text-base">
             Preferences
           </Text>
@@ -60,7 +60,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View className="bg-white rounded-3xl p-6 shadow-sm">
+        <View className="bg-white rounded-3xl p-6 ">
           <Text className="text-gray-900 font-bold mb-4 text-base">About</Text>
 
           <TouchableOpacity className="flex-row items-center justify-between py-3 border-b border-gray-100">

@@ -173,7 +173,7 @@ export default function ProfileScreen() {
           </Text>
 
           {/* Profile Card */}
-          <View className="bg-white rounded-[32px] p-1 shadow-sm mb-6">
+          <View className="bg-white rounded-[32px] p-1  mb-6">
             <View className="bg-gray-50 rounded-[28px] p-6 flex-row items-center">
               <View className="w-20 h-20 bg-[#F59E0B] rounded-[24px] items-center justify-center mr-5 shadow-lg shadow-amber-200 border-4 border-white">
                 <Text className="text-white text-2xl font-bold">
@@ -204,7 +204,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* Stats Card */}
-          <View className="bg-white rounded-[32px] p-6 shadow-sm mb-8">
+          <View className="bg-white rounded-[32px] p-6  mb-8">
             <View className="flex-row justify-between">
               <View className="items-center flex-1">
                 <View className="w-10 h-10 bg-[#FFFBEB] rounded-xl items-center justify-center mb-2">
@@ -256,7 +256,7 @@ export default function ProfileScreen() {
                 key={item.id}
                 activeOpacity={0.7}
                 onPress={() => item.route && router.push(item.route as any)}
-                className="flex-row items-center justify-between bg-white rounded-[24px] p-4 shadow-sm">
+                className="flex-row items-center justify-between bg-white rounded-[24px] p-4 ">
                 <View className="flex-row items-center flex-1">
                   <View
                     className="w-10 h-10 rounded-2xl items-center justify-center mr-4"

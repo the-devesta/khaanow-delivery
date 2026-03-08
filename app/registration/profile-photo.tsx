@@ -12,6 +12,7 @@ import { useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StatusBar,
   Text,
@@ -144,11 +145,18 @@ export default function ProfilePhotoScreen() {
           className="w-full h-full"
           resizeMode="cover"
         />
-        <BlurView
-          intensity={40}
-          tint="dark"
-          className="absolute w-full h-full"
-        />
+        {Platform.OS === "ios" ? (
+          <BlurView
+            intensity={40}
+            tint="dark"
+            className="absolute w-full h-full"
+          />
+        ) : (
+          <View
+            className="absolute w-full h-full"
+            style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          />
+        )}
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.8)"]}
           style={{ position: "absolute", width: "100%", height: "100%" }}
@@ -166,7 +174,12 @@ export default function ProfilePhotoScreen() {
         <View className="px-6 mb-6">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="w-10 h-10 bg-white rounded-full items-center justify-center border border-white/10 mb-6"
+            className="w-10 h-10 rounded-full items-center justify-center mb-6"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.45)",
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.3)",
+            }}
             activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
           </TouchableOpacity>
@@ -179,7 +192,7 @@ export default function ProfilePhotoScreen() {
         {/* Main Content */}
         <View className="px-6 flex-1 justify-end pb-8">
           <View className="mb-8">
-            <Text className="text-4xl font-extrabold text-white mb-2 shadow-sm tracking-tight">
+            <Text className="text-4xl font-extrabold text-white mb-2  tracking-tight">
               Profile Photo
             </Text>
             <Text className="text-lg text-white/80 font-medium tracking-wide">
@@ -189,7 +202,7 @@ export default function ProfilePhotoScreen() {
 
           {/* Glassmorphism Card */}
           <View
-            className="bg-white rounded-[32px] p-6 border-2 border-white/20 shadow-lg shadow-black/20"
+            className="bg-white rounded-[32px] p-6 border-2 border-gray-200 shadow-lg shadow-black/20"
             style={{
               shadowColor: "#000",
               shadowOffset: { width: 0, height: 10 },
@@ -239,7 +252,7 @@ export default function ProfilePhotoScreen() {
 
             {/* Guidelines */}
             <View className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-200">
-              <Text className="text-sm font-bold text-white mb-3 uppercase tracking-wider opacity-80">
+              <Text className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider opacity-80">
                 Photo Guidelines
               </Text>
               {PHOTO_GUIDELINES.map((item, index) => (
@@ -253,7 +266,7 @@ export default function ProfilePhotoScreen() {
                     size={16}
                     color={item.color}
                   />
-                  <Text className="text-sm text-white/80 ml-3 flex-1">
+                  <Text className="text-sm text-gray-600 ml-3 flex-1">
                     {item.text}
                   </Text>
                 </View>
@@ -275,10 +288,10 @@ export default function ProfilePhotoScreen() {
 
                 <TouchableOpacity
                   onPress={pickImage}
-                  className="bg-white/10 py-4 rounded-2xl flex-row items-center justify-center border border-white/20"
+                  className="bg-gray-100 py-4 rounded-2xl flex-row items-center justify-center border border-gray-200"
                   activeOpacity={0.7}>
-                  <Ionicons name="images-outline" size={22} color="white" />
-                  <Text className="ml-2 text-base font-semibold text-white">
+                  <Ionicons name="images-outline" size={22} color="#374151" />
+                  <Text className="ml-2 text-base font-semibold text-gray-700">
                     Choose from Gallery
                   </Text>
                 </TouchableOpacity>

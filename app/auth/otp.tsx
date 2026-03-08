@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,6 +16,45 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+interface OtpBoxProps {
+  digit: string;
+  isFocused: boolean;
+}
+
+function OtpBox({ digit, isFocused }: OtpBoxProps) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (digit) {
+      Animated.sequence([
+        Animated.timing(scale, {
+          toValue: 1.15,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          friction: 4,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [digit]);
+
+  return (
+    <Animated.View
+      className="w-12 h-14 md:w-14 md:h-16 rounded-2xl border-2 items-center justify-center"
+      style={{
+        backgroundColor: isFocused ? "#FFF" : "#F8F8F8",
+        borderColor: isFocused ? "#FF6A00" : digit ? "#FF6A00" : "#E5E5E5",
+        transform: [{ scale }],
+      }}
+    >
+      <Text className="text-2xl font-bold text-[#1A1A1A]">{digit || ""}</Text>
+    </Animated.View>
+  );
+}
 
 export default function OtpScreen() {
   const router = useRouter();
@@ -26,8 +66,11 @@ export default function OtpScreen() {
 
   const [resendLoading, setResendLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  // A single string state holds the entire OTP
+  const [otp, setOtp] = useState("");
+  const inputRef = useRef<TextInput>(null);
+  const [isInputFocused, setIsInputFocused] = useState(true);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -36,33 +79,15 @@ export default function OtpScreen() {
     }
   }, [resendTimer]);
 
-  const handleOtpChange = (value: string, index: number) => {
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === "Backspace" && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
   const handleVerifyOtp = async () => {
-    const otpValue = otp.join("");
-    if (otpValue.length !== 6) return;
+    if (otp.length !== 6) return;
 
     try {
       clearError();
       console.log("🔐 [OTP] Verifying OTP...");
 
       // Verify OTP with WhatsApp backend
-      const response = await verifyOtp(phoneNumber, otpValue);
+      const response = await verifyOtp(phoneNumber, otp);
 
       if (response.success && response.data) {
         console.log("✅ [OTP] Verification successful:", {
@@ -76,7 +101,6 @@ export default function OtpScreen() {
         const formattedPhone = `+91${phoneNumber}`;
 
         // Store full authentication data including onboarding status
-        // Backend now returns isApproved directly
         await setAuthenticated(
           true,
           response.data.deliveryPartnerId,
@@ -113,7 +137,8 @@ export default function OtpScreen() {
 
       if (success) {
         setResendTimer(30);
-        setOtp(["", "", "", "", "", ""]);
+        setOtp("");
+        inputRef.current?.focus();
         Alert.alert("Success", "OTP sent successfully!");
       } else if (error) {
         Alert.alert("Error", error);
@@ -126,21 +151,32 @@ export default function OtpScreen() {
     }
   };
 
+  const handlePressOtpContainer = () => {
+    inputRef.current?.focus();
+  };
+
+  // Convert the OTP string into an array of 6 elements for rendering
+  const otpArray = otp.split("");
+  const codeLength = new Array(6).fill("");
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1">
+        className="flex-1"
+      >
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
-          keyboardShouldPersistTaps="always"
-          showsVerticalScrollIndicator={false}>
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View className="flex-1 px-6 pt-12">
             {/* Back Button */}
             <TouchableOpacity
               onPress={() => router.back()}
               className="w-12 h-12 bg-[#F8F8F8] rounded-full items-center justify-center mb-8"
-              activeOpacity={0.7}>
+              activeOpacity={0.7}
+            >
               <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
             </TouchableOpacity>
 
@@ -157,37 +193,49 @@ export default function OtpScreen() {
               </Text>
             </View>
 
-            {/* OTP Input */}
-            <View className="flex-row justify-between mb-8">
-              {otp.map((digit, index) => (
-                <View
-                  key={index}
-                  className="w-14 h-16 bg-[#F8F8F8] rounded-2xl border-2 items-center justify-center"
-                  style={{
-                    borderColor: digit ? "#FF6A00" : "#E5E5E5",
-                  }}>
-                  <TextInput
-                    ref={(ref) => {
-                      inputRefs.current[index] = ref;
-                    }}
-                    value={digit}
-                    onChangeText={(value) => handleOtpChange(value, index)}
-                    onKeyPress={(e) => handleKeyPress(e, index)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    className="text-2xl font-bold text-[#1A1A1A] text-center"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      padding: 0,
-                      textAlign: "center",
-                    }}
-                    autoFocus={index === 0}
-                    selectTextOnFocus
-                  />
-                </View>
-              ))}
-            </View>
+            {/* OTP Input Container */}
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={handlePressOtpContainer}
+              className="flex-row justify-between mb-8"
+            >
+              {codeLength.map((_, index) => {
+                const digit = otpArray[index] || "";
+                // The active box is the one right after the current input length
+                // Unless the input is full (length === 6), then no box is heavily highlighted
+                const isCurrentIndex = otp.length === index;
+                const isFocused = isInputFocused && isCurrentIndex;
+
+                return (
+                  <OtpBox key={index} digit={digit} isFocused={isFocused} />
+                );
+              })}
+
+              {/* HIDDEN INVISIBLE TEXT INPUT TO CAPTURE ALL TYPING/PASTING */}
+              <TextInput
+                ref={inputRef}
+                value={otp}
+                onChangeText={(text) => {
+                  // Keep only digits and slice to max length
+                  const cleanText = text.replace(/[^0-9]/g, "");
+                  setOtp(cleanText.slice(0, 6));
+                }}
+                maxLength={6}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                textContentType="oneTimeCode"
+                autoComplete="sms-otp"
+                autoFocus={true}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
+                style={{
+                  position: "absolute",
+                  width: 1,
+                  height: 1,
+                  opacity: 0,
+                }}
+              />
+            </TouchableOpacity>
 
             {/* Resend OTP */}
             <View className="flex-row items-center justify-center mb-8">
@@ -204,7 +252,8 @@ export default function OtpScreen() {
                 <TouchableOpacity
                   onPress={handleResendOtp}
                   activeOpacity={0.7}
-                  disabled={resendLoading}>
+                  disabled={resendLoading}
+                >
                   <Text className="text-sm font-semibold text-[#FF6A00]">
                     Resend OTP
                   </Text>
@@ -217,7 +266,7 @@ export default function OtpScreen() {
               title="Verify & Continue"
               onPress={handleVerifyOtp}
               loading={loading}
-              disabled={otp.join("").length !== 6}
+              disabled={otp.length !== 6}
             />
           </View>
         </ScrollView>

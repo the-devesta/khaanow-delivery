@@ -65,11 +65,18 @@ export default function BasicDetailsScreen() {
           className="w-full h-full"
           resizeMode="cover"
         />
-        <BlurView
-          intensity={40}
-          tint="dark"
-          className="absolute w-full h-full"
-        />
+        {Platform.OS === "ios" ? (
+          <BlurView
+            intensity={40}
+            tint="dark"
+            className="absolute w-full h-full"
+          />
+        ) : (
+          <View
+            className="absolute w-full h-full"
+            style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          />
+        )}
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.8)"]}
           style={{ position: "absolute", width: "100%", height: "100%" }}
@@ -103,7 +110,7 @@ export default function BasicDetailsScreen() {
           {/* Main Content */}
           <View className="px-6 flex-1 justify-end pb-8">
             <View className="mb-8">
-              <Text className="text-4xl font-extrabold text-white mb-2 shadow-sm tracking-tight">
+              <Text className="text-4xl font-extrabold text-white mb-2  tracking-tight">
                 Personal Info
               </Text>
               <Text className="text-lg text-white/80 font-medium tracking-wide">
@@ -113,7 +120,7 @@ export default function BasicDetailsScreen() {
 
             {/* Glassmorphism Form Card */}
             <View
-              className="bg-white rounded-[32px] p-6 border-2 border-white/20 shadow-lg shadow-black/20"
+              className="bg-white rounded-[32px] p-6 border-2 border-gray-200 shadow-lg shadow-black/20"
               style={{
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: 10 },
@@ -192,13 +199,13 @@ export default function BasicDetailsScreen() {
                     </View>
 
                     {/* Privacy Note */}
-                    <View className="flex-row items-center mb-6 bg-blue-500/10 p-3 rounded-xl border border-blue-400/20">
+                    <View className="flex-row items-center mb-6 bg-blue-50 p-3 rounded-xl border border-blue-200">
                       <Ionicons
                         name="shield-checkmark"
                         size={14}
-                        color="#60A5FA"
+                        color="#3B82F6"
                       />
-                      <Text className="text-xs text-blue-200 ml-2 font-medium flex-1">
+                      <Text className="text-xs text-blue-600 ml-2 font-medium flex-1">
                         Your data is encrypted and secure.
                       </Text>
                     </View>

@@ -3,16 +3,16 @@ import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { API_BASE_URL } from "../services/api";
 import { useAuthStore } from "../store/auth";
 
 // Configure notification handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
     shouldShowBanner: true,
     shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
   }),
 });
 
@@ -73,8 +73,7 @@ export async function registerForPushNotificationsAsync() {
  */
 export async function registerPushTokenWithBackend(token: string) {
   try {
-    const API_URL =
-      process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000/api";
+    const API_URL = API_BASE_URL || "https://api.khaaonow.com/api";
     const { token: authToken } = useAuthStore.getState();
 
     if (!authToken) {

@@ -1,39 +1,85 @@
-import { storage } from "@/config/firebase";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+
+// Resolve the backend base URL (same logic as api.ts)
+const getBaseUrl = (): string => {
+  const envApiUrl =
+    Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL;
+  if (envApiUrl) return envApiUrl;
+  return "https://api.khaaonow.com/api";
+};
 
 /**
- * Upload image to Firebase Storage
- * @param uri Local file URI
- * @param folder Folder name in storage (e.g., 'delivery_partners')
- * @returns Download URL
+ * Upload image to Firebase Storage via the backend API.
+ *
+ * The backend uses the Firebase Admin SDK which bypasses Storage security rules,
+ * so no Firebase client-side authentication is required.
+ *
+ * @param uri   Local file URI (e.g. file:///... from image picker)
+ * @param folder Folder name in Firebase Storage (e.g. 'kyc_docs', 'profile_photos')
+ * @returns     Public download URL of the uploaded image
  */
 export const uploadImageToFirebase = async (
   uri: string,
-  folder: string = "delivery_partners",
+  folder: string = "kyc_docs",
 ): Promise<string> => {
   if (!uri) return "";
 
-  // If already a remote URL, return it
+  // Already a remote URL — return as-is
   if (uri.startsWith("http")) return uri;
 
   try {
-    // Determine file extension
-    const extension = uri.split(".").pop();
-    const filename = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
-    const storageRef = ref(storage, filename);
+    // Get auth token from storage
+    const token = await AsyncStorage.getItem("delivery_partner_token");
+    if (!token) throw new Error("Not authenticated — no token in storage");
 
-    // Convert URI to Blob
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    // Determine MIME type from extension
+    const ext = uri.split(".").pop()?.toLowerCase() ?? "jpg";
+    const mimeMap: Record<string, string> = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      webp: "image/webp",
+      heic: "image/heic",
+    };
+    const mimeType = mimeMap[ext] ?? "image/jpeg";
 
-    // Upload
-    const snapshot = await uploadBytes(storageRef, blob);
+    // Build FormData
+    const formData = new FormData();
+    formData.append("image", {
+      uri,
+      name: `upload-${Date.now()}.${ext}`,
+      type: mimeType,
+    } as any);
+    formData.append("folder", folder);
 
-    // Get Download URL
-    const downloadUrl = await getDownloadURL(snapshot.ref);
-    return downloadUrl;
+    const baseUrl = getBaseUrl();
+    const uploadUrl = `${baseUrl}/delivery-partners/upload-image`;
+
+    console.log(`📤 [Storage] Uploading to backend: ${uploadUrl}`);
+
+    const response = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        // Do NOT set Content-Type manually — fetch sets it with the correct boundary for multipart
+      },
+      body: formData,
+    });
+
+    const json = await response.json();
+
+    if (!response.ok || !json.success) {
+      throw new Error(
+        json.message || `Upload failed with status ${response.status}`,
+      );
+    }
+
+    console.log(`✅ [Storage] Upload successful: ${json.url}`);
+    return json.url as string;
   } catch (error: any) {
-    console.error("Firebase upload error:", error);
+    console.error("❌ [Storage] Upload error:", error);
     throw new Error(error.message || "Failed to upload image");
   }
 };

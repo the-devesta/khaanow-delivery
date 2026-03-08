@@ -18,15 +18,16 @@ const getApiUrl = () => {
     return envApiUrl;
   }
 
-  // Development mode: use local backend
+  // Development mode fallback
   if (__DEV__) {
-    // For local testing, you can override this by setting EXPO_PUBLIC_API_URL in .env.local
-    const localUrl = "http://localhost:3001/api"; // Update this to your current IP
-    console.log("🌐 [API] DEV mode - Using local backend:", localUrl);
+    // If you are testing with a local backend, change this to your machine's IP address (e.g., "http://192.168.1.100:3001/api")
+    // Note: 'localhost' will not work on physical devices or Android emulators.
+    const fallbackUrl = "https://api.khaaonow.com/api";
+    console.log("🌐 [API] DEV mode fallback URL:", fallbackUrl);
     console.log(
-      "💡 [API] To use a different URL, set EXPO_PUBLIC_API_URL in .env.local",
+      "💡 [API] To use a different URL locally, make sure EXPO_PUBLIC_API_URL is loaded by clearing metro cache (npm start -c)",
     );
-    return localUrl;
+    return fallbackUrl;
   }
 
   // Production fallback
@@ -905,6 +906,16 @@ export const ApiService = {
       console.error("Verify delivery partner OTP error:", error);
       throw error;
     }
+  },
+
+  // ==================== RAW HTTP HELPERS (for service modules) ====================
+
+  async get<T = any>(url: string, config?: any): Promise<T> {
+    return apiClient.get<T>(url, config);
+  },
+
+  async post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    return apiClient.post<T>(url, data, config);
   },
 };
 

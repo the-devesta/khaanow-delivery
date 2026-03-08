@@ -87,7 +87,7 @@ export default function NotificationsScreen() {
             notifications.map((notification) => (
               <View
                 key={notification._id}
-                className="bg-white rounded-3xl p-4 mb-4 shadow-sm border border-gray-100">
+                className="bg-white rounded-3xl p-4 mb-4  border border-gray-100">
                 <View className="flex-row items-start justify-between mb-2">
                   <Text className="text-base font-bold text-gray-900 flex-1 mr-2">
                     {notification.title}

@@ -27,17 +27,15 @@ export default function EarningSummaryCard({
     <View className="p-5">
       <View className="flex-row items-center justify-between mb-4">
         <View
-          className="w-12 h-12 rounded-2xl items-center justify-center shadow-sm border border-white/20"
-          style={{ backgroundColor: iconBg }}
-        >
+          className="w-12 h-12 rounded-2xl items-center justify-center  border border-white/20"
+          style={{ backgroundColor: iconBg }}>
           <Ionicons name={icon} size={24} color={iconColor} />
         </View>
         {trend && (
           <View
             className={`px-3 py-1.5 rounded-full border border-white/20 flex-row items-center gap-1 ${
               trend.isPositive ? "bg-[#D1FAE5]/80" : "bg-[#FEE2E2]/80"
-            }`}
-          >
+            }`}>
             <Ionicons
               name={trend.isPositive ? "trending-up" : "trending-down"}
               size={12}
@@ -46,8 +44,7 @@ export default function EarningSummaryCard({
             <Text
               className={`text-xs font-bold ${
                 trend.isPositive ? "text-[#10B981]" : "text-[#EF4444]"
-              }`}
-            >
+              }`}>
               {trend.value}
             </Text>
           </View>

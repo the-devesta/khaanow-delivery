@@ -7,7 +7,9 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
+  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -39,28 +41,43 @@ function StatusStep({
   last?: boolean;
 }) {
   const getIconColor = () => {
-    if (status === "completed") return "#4ADE80"; // Green 400
-    if (status === "in-progress") return "#F59E0B"; // Amber 500
-    return "rgba(255,255,255,0.4)";
+    if (status === "completed") return "#16A34A"; // green-600
+    if (status === "in-progress") return "#D97706"; // amber-600
+    return "#9CA3AF"; // gray-400
   };
 
   const getBgColor = () => {
-    if (status === "completed") return "rgba(74, 222, 128, 0.2)";
-    if (status === "in-progress") return "rgba(245, 158, 11, 0.2)";
-    return "rgba(255,255,255,0.1)";
+    if (status === "completed") return "#DCFCE7"; // green-100
+    if (status === "in-progress") return "#FEF3C7"; // amber-100
+    return "#F3F4F6"; // gray-100
+  };
+
+  const getBorderColor = () => {
+    if (status === "completed") return "#86EFAC"; // green-300
+    if (status === "in-progress") return "#FCD34D"; // amber-300
+    return "#E5E7EB"; // gray-200
   };
 
   const getLineColor = () => {
     if (status === "completed") return "#4ADE80";
-    return "rgba(255,255,255,0.2)";
+    return "#E5E7EB"; // gray-200 — visible on white card
   };
 
   return (
     <View className={`flex-row items-start ${!last ? "mb-6" : ""}`}>
       <View className="items-center mr-4">
         <View
-          className="w-12 h-12 rounded-2xl items-center justify-center border border-white/10"
-          style={{ backgroundColor: getBgColor() }}>
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 14,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: getBgColor(),
+            borderWidth: 1,
+            borderColor: getBorderColor(),
+          }}
+        >
           <Ionicons name={icon as any} size={22} color={getIconColor()} />
         </View>
         {!last && (
@@ -72,28 +89,47 @@ function StatusStep({
       </View>
       <View className="flex-1 pt-1.5">
         <View className="flex-row items-center mb-1">
-          <Text className="text-[16px] font-bold text-white flex-1">
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: "700",
+              color: "#1F2937",
+              flex: 1,
+            }}
+          >
             {title}
           </Text>
           {status === "completed" && (
-            <View className="bg-green-500/20 rounded-full px-3 py-1 border border-green-500/30">
-              <Text className="text-xs text-green-400 font-bold">Done</Text>
+            <View className="bg-green-100 rounded-full px-3 py-1 border border-green-300">
+              <Text
+                style={{ fontSize: 11, color: "#16A34A", fontWeight: "700" }}
+              >
+                Done
+              </Text>
             </View>
           )}
           {status === "in-progress" && (
-            <View className="bg-yellow-500/20 rounded-full px-3 py-1 border border-yellow-500/30">
-              <Text className="text-xs text-yellow-400 font-bold">
+            <View className="bg-amber-100 rounded-full px-3 py-1 border border-amber-300">
+              <Text
+                style={{ fontSize: 11, color: "#D97706", fontWeight: "700" }}
+              >
                 In Progress
               </Text>
             </View>
           )}
           {status === "pending" && (
-            <View className="bg-white/10 rounded-full px-3 py-1 border border-white/10">
-              <Text className="text-xs text-white/50 font-bold">Pending</Text>
+            <View className="bg-gray-100 rounded-full px-3 py-1 border border-gray-200">
+              <Text
+                style={{ fontSize: 11, color: "#6B7280", fontWeight: "700" }}
+              >
+                Pending
+              </Text>
             </View>
           )}
         </View>
-        <Text className="text-sm text-white/60 leading-5">{description}</Text>
+        <Text style={{ fontSize: 13, color: "#6B7280", lineHeight: 20 }}>
+          {description}
+        </Text>
       </View>
     </View>
   );
@@ -117,8 +153,12 @@ export default function AccountPendingScreen() {
         withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
       ),
       -1,
-      false,
+      true,
     );
+
+    // Block Android hardware back button — no screen to go back to
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => sub.remove();
   }, []);
 
   const pulseStyle = useAnimatedStyle(() => ({
@@ -205,11 +245,18 @@ export default function AccountPendingScreen() {
           className="w-full h-full"
           resizeMode="cover"
         />
-        <BlurView
-          intensity={40}
-          tint="dark"
-          className="absolute w-full h-full"
-        />
+        {Platform.OS === "ios" ? (
+          <BlurView
+            intensity={40}
+            tint="dark"
+            className="absolute w-full h-full"
+          />
+        ) : (
+          <View
+            className="absolute w-full h-full"
+            style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          />
+        )}
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.8)"]}
           style={{ position: "absolute", width: "100%", height: "100%" }}
@@ -230,14 +277,16 @@ export default function AccountPendingScreen() {
             colors={["#F59E0B"]}
             tintColor="#F59E0B"
           />
-        }>
+        }
+      >
         <View className="flex-1 px-5">
           {/* Header with Logout */}
           <View className="flex-row items-center justify-end mb-8">
             <TouchableOpacity
               onPress={handleLogout}
               className="flex-row items-center px-4 py-2 bg-white rounded-full border border-white/20"
-              activeOpacity={0.7}>
+              activeOpacity={0.7}
+            >
               <Ionicons name="log-out-outline" size={18} color="#EF4444" />
               <Text className="text-red-400 font-semibold ml-2 text-sm">
                 Logout
@@ -263,7 +312,8 @@ export default function AccountPendingScreen() {
                     shadowRadius: 20,
                   },
                   pulseStyle,
-                ]}>
+                ]}
+              >
                 <Ionicons name="hourglass-outline" size={48} color="white" />
               </Animated.View>
             </View>
@@ -277,14 +327,14 @@ export default function AccountPendingScreen() {
 
           {/* Estimated Time Card */}
           <View className="bg-white rounded-[24px] p-5 mb-4 border border-gray-200 flex-row items-center">
-            <View className="w-14 h-14 bg-indigo-500/20 rounded-2xl items-center justify-center border border-indigo-500/30">
+            <View className="w-14 h-14 bg-indigo-100 rounded-2xl items-center justify-center border border-indigo-200">
               <Ionicons name="time-outline" size={28} color="#818CF8" />
             </View>
             <View className="ml-4 flex-1">
-              <Text className="text-lg font-bold text-white">
+              <Text className="text-lg font-bold text-gray-900">
                 Estimated Wait Time
               </Text>
-              <Text className="text-base text-white/60">
+              <Text className="text-base text-gray-500">
                 24-48 business hours
               </Text>
             </View>
@@ -292,7 +342,7 @@ export default function AccountPendingScreen() {
 
           {/* Status Steps Card */}
           <View className="bg-white rounded-[24px] p-6 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-white mb-6 uppercase tracking-wider opacity-90">
+            <Text className="text-lg font-bold text-gray-900 mb-6 uppercase tracking-wider opacity-90">
               Verification Progress
             </Text>
 
@@ -329,7 +379,8 @@ export default function AccountPendingScreen() {
               shadowRadius: 8,
               elevation: 8,
             }}
-            activeOpacity={0.8}>
+            activeOpacity={0.8}
+          >
             {checking ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
@@ -346,7 +397,8 @@ export default function AccountPendingScreen() {
           <TouchableOpacity
             onPress={handleContactSupport}
             className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 mb-8 border border-white/5"
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <View className="w-11 h-11 bg-white/10 rounded-xl items-center justify-center">
@@ -382,7 +434,7 @@ export default function AccountPendingScreen() {
                 color="#818CF8"
               />
               <Text className="flex-1 text-sm text-indigo-200 ml-3 leading-5 font-medium">
-                We'll send you a notification and SMS once your account is
+                We&apos;ll send you a notification and SMS once your account is
                 approved. Pull down to refresh status.
               </Text>
             </View>

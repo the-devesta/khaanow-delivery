@@ -116,7 +116,6 @@ export default function EditProfileScreen() {
           style={{ position: "absolute", width: "100%", height: "100%" }}
         />
       </View>
-
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1">
@@ -140,7 +139,7 @@ export default function EditProfileScreen() {
           {/* Main Content */}
           <View className="px-6 flex-1 justify-end pb-8">
             <View className="mb-8">
-              <Text className="text-4xl font-extrabold text-white mb-2 shadow-sm tracking-tight">
+              <Text className="text-4xl font-extrabold text-white mb-2  tracking-tight">
                 Edit Profile
               </Text>
               <Text className="text-lg text-white/80 font-medium tracking-wide">
@@ -150,7 +149,7 @@ export default function EditProfileScreen() {
 
             {/* Glassmorphism Form Card */}
             <View
-              className="bg-gray-800/90 rounded-[32px] p-6 border border-gray-700 shadow-lg shadow-black/20"
+              className="bg-gray-100/90 rounded-[32px] p-6 border border-gray-200 shadow-lg shadow-black/20"
               style={{
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: 10 },
@@ -173,22 +172,22 @@ export default function EditProfileScreen() {
                   <View>
                     {/* Name Input */}
                     <View className="mb-5">
-                      <Text className="text-xs font-bold text-white/70 mb-2 ml-1 uppercase tracking-wider">
+                      <Text className="text-xs font-bold text-black/70 mb-2 ml-1 uppercase tracking-wider">
                         Full Name
                       </Text>
-                      <View className="flex-row items-center bg-gray-700 rounded-2xl h-14 px-4 overflow-hidden">
+                      <View className="flex-row items-center bg-gray-100 rounded-2xl h-14 px-4 overflow-hidden border border-gray-200">
                         <Ionicons
                           name="person-outline"
                           size={20}
-                          color="rgba(255,255,255,0.7)"
+                          color="#6B7280"
                         />
                         <TextInput
                           placeholder="John Doe"
-                          placeholderTextColor="rgba(255,255,255,0.4)"
+                          placeholderTextColor="#9CA3AF"
                           value={values.name}
                           onChangeText={handleChange("name")}
                           onBlur={handleBlur("name")}
-                          className="flex-1 ml-3 text-lg text-white font-semibold h-full"
+                          className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
                           selectionColor="#F59E0B"
                         />
                       </View>
@@ -201,24 +200,24 @@ export default function EditProfileScreen() {
 
                     {/* Email Input */}
                     <View className="mb-6">
-                      <Text className="text-xs font-bold text-white/70 mb-2 ml-1 uppercase tracking-wider">
+                      <Text className="text-xs font-bold text-black/70 mb-2 ml-1 uppercase tracking-wider">
                         Email Address
                       </Text>
-                      <View className="flex-row items-center bg-gray-700 rounded-2xl h-14 px-4 overflow-hidden">
+                      <View className="flex-row items-center bg-gray-100 rounded-2xl h-14 px-4 overflow-hidden border border-gray-200">
                         <Ionicons
                           name="mail-outline"
                           size={20}
-                          color="rgba(255,255,255,0.7)"
+                          color="#6B7280"
                         />
                         <TextInput
                           placeholder="john@example.com"
-                          placeholderTextColor="rgba(255,255,255,0.4)"
+                          placeholderTextColor="#9CA3AF"
                           keyboardType="email-address"
                           autoCapitalize="none"
                           value={values.email}
                           onChangeText={handleChange("email")}
                           onBlur={handleBlur("email")}
-                          className="flex-1 ml-3 text-lg text-white font-semibold h-full"
+                          className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
                           selectionColor="#F59E0B"
                         />
                       </View>
