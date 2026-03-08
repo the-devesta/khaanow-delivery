@@ -6,8 +6,7 @@
 const ENV = {
   // API Configuration
   API_BASE_URL:
-    process.env.EXPO_PUBLIC_API_URL ||
-    "https://42ca-2409-4090-101b-3609-38b3-7a1a-4870-7afc.ngrok-free.app/api",
+    process.env.EXPO_PUBLIC_API_URL || "https://api.khaaonow.com/api",
 
   // Firebase Configuration
   FIREBASE_API_KEY:
