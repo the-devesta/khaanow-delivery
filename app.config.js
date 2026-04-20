@@ -3,6 +3,11 @@
 
 const IS_DEV_BUILD = process.env.EAS_BUILD || process.env.EXPO_DEV_CLIENT;
 
+const GOOGLE_MAPS_API_KEY =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+  process.env.GOOGLE_MAPS_API_KEY ||
+  "AIzaSyALmOgQei7pAnK8eq5FmMbEwhFiyQVzn9M";
+
 const plugins = [
   "expo-router",
   [
@@ -14,6 +19,31 @@ const plugins = [
       backgroundColor: "#FFFFFF",
     },
   ],
+  [
+    "expo-location",
+    {
+      locationAlwaysAndWhenInUsePermission: "Allow KhaaoNow Delivery to use your location to navigate to pickup and drop-off points.",
+      locationAlwaysPermission: "Allow KhaaoNow Delivery to use your location in the background for active deliveries.",
+      isAndroidForegroundServiceEnabled: true,
+    },
+  ],
+  [
+    "expo-notifications",
+    {
+      icon: "./assets/images/DeliveryKhaaoNow.png",
+      color: "#F7B731",
+    },
+  ],
+  [
+    "expo-build-properties",
+    {
+      ios: {
+        useFrameworks: "static",
+        newArchEnabled: true,
+      },
+    },
+  ],
+  "./plugins/withPodfileFix.js",
 ];
 
 // Only add native Firebase plugins for development/production builds (not Expo Go)
@@ -38,16 +68,41 @@ module.exports = {
       },
     },
     ios: {
-      infoPlist: {
-        ITSAppUsesNonExemptEncryption: false,
-      },
       supportsTablet: true,
       bundleIdentifier: "com.khaaonow.delivery",
+      config: {
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+      },
       googleServicesFile:
         process.env.IOS_GOOGLE_SERVICES_PLIST || "./GoogleService-Info.plist",
+      entitlements: {
+        "aps-environment": "production",
+      },
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+        GMSApiKey: GOOGLE_MAPS_API_KEY,
+        NSLocationAlwaysAndWhenInUseUsageDescription:
+          "Allow KhaaoNow Delivery to use your location to navigate to pickup and drop-off points.",
+        NSLocationAlwaysUsageDescription:
+          "Allow KhaaoNow Delivery to use your location in the background for active deliveries.",
+        NSLocationWhenInUseUsageDescription:
+          "Allow KhaaoNow Delivery to use your location to navigate to pickup and drop-off points.",
+        NSCameraUsageDescription:
+          "Allow KhaaoNow Delivery to access your camera to upload delivery photos.",
+        NSPhotoLibraryUsageDescription:
+          "Allow KhaaoNow Delivery to access your photos to upload delivery photos.",
+        NSMicrophoneUsageDescription:
+          "Allow KhaaoNow Delivery to access your microphone.",
+        UIBackgroundModes: ["location"],
+      },
     },
     android: {
       package: "com.khaaonow.delivery",
+      config: {
+        googleMaps: {
+          apiKey: GOOGLE_MAPS_API_KEY,
+        },
+      },
       googleServicesFile:
         process.env.ANDROID_GOOGLE_SERVICES_JSON || "./google-services.json",
       adaptiveIcon: {

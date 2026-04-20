@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
-const GOOGLE_MAPS_API_KEY =
-  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
-  "AIzaSyAkfD1D3ErwApNq2aPouuPpfElyH-CI6Fg";
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
 /** Decode a Google / OSRM encoded polyline string into lat/lng array */
 function decodePolyline(
@@ -92,21 +90,30 @@ async function fetchRoadRoute(
   destination: Location,
 ): Promise<{ latitude: number; longitude: number }[]> {
   // ── 1. Google Directions ────────────────────────────────────────────────────
-  try {
-    const gUrl =
-      `https://maps.googleapis.com/maps/api/directions/json` +
-      `?origin=${origin.latitude},${origin.longitude}` +
-      `&destination=${destination.latitude},${destination.longitude}` +
-      `&mode=driving` +
-      `&key=${GOOGLE_MAPS_API_KEY}`;
-    const gRes = await fetch(gUrl);
-    const gData = await gRes.json();
-    if (gData.status === "OK" && gData.routes?.[0]?.overview_polyline?.points) {
-      return decodePolyline(gData.routes[0].overview_polyline.points);
+  if (GOOGLE_MAPS_API_KEY) {
+    try {
+      const gUrl =
+        `https://maps.googleapis.com/maps/api/directions/json` +
+        `?origin=${origin.latitude},${origin.longitude}` +
+        `&destination=${destination.latitude},${destination.longitude}` +
+        `&mode=driving` +
+        `&key=${GOOGLE_MAPS_API_KEY}`;
+      const gRes = await fetch(gUrl);
+      const gData = await gRes.json();
+      if (
+        gData.status === "OK" &&
+        gData.routes?.[0]?.overview_polyline?.points
+      ) {
+        return decodePolyline(gData.routes[0].overview_polyline.points);
+      }
+      console.log("[DeliveryMap] Google Directions status:", gData.status);
+    } catch (e) {
+      console.log("[DeliveryMap] Google Directions error:", e);
     }
-    console.log("[DeliveryMap] Google Directions status:", gData.status);
-  } catch (e) {
-    console.log("[DeliveryMap] Google Directions error:", e);
+  } else {
+    console.log(
+      "[DeliveryMap] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY not set. Falling back to OSRM route.",
+    );
   }
 
   // ── 2. OSRM fallback (free, no key) ────────────────────────────────────────
