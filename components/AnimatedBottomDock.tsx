@@ -1,4 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import {
+  IOSGlassSurface,
+  supportsLiquidGlass,
+} from "@/components/ui/ios-liquid-glass";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { JSX, useEffect, useRef } from "react";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
@@ -106,7 +110,17 @@ function TabDockItem({
             width,
             height: CIRCLE_SIZE,
             borderRadius: CIRCLE_SIZE,
-            backgroundColor: isFocused ? PRIMARY : "#ffffff",
+            backgroundColor: isFocused
+              ? supportsLiquidGlass
+                ? "rgba(245,158,11,0.86)"
+                : PRIMARY
+              : supportsLiquidGlass
+                ? "rgba(255,255,255,0.36)"
+                : "#ffffff",
+            borderWidth: supportsLiquidGlass ? 1 : 0,
+            borderColor: supportsLiquidGlass
+              ? "rgba(255,255,255,0.48)"
+              : "transparent",
             transform: [{ scale }],
             justifyContent: "center",
             alignItems: "center",
@@ -167,7 +181,14 @@ export default function AnimatedBottomDock({
           alignSelf: "center",
           paddingHorizontal: 4,
           paddingVertical: 4,
-          backgroundColor: "#000000",
+          backgroundColor: supportsLiquidGlass
+            ? "rgba(255,255,255,0.22)"
+            : "#000000",
+          borderWidth: supportsLiquidGlass ? 1 : 0,
+          borderColor: supportsLiquidGlass
+            ? "rgba(255,255,255,0.54)"
+            : "transparent",
+          overflow: "hidden",
           borderRadius: 100,
           flexDirection: "row",
           alignItems: "center",
@@ -180,6 +201,23 @@ export default function AnimatedBottomDock({
         }}
         pointerEvents={isVisible ? "auto" : "none"}
       >
+        {supportsLiquidGlass && (
+          <IOSGlassSurface
+            pointerEvents="none"
+            shape="capsule"
+            cornerRadius={100}
+            intensity={30}
+            fallbackBackgroundColor="rgba(255,255,255,0.22)"
+            fallbackBorderColor="rgba(255,255,255,0.54)"
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+            }}
+          />
+        )}
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;

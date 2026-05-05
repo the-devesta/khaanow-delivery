@@ -16,7 +16,7 @@ const plugins = [
       image: "./assets/images/DeliveryKhaaoNow.png",
       imageWidth: 250,
       resizeMode: "contain",
-      backgroundColor: "#FFFFFF",
+      backgroundColor: "#F7B731",
     },
   ],
   [

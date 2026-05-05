@@ -800,6 +800,31 @@ export const ApiService = {
     }
   },
 
+  // ==================== ACCOUNT MANAGEMENT ====================
+
+  /**
+   * Delete the current delivery partner account permanently
+   */
+  async deleteAccount(): Promise<ApiResponse> {
+    try {
+      const response = await apiClient.delete<ApiResponse>(
+        "/delivery-partners/account",
+      );
+      // Clear token on successful deletion
+      if (response.success) {
+        await AsyncStorage.removeItem(TOKEN_KEY);
+      }
+      return response;
+    } catch (error: any) {
+      console.error("Delete account error:", error);
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Failed to delete account",
+      };
+    }
+  },
+
   // ==================== UTILITY ====================
 
   /**

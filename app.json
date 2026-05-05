@@ -32,10 +32,7 @@
               "pathPrefix": "/callback"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
@@ -51,7 +48,7 @@
           "image": "./assets/images/DeliveryKhaaoNow.png",
           "imageWidth": 250,
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF"
+          "backgroundColor": "#FFD230"
         }
       ],
       "expo-notifications"

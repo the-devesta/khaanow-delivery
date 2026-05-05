@@ -1,7 +1,7 @@
 import { Location } from "@/store/orders";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -215,7 +215,7 @@ export default function DeliveryMap({
     <View style={styles.container}>
       <MapView
         ref={mapRef}
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === "ios" ? undefined : PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={{
           latitude: center.latitude,
@@ -228,24 +228,28 @@ export default function DeliveryMap({
         showsCompass={false}
         showsTraffic={false}
         loadingEnabled
-        customMapStyle={[
-          {
-            featureType: "water",
-            elementType: "geometry",
-            stylers: [{ color: "#C6DBEF" }],
-          },
-          {
-            featureType: "landscape",
-            elementType: "geometry",
-            stylers: [{ color: "#F9FAFB" }],
-          },
-          {
-            featureType: "road",
-            elementType: "geometry",
-            stylers: [{ color: "#FFFFFF" }],
-          },
-          { featureType: "poi", stylers: [{ visibility: "off" }] },
-        ]}>
+        customMapStyle={
+          Platform.OS === "ios"
+            ? undefined
+            : [
+                {
+                  featureType: "water",
+                  elementType: "geometry",
+                  stylers: [{ color: "#C6DBEF" }],
+                },
+                {
+                  featureType: "landscape",
+                  elementType: "geometry",
+                  stylers: [{ color: "#F9FAFB" }],
+                },
+                {
+                  featureType: "road",
+                  elementType: "geometry",
+                  stylers: [{ color: "#FFFFFF" }],
+                },
+                { featureType: "poi", stylers: [{ visibility: "off" }] },
+              ]
+        }>
         {/* ── Restaurant / Pickup marker ── */}
         {isValidCoord(pickupLocation) && (
           <Marker

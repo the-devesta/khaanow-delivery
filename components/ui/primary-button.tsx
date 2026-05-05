@@ -1,4 +1,8 @@
 import { Colors } from "@/constants/colors";
+import {
+  IOSGlassButton,
+  supportsLiquidGlass,
+} from "@/components/ui/ios-liquid-glass";
 import React from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
@@ -19,6 +23,20 @@ export default function PrimaryButton({
   variant = "primary",
   icon,
 }: PrimaryButtonProps) {
+  if (supportsLiquidGlass) {
+    return (
+      <IOSGlassButton
+        title={title}
+        onPress={onPress}
+        loading={loading}
+        disabled={disabled}
+        variant={variant}
+        tintColor={Colors.primary}
+        icon={icon}
+      />
+    );
+  }
+
   const getButtonStyle = () => {
     if (disabled) return "bg-gray-300";
     if (variant === "secondary") return "bg-gray-800";

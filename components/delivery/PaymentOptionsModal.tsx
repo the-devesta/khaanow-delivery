@@ -4,6 +4,10 @@
  * Handles: PREPAID (no action), COD (OTP flow), PAY_AT_DELIVERY (link or QR)
  */
 import { Ionicons } from "@expo/vector-icons";
+import {
+  IOSGlassSurface,
+  supportsLiquidGlass,
+} from "@/components/ui/ios-liquid-glass";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -96,12 +100,23 @@ export default function PaymentOptionsModal({
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: "#fff",
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
-          paddingBottom: 34,
           transform: [{ translateY: slideAnim }],
         }}>
+        <IOSGlassSurface
+          shape="rect"
+          cornerRadius={24}
+          intensity={supportsLiquidGlass ? 40 : 0}
+          fallbackBackgroundColor={
+            supportsLiquidGlass ? "rgba(255,255,255,0.80)" : "#fff"
+          }
+          fallbackBorderColor="rgba(255,255,255,0.72)"
+          style={{
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingBottom: 34,
+          }}>
         {/* Handle + Header */}
         <View className="items-center pt-3 pb-4 px-6">
           <View className="w-10 h-1 bg-gray-200 rounded-full mb-4" />
@@ -233,6 +248,7 @@ export default function PaymentOptionsModal({
             }}
           />
         )}
+        </IOSGlassSurface>
       </Animated.View>
     </Modal>
   );

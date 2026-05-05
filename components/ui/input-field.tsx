@@ -1,4 +1,8 @@
 import { Colors } from "@/constants/colors";
+import {
+  IOSGlassSurface,
+  supportsLiquidGlass,
+} from "@/components/ui/ios-liquid-glass";
 import React from "react";
 import { Text, TextInput, TextInputProps, View } from "react-native";
 
@@ -21,7 +25,24 @@ export default function InputField({
           {label}
         </Text>
       )}
-      <View className="flex-row items-center bg-[#F8F8F8] rounded-2xl px-4 py-4 border border-[#E5E5E5]">
+      <IOSGlassSurface
+        shape="rect"
+        cornerRadius={18}
+        intensity={supportsLiquidGlass ? 34 : 0}
+        fallbackBackgroundColor="rgba(255,255,255,0.62)"
+        fallbackBorderColor="rgba(255,255,255,0.72)"
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          paddingVertical: 16,
+          borderRadius: 18,
+          borderWidth: 1,
+          borderColor: supportsLiquidGlass
+            ? "rgba(255,255,255,0.72)"
+            : "#E5E5E5",
+          backgroundColor: supportsLiquidGlass ? undefined : "#F8F8F8",
+        }}>
         {icon && <View className="mr-3">{icon}</View>}
         <TextInput
           {...props}
@@ -29,7 +50,7 @@ export default function InputField({
           placeholderTextColor={Colors.textLight}
           style={{ padding: 0 }}
         />
-      </View>
+      </IOSGlassSurface>
       {error && <Text className="text-red-500 text-xs mt-1 ml-2">{error}</Text>}
     </View>
   );

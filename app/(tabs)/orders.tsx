@@ -1,4 +1,5 @@
 import MissedOrderCard from "@/components/orders/MissedOrderCard";
+import { IOSGlassIconButton } from "@/components/ui/ios-liquid-glass";
 import { useOrderStore } from "@/store/orders";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -165,11 +166,12 @@ export default function OrdersScreen() {
                 Your Deliveries 📦
               </Text>
             </View>
-            <TouchableOpacity
-              className="w-12 h-12 bg-white rounded-full items-center justify-center "
-              activeOpacity={0.7}>
-              <Ionicons name="search-outline" size={24} color="#F59E0B" />
-            </TouchableOpacity>
+            <IOSGlassIconButton
+              icon="search-outline"
+              systemImage="magnifyingglass"
+              color="#F59E0B"
+              size={48}
+            />
           </View>
         </View>
 

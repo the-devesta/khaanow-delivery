@@ -1,8 +1,9 @@
 import io, { Socket } from "socket.io-client";
+import ENV from "../config/env";
 import { API_BASE_URL } from "./api"; // Ensure this exports the base URL
 
-// Remove /api from the URL to get the base socket URL
-const SOCKET_URL = API_BASE_URL.replace("/api", "");
+const SOCKET_URL = ENV.SOCKET_URL || API_BASE_URL.replace(/\/api\/?$/, "");
+const SOCKET_PATH = ENV.SOCKET_PATH || "/socket.io";
 
 class SocketService {
   private socket: Socket | null = null;
@@ -20,17 +21,19 @@ class SocketService {
     }
   }
 
-  connect() {
+  async connect() {
     if (this.socket?.connected) return;
 
     // If socket exists but is disconnected, just reconnect it
     if (this.socket) {
+      this.socket.auth = await this.buildAuthPayload();
       this.socket.connect();
       return;
     }
 
     this.socket = io(SOCKET_URL, {
-      autoConnect: true,
+      autoConnect: false,
+      path: SOCKET_PATH,
       reconnection: true,
       reconnectionDelay: 1000, // start retrying after 1 s
       reconnectionDelayMax: 15000, // back off up to 15 s
@@ -39,10 +42,13 @@ class SocketService {
       // Try WebSocket first to avoid the XHR-poll error on flaky networks;
       // falls back to long-polling if WebSocket is unavailable.
       transports: ["websocket", "polling"],
+      auth: await this.buildAuthPayload(),
       extraHeaders: {
         "ngrok-skip-browser-warning": "true",
       },
     });
+
+    this.socket.connect();
 
     this.socket.on("connect", () => {
       console.log("Socket connected:", this.socket?.id);
@@ -79,6 +85,16 @@ class SocketService {
         this.listeners[event].forEach((callback) => callback(...args));
       }
     });
+  }
+
+  private async buildAuthPayload() {
+    const { ApiService } = await import("./api");
+    const token = await ApiService.getToken();
+
+    return {
+      token,
+      partnerId: this.partnerId,
+    };
   }
 
   /** Call this when the app comes to the foreground to ensure we\'re connected. */

@@ -1,4 +1,8 @@
 import { Order } from "@/store/orders";
+import {
+  IOSGlassSurface,
+  supportsLiquidGlass,
+} from "@/components/ui/ios-liquid-glass";
 import { playRingtone, stopRingtone } from "@/utils/ringtone";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
@@ -251,9 +255,15 @@ export default function OrderRequestModal({
             right: 0,
             transform: [{ translateY: sheetY }],
           }}>
-          <View
+          <IOSGlassSurface
+            shape="rect"
+            cornerRadius={40}
+            intensity={supportsLiquidGlass ? 42 : 0}
+            fallbackBackgroundColor={
+              supportsLiquidGlass ? "rgba(255,255,255,0.78)" : "#ffffff"
+            }
+            fallbackBorderColor="rgba(255,255,255,0.72)"
             style={{
-              backgroundColor: "#ffffff",
               borderTopLeftRadius: 40,
               borderTopRightRadius: 40,
               paddingHorizontal: 24,
@@ -620,7 +630,7 @@ export default function OrderRequestModal({
                 Reject Order
               </Text>
             </TouchableOpacity>
-          </View>
+          </IOSGlassSurface>
         </Animated.View>
       </View>
     </Modal>
