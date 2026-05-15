@@ -73,10 +73,13 @@ export default function HomeScreen() {
     pendingOrder,
     pendingOrderReceivedAt,
     activeOrder,
+    activeOrders,
+    routePlan,
     missedOrders,
     acceptOrder,
     rejectOrder,
     fetchAssignedOrders,
+    fetchRoutePlan,
     fetchAvailableOrders,
     dismissMissedOrder,
     pruneMissedOrders,
@@ -145,6 +148,7 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchDashboard();
     fetchAssignedOrders();
+    fetchRoutePlan();
     fetchAvailableOrders(); // immediately surface any waiting orders from the backend
 
     // Poll available orders every 60s so "stillAvailable" stays accurate
@@ -228,6 +232,8 @@ export default function HomeScreen() {
 
   const todayEarnings = dashboardData?.earnings?.today || 0;
   const completedOrders = dashboardData?.stats?.deliveriesToday || 0;
+  const activeBatchCount =
+    activeOrders.length || dashboardData?.stats?.activeOrders || 0;
 
   const currentActiveOrder =
     activeOrder && activeOrder.status !== "delivered"
@@ -423,9 +429,18 @@ export default function HomeScreen() {
           </View>
 
           {/* Active Order Section */}
-          <Text className="text-lg font-bold text-[#1A1A1A] mb-4 ml-1">
-            Active Order
-          </Text>
+          <View className="flex-row items-center justify-between mb-4 ml-1">
+            <Text className="text-lg font-bold text-[#1A1A1A]">
+              Active Order
+            </Text>
+            {activeBatchCount > 1 && (
+              <View className="bg-orange-100 px-3 py-1 rounded-full">
+                <Text className="text-xs font-bold text-orange-600">
+                  Batch {activeBatchCount}
+                </Text>
+              </View>
+            )}
+          </View>
 
           {currentActiveOrder ? (
             <TouchableOpacity
@@ -574,6 +589,44 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               )}
             </View>
+          )}
+
+          {routePlan && routePlan.stops.length > 1 && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => router.push("/(tabs)/orders")}
+              className="bg-white rounded-[28px] p-5 mb-8 border border-orange-100"
+              style={glassStyle}>
+              <View className="flex-row items-center justify-between mb-3">
+                <View>
+                  <Text className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">
+                    Route Sequence
+                  </Text>
+                  <Text className="text-lg font-extrabold text-[#1A1A1A] mt-1">
+                    {routePlan.stops.length} stops • {routePlan.totalDistanceKm} km
+                  </Text>
+                </View>
+                <Ionicons name="git-branch-outline" size={22} color="#F59E0B" />
+              </View>
+              {routePlan.stops.slice(0, 3).map((stop) => (
+                <View
+                  key={`${stop.orderId}-${stop.type}-${stop.sequence}`}
+                  className="flex-row items-center py-2">
+                  <View className="w-7 h-7 rounded-full bg-orange-50 items-center justify-center mr-3">
+                    <Text className="text-xs font-extrabold text-orange-600">
+                      {stop.sequence}
+                    </Text>
+                  </View>
+                  <Text className="flex-1 text-sm font-semibold text-[#1A1A1A]" numberOfLines={1}>
+                    {stop.type === "pickup" ? "Pickup" : "Drop"} •{" "}
+                    {stop.type === "pickup" ? stop.restaurantName : stop.customerName}
+                  </Text>
+                  <Text className="text-xs font-bold text-[#9CA3AF]">
+                    {stop.distanceKm} km
+                  </Text>
+                </View>
+              ))}
+            </TouchableOpacity>
           )}
 
           {/* Quick Actions */}

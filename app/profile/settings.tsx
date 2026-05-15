@@ -1,8 +1,13 @@
 import { ApiService } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
+import {
+  registerForPushNotificationsAsync,
+  registerPushTokenWithBackend,
+} from "@/utils/notifications";
 import { Ionicons } from "@expo/vector-icons";
+import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
@@ -17,8 +22,36 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { logout } = useAuthStore();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+
+  useEffect(() => {
+    Notifications.getPermissionsAsync().then(({ status }) => {
+      setNotificationsEnabled(status === "granted");
+    });
+  }, []);
+
+  const handleNotificationToggle = async (enabled: boolean) => {
+    if (!enabled) {
+      setNotificationsEnabled(false);
+      return;
+    }
+
+    const token = await registerForPushNotificationsAsync({
+      requestPermission: true,
+    });
+
+    if (token) {
+      await registerPushTokenWithBackend(token);
+      setNotificationsEnabled(true);
+    } else {
+      setNotificationsEnabled(false);
+      Alert.alert(
+        "Notifications Off",
+        "You can keep using KhaaoNow Delivery without push notifications. To enable them later, allow notifications in Settings.",
+      );
+    }
+  };
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -95,7 +128,7 @@ export default function SettingsScreen() {
             <Switch
               trackColor={{ false: "#E5E7EB", true: "#F59E0B" }}
               thumbColor={"#FFFFFF"}
-              onValueChange={setNotificationsEnabled}
+              onValueChange={handleNotificationToggle}
               value={notificationsEnabled}
             />
           </View>

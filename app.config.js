@@ -6,7 +6,7 @@ const IS_DEV_BUILD = process.env.EAS_BUILD || process.env.EXPO_DEV_CLIENT;
 const GOOGLE_MAPS_API_KEY =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
   process.env.GOOGLE_MAPS_API_KEY ||
-  "AIzaSyALmOgQei7pAnK8eq5FmMbEwhFiyQVzn9M";
+  "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU";
 
 const plugins = [
   "expo-router",
@@ -22,8 +22,6 @@ const plugins = [
   [
     "expo-location",
     {
-      locationAlwaysAndWhenInUsePermission: "Allow KhaaoNow Delivery to use your location to navigate to pickup and drop-off points.",
-      locationAlwaysPermission: "Allow KhaaoNow Delivery to use your location in the background for active deliveries.",
       isAndroidForegroundServiceEnabled: true,
     },
   ],
@@ -68,7 +66,8 @@ module.exports = {
       },
     },
     ios: {
-      supportsTablet: true,
+      supportsTablet: false,
+      requireFullScreen: true,
       bundleIdentifier: "com.khaaonow.delivery",
       config: {
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -81,10 +80,6 @@ module.exports = {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         GMSApiKey: GOOGLE_MAPS_API_KEY,
-        NSLocationAlwaysAndWhenInUseUsageDescription:
-          "Allow KhaaoNow Delivery to use your location to navigate to pickup and drop-off points.",
-        NSLocationAlwaysUsageDescription:
-          "Allow KhaaoNow Delivery to use your location in the background for active deliveries.",
         NSLocationWhenInUseUsageDescription:
           "Allow KhaaoNow Delivery to use your location to navigate to pickup and drop-off points.",
         NSCameraUsageDescription:
@@ -93,7 +88,6 @@ module.exports = {
           "Allow KhaaoNow Delivery to access your photos to upload delivery photos.",
         NSMicrophoneUsageDescription:
           "Allow KhaaoNow Delivery to access your microphone.",
-        UIBackgroundModes: ["location"],
       },
     },
     android: {

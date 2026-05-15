@@ -19,9 +19,13 @@ export default function OrdersScreen() {
   const {
     orderHistory,
     activeOrder,
+    activeOrders,
+    routePlan,
     missedOrders,
     fetchOrderHistory,
     fetchAvailableOrders,
+    fetchAssignedOrders,
+    fetchRoutePlan,
     dismissMissedOrder,
     pruneMissedOrders,
   } = useOrderStore();
@@ -32,13 +36,20 @@ export default function OrdersScreen() {
 
   useEffect(() => {
     fetchOrderHistory();
+    fetchAssignedOrders();
     fetchAvailableOrders();
+    fetchRoutePlan();
     pruneMissedOrders();
   }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchOrderHistory(), fetchAvailableOrders()]);
+    await Promise.all([
+      fetchOrderHistory(),
+      fetchAvailableOrders(),
+      fetchAssignedOrders(),
+      fetchRoutePlan(),
+    ]);
     pruneMissedOrders();
     setRefreshing(false);
   };
@@ -61,6 +72,7 @@ export default function OrdersScreen() {
     new Map(
       [
         ...(activeOrder ? [activeOrder] : []),
+        ...activeOrders,
         ...expiredMissedAsOrders,
         ...orderHistory,
       ].map((o) => [o.id, o]),
@@ -224,6 +236,63 @@ export default function OrdersScreen() {
             {activePendingRequests.map((missed) => (
               <MissedOrderCard key={missed.order.id} missed={missed} />
             ))}
+          </View>
+        )}
+
+        {routePlan && routePlan.stops.length > 0 && (
+          <View className="px-6 mt-6">
+            <View className="bg-white rounded-[32px] p-5 border border-orange-100">
+              <View className="flex-row items-center justify-between mb-4">
+                <View>
+                  <Text className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">
+                    Optimized Route
+                  </Text>
+                  <Text className="text-lg font-extrabold text-[#1A1A1A] mt-1">
+                    {routePlan.activeOrderCount} active • {routePlan.totalDistanceKm} km
+                  </Text>
+                </View>
+                <View className="bg-orange-50 px-3 py-1.5 rounded-full">
+                  <Text className="text-xs font-bold text-orange-600">
+                    Max {routePlan.maxActiveBatch}
+                  </Text>
+                </View>
+              </View>
+
+              {routePlan.stops.map((stop) => (
+                <TouchableOpacity
+                  key={`${stop.orderId}-${stop.type}-${stop.sequence}`}
+                  onPress={() => router.push(`/orders/${stop.orderId}`)}
+                  className="flex-row items-start py-3 border-t border-gray-100">
+                  <View
+                    className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
+                      stop.type === "pickup" ? "bg-amber-100" : "bg-emerald-100"
+                    }`}>
+                    <Text
+                      className={`text-xs font-extrabold ${
+                        stop.type === "pickup"
+                          ? "text-amber-700"
+                          : "text-emerald-700"
+                      }`}>
+                      {stop.sequence}
+                    </Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-bold text-[#1A1A1A]">
+                      {stop.type === "pickup" ? "Pickup" : "Drop"} •{" "}
+                      {stop.type === "pickup"
+                        ? stop.restaurantName
+                        : stop.customerName}
+                    </Text>
+                    <Text className="text-xs text-[#7A7A7A] mt-1" numberOfLines={1}>
+                      {stop.address || `Order #${stop.orderId.slice(-8)}`}
+                    </Text>
+                  </View>
+                  <Text className="text-xs font-bold text-[#9CA3AF]">
+                    {stop.distanceKm} km
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
 

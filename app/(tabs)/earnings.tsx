@@ -1,11 +1,13 @@
 import EarningBarChart from "@/components/earnings/EarningBarChart";
 import EarningListItem from "@/components/earnings/EarningListItem";
 import EarningSummaryCard from "@/components/earnings/EarningSummaryCard";
+import { ApiService } from "@/services/api";
 import { Order, useOrderStore } from "@/store/orders";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  Alert,
   Modal,
   RefreshControl,
   ScrollView,
@@ -417,15 +419,53 @@ export default function EarningsScreen() {
   const [showSeeAll, setShowSeeAll] = useState(false);
   const [showDayDetail, setShowDayDetail] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<"7d" | "30d">("7d");
+  const [payout, setPayout] = useState<{
+    nextPayoutAmount: number;
+    nextPayoutDate: string;
+    method: string;
+    destination: string;
+    withdrawalAvailable: boolean;
+  } | null>(null);
+  const [requestingPayout, setRequestingPayout] = useState(false);
 
   useEffect(() => {
     fetchOrderHistory();
+    loadPayout();
   }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchOrderHistory();
+    await Promise.all([fetchOrderHistory(), loadPayout()]);
     setRefreshing(false);
+  };
+
+  const loadPayout = async () => {
+    const res = await ApiService.getEarnings("week");
+    if (res.success && res.data?.payout) {
+      setPayout(res.data.payout);
+    }
+  };
+
+  const requestWithdrawal = async () => {
+    if (!payout?.nextPayoutAmount) return;
+    Alert.alert(
+      "Request Withdrawal",
+      `Request withdrawal of ₹${payout.nextPayoutAmount.toLocaleString()}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Request",
+          onPress: async () => {
+            setRequestingPayout(true);
+            const res = await ApiService.requestPayoutWithdrawal(
+              payout.nextPayoutAmount,
+            );
+            setRequestingPayout(false);
+            Alert.alert(res.success ? "Requested" : "Failed", res.message);
+          },
+        },
+      ],
+    );
   };
 
   const completedOrders = useMemo(
@@ -605,6 +645,49 @@ export default function EarningsScreen() {
             <Text className="text-2xl font-extrabold text-[#1A1A1A]">
               {completedOrders.length}
             </Text>
+          </View>
+        </View>
+
+        {/* ── Payout Visibility ── */}
+        <View className="px-6 mt-4">
+          <View className="bg-white rounded-[28px] p-5 border border-gray-100">
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center flex-1">
+                <View className="w-10 h-10 bg-[#ECFDF5] rounded-2xl items-center justify-center mr-3">
+                  <Ionicons name="card-outline" size={20} color="#10B981" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-extrabold text-[#1A1A1A]">
+                    Weekly Payout
+                  </Text>
+                  <Text className="text-xs text-[#9CA3AF] mt-0.5">
+                    {payout?.nextPayoutDate
+                      ? `Next: ${new Date(payout.nextPayoutDate).toLocaleDateString("en-IN")}`
+                      : "Calculated from delivered orders"}
+                  </Text>
+                </View>
+              </View>
+              <Text className="text-xl font-extrabold text-[#10B981]">
+                ₹{(payout?.nextPayoutAmount || weeklyEarnings).toLocaleString()}
+              </Text>
+            </View>
+            <View className="flex-row items-center justify-between">
+              <Text className="text-xs text-[#6B7280] flex-1">
+                {payout
+                  ? `${payout.method} • ${payout.destination}`
+                  : "Bank/UPI destination loads from profile"}
+              </Text>
+              <TouchableOpacity
+                onPress={requestWithdrawal}
+                disabled={requestingPayout || !(payout?.withdrawalAvailable)}
+                className={`px-4 py-2 rounded-full ${
+                  payout?.withdrawalAvailable ? "bg-[#10B981]" : "bg-gray-200"
+                }`}>
+                <Text className="text-white text-xs font-bold">
+                  {requestingPayout ? "Requesting" : "Withdraw"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 

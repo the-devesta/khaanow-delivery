@@ -1,7 +1,7 @@
 /**
  * PaymentOptionsModal
- * Shows bottom sheet with payment options for pay-at-delivery.
- * Handles: PREPAID (no action), COD (OTP flow), PAY_AT_DELIVERY (link or QR)
+ * Shows bottom sheet with payment and delivery handoff options.
+ * Handles: PREPAID delivery OTP, COD OTP, Payment Link, UPI QR
  */
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -132,7 +132,7 @@ export default function PaymentOptionsModal({
               {subView === "menu"
                 ? "Collect Payment"
                 : subView === "cod_otp"
-                  ? "Cash Verification"
+                  ? "Delivery Verification"
                   : subView === "payment_link"
                     ? "Payment Link"
                     : "UPI QR Code"}
@@ -157,21 +157,21 @@ export default function PaymentOptionsModal({
         {subView === "menu" && (
           <>
             {alreadyPaid ? (
-              /* Already paid — just show complete button */
+              /* Already paid — still verify customer handoff with OTP */
               <View className="px-6">
                 <View className="bg-green-50 rounded-2xl p-4 mb-4 flex-row items-center gap-3">
                   <Ionicons name="checkmark-circle" size={24} color="#16A34A" />
                   <Text className="text-green-700 font-semibold flex-1">
                     {payType === "prepaid"
-                      ? "Payment received online. Tap Complete Order."
+                      ? "Payment received online. Verify delivery OTP before completing."
                       : "Payment confirmed!"}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  onPress={onPaymentConfirmed}
+                  onPress={() => setSubView("cod_otp")}
                   className="bg-green-600 rounded-2xl py-4 items-center">
                   <Text className="text-white font-bold text-base">
-                    Complete Order
+                    Verify Delivery OTP
                   </Text>
                 </TouchableOpacity>
               </View>

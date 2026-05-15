@@ -481,11 +481,15 @@ export const ApiService = {
   async updateLocation(
     latitude: number,
     longitude: number,
+    metadata?: {
+      accuracy?: number | null;
+      mocked?: boolean | null;
+    },
   ): Promise<ApiResponse> {
     try {
       const response = await apiClient.post<ApiResponse>(
         "/delivery-partners/location",
-        { latitude, longitude },
+        { latitude, longitude, ...metadata },
       );
       return response;
     } catch (error: any) {
@@ -556,6 +560,28 @@ export const ApiService = {
         message:
           error.response?.data?.message || "Failed to get assigned orders",
         data: [],
+      };
+    }
+  },
+
+  async getDeliveryRoutePlan(
+    location?: { latitude: number; longitude: number },
+  ): Promise<ApiResponse<any>> {
+    try {
+      const query = location
+        ? `?latitude=${location.latitude}&longitude=${location.longitude}`
+        : "";
+      const response = await apiClient.get<ApiResponse>(
+        `/delivery-partners/orders/route-plan${query}`,
+      );
+      return response;
+    } catch (error: any) {
+      console.error("Get delivery route plan error:", error);
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Failed to get delivery route plan",
+        data: null,
       };
     }
   },
@@ -639,11 +665,15 @@ export const ApiService = {
   async updateOrderStatus(
     orderId: string,
     status: string,
+    metadata?: {
+      currentLocation?: { latitude: number; longitude: number };
+      proofPhotoUrl?: string;
+    },
   ): Promise<ApiResponse> {
     try {
       const response = await apiClient.patch<ApiResponse>(
         `/delivery-partners/orders/${orderId}/status`,
-        { status },
+        { status, ...metadata },
       );
       return response;
     } catch (error: any) {
@@ -652,6 +682,46 @@ export const ApiService = {
         success: false,
         message:
           error.response?.data?.message || "Failed to update order status",
+      };
+    }
+  },
+
+  async reportDeliveryDelay(
+    orderId: string,
+    reason: string,
+  ): Promise<ApiResponse> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        `/delivery-partners/orders/${orderId}/report-delay`,
+        { reason },
+      );
+      return response;
+    } catch (error: any) {
+      console.error("Report delivery delay error:", error);
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Failed to report delivery delay",
+      };
+    }
+  },
+
+  async requestOrderReassignment(
+    orderId: string,
+    reason: string,
+  ): Promise<ApiResponse> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        `/delivery-partners/orders/${orderId}/request-reassignment`,
+        { reason },
+      );
+      return response;
+    } catch (error: any) {
+      console.error("Request reassignment error:", error);
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Failed to request reassignment",
       };
     }
   },
@@ -701,6 +771,23 @@ export const ApiService = {
           week: 0,
           month: 0,
         },
+      };
+    }
+  },
+
+  async requestPayoutWithdrawal(amount: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        "/delivery-partners/payout/request",
+        { amount },
+      );
+      return response;
+    } catch (error: any) {
+      console.error("Request payout withdrawal error:", error);
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Failed to request withdrawal",
       };
     }
   },

@@ -113,6 +113,25 @@ export interface Order {
   autoCancelled?: boolean;
 }
 
+export interface RoutePlanStop {
+  sequence: number;
+  type: "pickup" | "drop";
+  orderId: string;
+  orderNumber?: string;
+  restaurantName: string;
+  customerName: string;
+  address?: string;
+  location: Location;
+  distanceKm: number;
+}
+
+export interface RoutePlan {
+  activeOrderCount: number;
+  maxActiveBatch: number;
+  totalDistanceKm: number;
+  stops: RoutePlanStop[];
+}
+
 /** An order the partner saw but didn't accept in time */
 export interface MissedOrder {
   order: Order;
@@ -127,6 +146,7 @@ export interface MissedOrder {
 
 interface OrderState {
   activeOrder: Order | null;
+  activeOrders: Order[];
   incomingOrder: Order | null;
   pendingOrder: Order | null;
   /** Epoch ms when the current pendingOrder was first received. Used to restore the countdown timer after app restart. */
@@ -136,18 +156,27 @@ interface OrderState {
   availableOrders: Order[];
   missedOrders: MissedOrder[];
   loading: boolean;
+  routePlan: RoutePlan | null;
 
   // Actions
   initializeSocket: () => void;
   setIncomingOrder: (order: Order | null) => void;
   acceptOrder: (orderId: string) => Promise<void>;
   rejectOrder: (orderId: string) => void;
-  updateOrderStatus: (status: OrderStatus) => Promise<boolean>;
-  completeOrder: () => void;
+  updateOrderStatus: (
+    status: OrderStatus,
+    metadata?: {
+      currentLocation?: Location;
+      proofPhotoUrl?: string;
+      orderId?: string;
+    },
+  ) => Promise<boolean>;
+  completeOrder: (orderId?: string) => void;
   setDriverLocation: (location: Location) => void;
   simulateDriverMovement: () => void;
   fetchAvailableOrders: () => Promise<void>;
   fetchAssignedOrders: () => Promise<void>;
+  fetchRoutePlan: () => Promise<void>;
   fetchOrderHistory: (page?: number) => Promise<void>;
   updateLocation: (latitude: number, longitude: number) => Promise<void>;
   dismissMissedOrder: (orderId: string) => void;
@@ -259,6 +288,7 @@ export const useOrderStore = create<OrderState>()(
   persist(
     (set, get) => ({
       activeOrder: null,
+      activeOrders: [],
       incomingOrder: null,
       pendingOrder: null,
       pendingOrderReceivedAt: null,
@@ -267,6 +297,7 @@ export const useOrderStore = create<OrderState>()(
       availableOrders: [],
       missedOrders: [],
       loading: false,
+      routePlan: null,
 
       // ── Socket initialization ────────────────────────────────────────────────────
       initializeSocket: () => {
@@ -326,11 +357,20 @@ export const useOrderStore = create<OrderState>()(
             updatedOrder._id,
             updatedOrder.status,
           );
-          const { activeOrder, pendingOrder, missedOrders } = get();
+          const { activeOrder, activeOrders, pendingOrder, missedOrders } = get();
 
           if (activeOrder && activeOrder.id === updatedOrder._id) {
             set({
               activeOrder: { ...activeOrder, status: updatedOrder.status },
+            });
+          }
+          if (activeOrders.some((order) => order.id === updatedOrder._id)) {
+            set({
+              activeOrders: activeOrders.map((order) =>
+                order.id === updatedOrder._id
+                  ? { ...order, status: updatedOrder.status }
+                  : order,
+              ),
             });
           }
 
@@ -439,9 +479,16 @@ export const useOrderStore = create<OrderState>()(
                 longitude: 77.391,
               };
 
+              const currentActiveOrders = get().activeOrders;
+              const nextActiveOrders = [
+                ...currentActiveOrders.filter((order) => order.id !== orderId),
+                newActiveOrder,
+              ];
+
               // Remove from missedOrders if it was there
               set({
                 activeOrder: newActiveOrder,
+                activeOrders: nextActiveOrders,
                 incomingOrder: null,
                 pendingOrder: null,
                 pendingOrderReceivedAt: null,
@@ -576,20 +623,43 @@ export const useOrderStore = create<OrderState>()(
         }
       },
 
-      updateOrderStatus: async (status: OrderStatus): Promise<boolean> => {
+      updateOrderStatus: async (
+        status: OrderStatus,
+        metadata?: {
+          currentLocation?: Location;
+          proofPhotoUrl?: string;
+          orderId?: string;
+        },
+      ): Promise<boolean> => {
         try {
-          const { activeOrder } = get();
-          if (!activeOrder) return false;
+          const { activeOrder, activeOrders } = get();
+          const targetOrder =
+            activeOrders.find((order) => order.id === metadata?.orderId) ||
+            activeOrder;
+          if (!targetOrder) return false;
 
           set({ loading: true });
 
           const response = await ApiService.updateOrderStatus(
-            activeOrder.id,
+            targetOrder.id,
             status,
+            {
+              currentLocation: metadata?.currentLocation || get().driverLocation,
+              proofPhotoUrl: metadata?.proofPhotoUrl,
+            },
           );
 
           if (response.success) {
-            set({ activeOrder: { ...activeOrder, status } });
+            const nextActiveOrders = activeOrders.map((order) =>
+              order.id === targetOrder.id ? { ...order, status } : order,
+            );
+            set({
+              activeOrder:
+                activeOrder?.id === targetOrder.id
+                  ? { ...targetOrder, status }
+                  : activeOrder,
+              activeOrders: nextActiveOrders,
+            });
             return true;
           } else {
             console.error("Failed to update order status:", response.message);
@@ -612,16 +682,23 @@ export const useOrderStore = create<OrderState>()(
         }
       },
 
-      completeOrder: () => {
-        const { activeOrder, orderHistory } = get();
-        if (activeOrder) {
+      completeOrder: (orderId?: string) => {
+        const { activeOrder, activeOrders, orderHistory } = get();
+        const completedOrder =
+          activeOrders.find((order) => order.id === orderId) || activeOrder;
+        if (completedOrder) {
+          const remainingActive = activeOrders.filter(
+            (order) => order.id !== completedOrder.id,
+          );
           set({
-            activeOrder: null,
+            activeOrder: remainingActive[0] || null,
+            activeOrders: remainingActive,
             orderHistory: [
-              { ...activeOrder, status: "delivered" },
+              { ...completedOrder, status: "delivered" },
               ...orderHistory,
             ],
           });
+          get().fetchRoutePlan();
         }
       },
 
@@ -661,7 +738,7 @@ export const useOrderStore = create<OrderState>()(
               transformSocketOrder(order),
             );
 
-            const { missedOrders, pendingOrder, activeOrder, orderHistory } =
+            const { missedOrders, pendingOrder, activeOrder, activeOrders, orderHistory } =
               get();
             const availableIds = new Set(orders.map((o) => o.id));
 
@@ -724,6 +801,7 @@ export const useOrderStore = create<OrderState>()(
                 ...updatedMissed.map((m) => m.order.id),
                 pendingOrder?.id,
                 activeOrder?.id,
+                ...activeOrders.map((o) => o.id),
                 ...orderHistory.map((o) => o.id),
               ].filter((id): id is string => Boolean(id)),
             );
@@ -762,24 +840,50 @@ export const useOrderStore = create<OrderState>()(
           const response = await ApiService.getAssignedOrders();
 
           if (response.success && response.data) {
-            if (response.data.length > 0) {
-              const transformedOrder = transformSocketOrder(response.data[0]);
+            const assignedOrders = response.data
+              .map((order: any) => transformSocketOrder(order))
+              .filter(
+                (order: Order) =>
+                  !["delivered", "cancelled"].includes(order.status),
+              );
 
-              if (transformedOrder.status !== "delivered") {
-                set({ activeOrder: transformedOrder });
-                socketService.joinOrderRoom(transformedOrder.id);
-              } else {
-                const { activeOrder: currentActive } = get();
-                if (currentActive?.id === transformedOrder.id) {
-                  set({ activeOrder: null });
-                }
-              }
+            assignedOrders.forEach((order: Order) =>
+              socketService.joinOrderRoom(order.id),
+            );
+
+            set({
+              activeOrders: assignedOrders,
+              activeOrder: assignedOrders[0] || null,
+            });
+
+            if (assignedOrders.length > 0) {
+              await get().fetchRoutePlan();
             }
           }
         } catch (error) {
           console.error("Fetch assigned orders error:", error);
         } finally {
           set({ loading: false });
+        }
+      },
+
+      fetchRoutePlan: async () => {
+        try {
+          const response = await ApiService.getDeliveryRoutePlan(
+            get().driverLocation,
+          );
+          if (response.success && response.data) {
+            set({
+              routePlan: {
+                activeOrderCount: response.data.activeOrderCount || 0,
+                maxActiveBatch: response.data.maxActiveBatch || 1,
+                totalDistanceKm: response.data.totalDistanceKm || 0,
+                stops: response.data.stops || [],
+              },
+            });
+          }
+        } catch (error) {
+          console.error("Fetch route plan error:", error);
         }
       },
 
@@ -897,6 +1001,7 @@ export const useOrderStore = create<OrderState>()(
           pendingOrder,
           pendingOrderReceivedAt,
           activeOrder,
+          activeOrders,
           orderHistory,
         } = get();
         const now = Date.now();
@@ -953,6 +1058,10 @@ export const useOrderStore = create<OrderState>()(
           activeOrder: activeOrder
             ? { ...activeOrder, createdAt: new Date(activeOrder.createdAt) }
             : null,
+          activeOrders: (activeOrders || []).map((o) => ({
+            ...o,
+            createdAt: new Date(o.createdAt),
+          })),
           orderHistory: (orderHistory || []).map((o) => ({
             ...o,
             createdAt: new Date(o.createdAt),
@@ -969,6 +1078,7 @@ export const useOrderStore = create<OrderState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         activeOrder: state.activeOrder,
+        activeOrders: state.activeOrders,
         pendingOrder: state.pendingOrder,
         pendingOrderReceivedAt: state.pendingOrderReceivedAt,
         missedOrders: state.missedOrders,

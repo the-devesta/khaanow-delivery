@@ -8,9 +8,11 @@ import OrderInfoCard from "@/components/orders/OrderInfoCard";
 import ProgressTracker from "@/components/orders/ProgressTracker";
 import { ApiService } from "@/services/api";
 import { socketService } from "@/services/socket";
+import { uploadImageToFirebase } from "@/services/storage";
 import { Location, useOrderStore } from "@/store/orders";
 import { Ionicons } from "@expo/vector-icons";
 import * as ExpoLocation from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   JSXElementConstructor,
@@ -26,6 +28,8 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Linking,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -194,6 +198,8 @@ export default function OrderDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [proofUploading, setProofUploading] = useState(false);
+  const [reportingIssue, setReportingIssue] = useState(false);
   const [apiOrder, setApiOrder] = useState<ReturnType<
     typeof transformApiOrder
   > | null>(null);
@@ -284,6 +290,10 @@ export default function OrderDetailsScreen() {
         if (activeOrder) {
           socketService.updateLocation(activeOrder.id, loc);
         }
+        ApiService.updateLocation(loc.latitude, loc.longitude, {
+          accuracy: pos.coords.accuracy,
+          mocked: (pos as any).mocked ?? false,
+        });
       }
 
       // Watch continuously
@@ -304,6 +314,10 @@ export default function OrderDetailsScreen() {
           if (activeOrder) {
             socketService.updateLocation(activeOrder.id, loc);
           }
+          ApiService.updateLocation(loc.latitude, loc.longitude, {
+            accuracy: location.coords.accuracy,
+            mocked: (location as any).mocked ?? false,
+          });
         },
       );
     };
@@ -347,6 +361,95 @@ export default function OrderDetailsScreen() {
       tension: 50,
       friction: 8,
     }).start();
+  };
+
+  const openExternalNavigation = (destination?: Location) => {
+    if (!destination) {
+      Alert.alert("Location unavailable", "Destination coordinates are missing.");
+      return;
+    }
+
+    const label =
+      navPhase === "pickup"
+        ? displayOrder?.restaurantName
+        : displayOrder?.customerName;
+    const encodedLabel = encodeURIComponent(label || "KhaaoNow destination");
+    const url =
+      Platform.OS === "ios"
+        ? `http://maps.apple.com/?daddr=${destination.latitude},${destination.longitude}&q=${encodedLabel}`
+        : `https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}&travelmode=driving`;
+
+    Linking.openURL(url).catch(() =>
+      Alert.alert("Navigation unavailable", "Could not open maps on this device."),
+    );
+  };
+
+  const triggerSOS = () => {
+    Alert.alert(
+      "Emergency SOS",
+      "Call emergency services now? Use this only for urgent rider safety issues.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Call 112",
+          style: "destructive",
+          onPress: () => Linking.openURL("tel:112"),
+        },
+      ],
+    );
+  };
+
+  const reportDelay = () => {
+    if (!displayOrder?.id) return;
+    Alert.alert("Report Delay", "Notify customer and support that this delivery is delayed?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Report",
+        onPress: async () => {
+          setReportingIssue(true);
+          const res = await ApiService.reportDeliveryDelay(
+            String(displayOrder.id),
+            "Traffic or operational delay",
+          );
+          setReportingIssue(false);
+          Alert.alert(
+            res.success ? "Delay Reported" : "Failed",
+            res.message || "Delay update sent.",
+          );
+        },
+      },
+    ]);
+  };
+
+  const requestReassignment = () => {
+    if (!displayOrder?.id) return;
+    Alert.alert(
+      "Request Reassignment",
+      "Use this only if you cannot complete the delivery. The order will be released for another rider.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Release Order",
+          style: "destructive",
+          onPress: async () => {
+            setReportingIssue(true);
+            const res = await ApiService.requestOrderReassignment(
+              String(displayOrder.id),
+              "Rider unable to continue delivery",
+            );
+            setReportingIssue(false);
+            if (res.success) {
+              completeOrder(String(displayOrder.id));
+              Alert.alert("Reassignment Requested", "Order released for another rider.", [
+                { text: "OK", onPress: () => router.replace("/(tabs)") },
+              ]);
+            } else {
+              Alert.alert("Failed", res.message || "Could not release order.");
+            }
+          },
+        },
+      ],
+    );
   };
 
   // Merge: prefer API order details for display, but use local store status for flow
@@ -441,42 +544,27 @@ export default function OrderDetailsScreen() {
       switch (displayOrder.status) {
         case "delivery_partner_accepted":
         case "accepted":
-          await updateOrderStatus("delivery_partner_reached");
+          await updateOrderStatus("delivery_partner_reached", {
+            orderId: String(displayOrder.id),
+          });
           break;
         case "delivery_partner_reached":
-          await updateOrderStatus("delivery_partner_picked_up");
+          await updateOrderStatus("delivery_partner_picked_up", {
+            orderId: String(displayOrder.id),
+          });
           break;
         case "delivery_partner_picked_up":
         case "picked_up":
-          await updateOrderStatus("delivery_partner_reached_user_dest");
+          await updateOrderStatus("delivery_partner_reached_user_dest", {
+            orderId: String(displayOrder.id),
+          });
           break;
         case "delivery_partner_reached_user_dest":
         case "on_the_way":
-          // Prepaid orders or already-confirmed payment → complete directly
-          // paymentStatus "completed" = COD OTP; "paid" = Razorpay QR / Payment Link
-          if (
-            displayOrder.paymentType === "online" ||
-            paymentConfirmed ||
-            displayOrder.paymentStatus === "completed" ||
-            displayOrder.paymentStatus === "paid"
-          ) {
-            const success = await updateOrderStatus("delivered");
-            if (success) {
-              completeOrder();
-              Alert.alert("🎉 Success", "Order delivered successfully!", [
-                {
-                  text: "OK",
-                  onPress: () =>
-                    setTimeout(() => router.replace("/(tabs)"), 100),
-                },
-              ]);
-            }
-          } else {
-            // Cash / pay-at-delivery → show payment modal first
-            setLoading(false);
-            setPaymentModalVisible(true);
-            return;
-          }
+          // Always verify customer handoff OTP before proof/photo completion.
+          setLoading(false);
+          setPaymentModalVisible(true);
+          return;
           break;
       }
       // Refresh order display after status change
@@ -492,26 +580,83 @@ export default function OrderDetailsScreen() {
   const handlePaymentConfirmed = async () => {
     setPaymentModalVisible(false);
     setPaymentConfirmed(true);
+    await completeDeliveryWithProof();
+  };
+
+  const ensureCurrentLocation = async (): Promise<Location | null> => {
+    if (driverLocation) return driverLocation;
+
+    const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Location Required", "Enable location to verify pickup/drop geofence.");
+      return null;
+    }
+
+    const pos = await ExpoLocation.getCurrentPositionAsync({
+      accuracy: ExpoLocation.Accuracy.High,
+    });
+    const loc = {
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+    };
+    setDriverLoc(loc);
+    setDriverLocation(loc);
+    return loc;
+  };
+
+  const captureProofPhoto = async (): Promise<string | null> => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Camera Required", "Take a delivery proof photo to complete this order.");
+      return null;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 0.65,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) return null;
+    return uploadImageToFirebase(result.assets[0].uri, "delivery_proofs");
+  };
+
+  const completeDeliveryWithProof = async () => {
     setLoading(true);
+    setProofUploading(true);
     try {
-      const success = await updateOrderStatus("delivered");
+      const loc = await ensureCurrentLocation();
+      if (!loc) return;
+
+      const proofPhotoUrl = await captureProofPhoto();
+      if (!proofPhotoUrl) return;
+
+      const success = await updateOrderStatus("delivered", {
+        orderId: String(displayOrder?.id || id),
+        currentLocation: loc,
+        proofPhotoUrl,
+      });
+
       if (success) {
-        completeOrder();
-        Alert.alert("🎉 Success", "Order delivered successfully!", [
+        completeOrder(String(displayOrder?.id || id));
+        Alert.alert("🎉 Success", "Order delivered with proof captured.", [
           {
             text: "OK",
             onPress: () => setTimeout(() => router.replace("/(tabs)"), 100),
           },
         ]);
       } else {
-        // Store already showed an alert; reset local state so driver can retry
         setPaymentConfirmed(false);
       }
-    } catch (error) {
-      console.error("Complete delivery error:", error);
-      Alert.alert("Error", "Failed to complete delivery. Please try again.");
+    } catch (error: any) {
+      console.error("Complete delivery proof error:", error);
+      Alert.alert(
+        "Delivery Proof Failed",
+        error?.message || "Failed to complete delivery. Please try again.",
+      );
       setPaymentConfirmed(false);
     } finally {
+      setProofUploading(false);
       setLoading(false);
     }
   };
@@ -760,6 +905,63 @@ export default function OrderDetailsScreen() {
               address={displayOrder.restaurantAddress}
             />
 
+            <View className="flex-row gap-3 mb-3">
+              <TouchableOpacity
+                onPress={() =>
+                  openExternalNavigation(
+                    navPhase === "pickup"
+                      ? displayOrder.pickupLocation
+                      : displayOrder.dropLocation,
+                  )
+                }
+                className="flex-1 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3 flex-row items-center justify-center"
+                activeOpacity={0.75}>
+                <Ionicons name="navigate" size={18} color="#FF6A00" />
+                <Text className="text-orange-600 font-bold text-xs ml-2">
+                  Open Maps
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={triggerSOS}
+                className="w-24 bg-red-50 border border-red-100 rounded-2xl px-4 py-3 flex-row items-center justify-center"
+                activeOpacity={0.75}>
+                <Ionicons name="alert-circle" size={18} color="#DC2626" />
+                <Text className="text-red-600 font-bold text-xs ml-1">
+                  SOS
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {isActiveOrder && (
+              <View className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-3">
+                <View className="flex-row items-start">
+                  <Ionicons name="battery-charging-outline" size={18} color="#D97706" />
+                  <Text className="text-amber-700 font-semibold text-xs ml-2 flex-1">
+                    Keep the app open during active delivery. If tracking stops,
+                    disable battery saver for KhaaoNow Delivery.
+                  </Text>
+                </View>
+                <View className="flex-row gap-2 mt-3">
+                  <TouchableOpacity
+                    onPress={reportDelay}
+                    disabled={reportingIssue}
+                    className="flex-1 bg-white rounded-xl py-2.5 items-center border border-amber-100">
+                    <Text className="text-amber-700 font-bold text-xs">
+                      Report Delay
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={requestReassignment}
+                    disabled={reportingIssue}
+                    className="flex-1 bg-white rounded-xl py-2.5 items-center border border-red-100">
+                    <Text className="text-red-600 font-bold text-xs">
+                      Reassign
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* Customer Info */}
             <OrderInfoCard
               title="Drop Location"
@@ -925,9 +1127,9 @@ export default function OrderDetailsScreen() {
           displayOrder.status !== "delivered" &&
           displayOrder.status !== "cancelled" && (
             <ActionFooter
-              label={getActionLabel()}
+              label={proofUploading ? "Uploading Proof..." : getActionLabel()}
               onPress={handleAction}
-              loading={loading}
+              loading={loading || proofUploading}
             />
           )}
 
