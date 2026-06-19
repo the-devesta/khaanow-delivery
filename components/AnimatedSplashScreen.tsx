@@ -155,7 +155,7 @@ export function AnimatedSplashScreen({
         <Animated.Image
           source={KhaaoNowLogo}
           style={[styles.logo, logoStyle]}
-          contentFit="contain"
+          resizeMode="contain"
         />
       </Animated.View>
 

@@ -75,7 +75,9 @@ export async function registerForPushNotificationsAsync({
  */
 export async function registerPushTokenWithBackend(token: string) {
   try {
-    const API_URL = API_BASE_URL || "https://api.khaaonow.com/api";
+    const API_URL =
+      API_BASE_URL ||
+      "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api";
     const { token: authToken } = useAuthStore.getState();
 
     if (!authToken) {

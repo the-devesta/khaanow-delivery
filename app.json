@@ -2,7 +2,7 @@
   "expo": {
     "name": "KhaaoNow Delivery",
     "slug": "khaaonow-delivery",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/DeliveryKhaaoNow.png",
     "scheme": "khaaonowdelivery",
@@ -18,7 +18,7 @@
       "package": "com.khaaonow.delivery",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#F7B731",
+        "backgroundColor": "#FFD000",
         "foregroundImage": "./assets/images/DeliveryKhaaoNow.png"
       },
       "edgeToEdgeEnabled": true,
@@ -33,7 +33,10 @@
               "pathPrefix": "/callback"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },

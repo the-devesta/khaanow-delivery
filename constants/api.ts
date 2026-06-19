@@ -4,7 +4,9 @@
 
 // API Base URL
 export const API_CONFIG = {
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || "https://api.khaaonow.com/api",
+  BASE_URL:
+    process.env.EXPO_PUBLIC_API_URL ||
+    "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
   TIMEOUT: 30000, // 30 seconds
 };
 

@@ -3,7 +3,10 @@ import { Alert } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { ApiService } from "../services/api";
+import { updateDriverLocationInFirebase } from "../services/driverTrackingService";
+import { subscribeToDeliveryRealtime } from "../services/realtime.service";
 import { socketService } from "../services/socket";
+import { useAuthStore } from "./auth";
 
 export interface Location {
   latitude: number;
@@ -283,6 +286,7 @@ function transformSocketOrder(order: any): Order {
 const MISSED_ORDER_TTL_MS = 15 * 60 * 1000; // 15 minutes accept window (controls Accept button)
 /** How long missed-order cards stay visible in "Pending Requests" before auto-pruning. */
 const MISSED_ORDER_DISPLAY_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+let deliveryRealtimeCleanup: (() => void) | null = null;
 
 export const useOrderStore = create<OrderState>()(
   persist(
@@ -434,6 +438,145 @@ export const useOrderStore = create<OrderState>()(
             }
           }
         });
+
+        if (!deliveryRealtimeCleanup) {
+          deliveryRealtimeCleanup = subscribeToDeliveryRealtime({
+            onAvailableOrder: (order: any, updatedAt?: number) => {
+              console.log("🔔 Firebase delivery available:", order._id || order.id);
+              const transformedOrder = transformSocketOrder(order);
+              const {
+                pendingOrder,
+                activeOrder,
+                activeOrders,
+                missedOrders,
+                orderHistory,
+                availableOrders,
+              } = get();
+              const orderId = transformedOrder.id;
+              const isTracked =
+                pendingOrder?.id === orderId ||
+                activeOrder?.id === orderId ||
+                activeOrders.some((active) => active.id === orderId) ||
+                missedOrders.some((missed) => missed.order.id === orderId) ||
+                orderHistory.some((history) => history.id === orderId);
+
+              const nextAvailable = availableOrders.some((o) => o.id === orderId)
+                ? availableOrders.map((o) =>
+                    o.id === orderId ? transformedOrder : o,
+                  )
+                : [transformedOrder, ...availableOrders];
+
+              const isFresh =
+                typeof updatedAt === "number" &&
+                Date.now() - updatedAt < 90 * 1000;
+
+              if (!isTracked && isFresh) {
+                set({
+                  availableOrders: nextAvailable,
+                  incomingOrder: transformedOrder,
+                  pendingOrder: transformedOrder,
+                  pendingOrderReceivedAt: Date.now(),
+                });
+                return;
+              }
+
+              if (!isTracked) {
+                const missedEntry: MissedOrder = {
+                  order: transformedOrder,
+                  missedAt: transformedOrder.createdAt,
+                  expiresAt: new Date(
+                    transformedOrder.createdAt.getTime() + MISSED_ORDER_TTL_MS,
+                  ),
+                  reason: "timeout",
+                  stillAvailable: true,
+                };
+                set({
+                  availableOrders: nextAvailable,
+                  missedOrders: [
+                    missedEntry,
+                    ...missedOrders.filter((m) => m.order.id !== orderId),
+                  ],
+                });
+                return;
+              }
+
+              set({ availableOrders: nextAvailable });
+            },
+            onOrderTaken: (orderId: string) => {
+              console.log("⚠️ Firebase order taken:", orderId);
+              const { pendingOrder, missedOrders } = get();
+              if (!pendingOrder || pendingOrder.id !== orderId) return;
+
+              const now = new Date();
+              const missedEntry: MissedOrder = {
+                order: pendingOrder,
+                missedAt: now,
+                expiresAt: new Date(now.getTime() + MISSED_ORDER_TTL_MS),
+                reason: "taken",
+                stillAvailable: false,
+              };
+              set({
+                missedOrders: [
+                  missedEntry,
+                  ...missedOrders.filter((m) => m.order.id !== orderId),
+                ],
+                incomingOrder: null,
+                pendingOrder: null,
+                pendingOrderReceivedAt: null,
+              });
+            },
+            onOrderUpdated: (updatedOrder: any) => {
+              const updatedId = updatedOrder._id || updatedOrder.id;
+              if (!updatedId) return;
+
+              const { activeOrder, activeOrders, pendingOrder, missedOrders } =
+                get();
+              const nextStatus = updatedOrder.status as OrderStatus;
+
+              if (activeOrder && activeOrder.id === updatedId) {
+                set({
+                  activeOrder: { ...activeOrder, status: nextStatus },
+                });
+              }
+
+              if (activeOrders.some((order) => order.id === updatedId)) {
+                set({
+                  activeOrders: activeOrders.map((order) =>
+                    order.id === updatedId
+                      ? { ...order, status: nextStatus }
+                      : order,
+                  ),
+                });
+              }
+
+              if (pendingOrder && pendingOrder.id === updatedId) {
+                if (["cancelled", "delivered"].includes(nextStatus)) {
+                  const now = new Date();
+                  const missedEntry: MissedOrder = {
+                    order: pendingOrder,
+                    missedAt: now,
+                    expiresAt: new Date(now.getTime() + MISSED_ORDER_TTL_MS),
+                    reason: "cancelled",
+                    stillAvailable: false,
+                  };
+                  set({
+                    missedOrders: [
+                      missedEntry,
+                      ...missedOrders.filter((m) => m.order.id !== updatedId),
+                    ],
+                    incomingOrder: null,
+                    pendingOrder: null,
+                    pendingOrderReceivedAt: null,
+                  });
+                } else {
+                  set({
+                    pendingOrder: { ...pendingOrder, status: nextStatus },
+                  });
+                }
+              }
+            },
+          });
+        }
       },
 
       setIncomingOrder: (order) =>
@@ -984,6 +1127,15 @@ export const useOrderStore = create<OrderState>()(
           set({ driverLocation: { latitude, longitude } });
 
           if (activeOrder) {
+            const partnerId = useAuthStore.getState().partner?.id;
+            if (partnerId) {
+              await updateDriverLocationInFirebase(
+                partnerId,
+                { latitude, longitude },
+                activeOrder.id,
+              );
+            }
+
             socketService.updateLocation(activeOrder.id, {
               latitude,
               longitude,

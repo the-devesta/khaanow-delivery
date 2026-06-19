@@ -18,14 +18,11 @@ import {
 
 // Re-use the same Firebase app instance
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const db = getDatabase(
-  app,
-  `https://${firebaseConfig.projectId}-default-rtdb.firebaseio.com`,
-);
+const db = getDatabase(app, firebaseConfig.databaseURL);
 
 /**
  * Write driver location to Firebase Realtime DB.
- * Path: drivers/{partnerId}/location
+ * Path: delivery/partners/{partnerId}/location
  */
 export async function updateDriverLocationInFirebase(
   partnerId: string,
@@ -33,7 +30,7 @@ export async function updateDriverLocationInFirebase(
   orderId?: string,
 ): Promise<void> {
   try {
-    const locationRef = ref(db, `drivers/${partnerId}/location`);
+    const locationRef = ref(db, `delivery/partners/${partnerId}/location`);
     await set(locationRef, {
       latitude: location.latitude,
       longitude: location.longitude,
@@ -56,7 +53,7 @@ export function subscribeToDriverLocation(
 ): () => void {
   const locationRef: DatabaseReference = ref(
     db,
-    `drivers/${partnerId}/location`,
+    `delivery/partners/${partnerId}/location`,
   );
 
   onValue(locationRef, (snapshot) => {

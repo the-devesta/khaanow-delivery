@@ -4,10 +4,11 @@ import { LoginSchema } from "@/utils/validations";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Formik } from "formik";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  Keyboard,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +24,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const { sendOtp, loading, error, clearError } = useWhatsAppAuth();
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -43,16 +46,48 @@ export default function LoginScreen() {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setKeyboardVisible(true);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 120);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const scrollToPhoneInput = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 80);
+  };
+
   return (
     <View className="flex-1 bg-[#F3E0D9]">
       <StatusBar barStyle="dark-content" backgroundColor="#F3E0D9" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
         className="flex-1">
         <ScrollView
+          ref={scrollViewRef}
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
           contentContainerStyle={{
-            paddingBottom: insets.bottom || 20,
-            paddingTop: insets.top + 20,
+            paddingBottom:
+              (insets.bottom || 20) + (keyboardVisible ? 140 : 0),
+            paddingTop: insets.top + (keyboardVisible ? 12 : 20),
             flexGrow: 1,
           }}
           keyboardShouldPersistTaps="handled"
@@ -63,7 +98,7 @@ export default function LoginScreen() {
               transform: [{ translateY: slideAnim }],
               width: "100%",
               flex: 1,
-              justifyContent: "center",
+              justifyContent: keyboardVisible ? "flex-start" : "center",
             }}>
             {/* Header Section */}
             <View className="items-center mb-8 px-6">
@@ -148,6 +183,8 @@ export default function LoginScreen() {
                         <TextInput
                           placeholder="Enter your number"
                           keyboardType="number-pad"
+                          inputMode="numeric"
+                          returnKeyType="done"
                           maxLength={10}
                           value={values.phoneNumber}
                           onChangeText={(text) => {
@@ -158,6 +195,7 @@ export default function LoginScreen() {
                             handleChange("phoneNumber")(numericText);
                           }}
                           onBlur={handleBlur("phoneNumber")}
+                          onFocus={scrollToPhoneInput}
                           placeholderTextColor="#9CA3AF"
                           className="flex-1 px-4 text-lg text-[#1A1A1A] font-semibold h-full"
                           style={{

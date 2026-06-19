@@ -4,10 +4,11 @@ import DeliveryMap, {
   haversineM,
 } from "@/components/map/DeliveryMap";
 import ActionFooter from "@/components/orders/ActionFooter";
-import OrderInfoCard from "@/components/orders/OrderInfoCard";
-import ProgressTracker from "@/components/orders/ProgressTracker";
 import { ApiService } from "@/services/api";
+import { updateDriverLocationInFirebase } from "@/services/driverTrackingService";
+import { subscribeToOrderPayment } from "@/services/realtime.service";
 import { socketService } from "@/services/socket";
+import { useAuthStore } from "@/store/auth";
 import { uploadImageToFirebase } from "@/services/storage";
 import { Location, useOrderStore } from "@/store/orders";
 import { Ionicons } from "@expo/vector-icons";
@@ -37,7 +38,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 const STEPS = [
   { label: "Accepted", icon: "checkmark-done-outline" },
@@ -45,6 +46,15 @@ const STEPS = [
   { label: "Picked Up", icon: "bicycle-outline" },
   { label: "Arrived", icon: "location-outline" },
 ];
+
+function formatAddressText(address: string | Record<string, any> | undefined | null) {
+  if (!address) return "Address unavailable";
+  if (typeof address === "string") return address || "Address unavailable";
+  const a = address as any;
+  if (a.fullAddress) return a.fullAddress;
+  const parts = [a.street, a.city, a.state, a.postalCode].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : "Address unavailable";
+}
 
 // ── Navigation helpers ────────────────────────────────────────────────────
 
@@ -191,8 +201,10 @@ function transformApiOrder(raw: any) {
 export default function OrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { activeOrder, updateOrderStatus, completeOrder, setDriverLocation } =
     useOrderStore();
+  const partnerId = useAuthStore((state) => state.partner?.id);
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -265,6 +277,17 @@ export default function OrderDetailsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  useEffect(() => {
+    if (!id) return;
+
+    return subscribeToOrderPayment(id, () => {
+      console.log("[Firebase] payment-confirmed received:", id);
+      fetchOrder();
+      setPaymentConfirmed(true);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   // Start real GPS tracking when this is an active order
   useEffect(() => {
     if (!isActiveOrder) return;
@@ -288,6 +311,9 @@ export default function OrderDetailsScreen() {
         setDriverLocation(loc); // update store too
         // Broadcast via socket
         if (activeOrder) {
+          if (partnerId) {
+            updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
+          }
           socketService.updateLocation(activeOrder.id, loc);
         }
         ApiService.updateLocation(loc.latitude, loc.longitude, {
@@ -312,6 +338,9 @@ export default function OrderDetailsScreen() {
           setDriverLoc(loc);
           setDriverLocation(loc);
           if (activeOrder) {
+            if (partnerId) {
+              updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
+            }
             socketService.updateLocation(activeOrder.id, loc);
           }
           ApiService.updateLocation(loc.latitude, loc.longitude, {
@@ -665,10 +694,42 @@ export default function OrderDetailsScreen() {
 
   // Which destination phase are we navigating toward?
   const navPhase: "pickup" | "dropoff" =
-    displayOrder?.status &&
-    ["delivery_partner_picked_up", "picked_up"].includes(displayOrder.status)
+    currentStep >= 3 ||
+    (displayOrder?.status &&
+      [
+        "delivery_partner_picked_up",
+        "picked_up",
+        "delivery_partner_reached_user_dest",
+        "on_the_way",
+      ].includes(displayOrder.status))
       ? "dropoff"
       : "pickup";
+  const phaseTitle =
+    displayOrder.status === "delivered"
+      ? "Delivery completed"
+      : navPhase === "pickup"
+        ? "Pickup from restaurant"
+        : "Deliver to customer";
+  const phaseName =
+    navPhase === "pickup" ? displayOrder.restaurantName : displayOrder.customerName;
+  const phaseAddress =
+    navPhase === "pickup"
+      ? formatAddressText(displayOrder.restaurantAddress)
+      : formatAddressText(displayOrder.customerAddress);
+  const routeEtaText =
+    routeInfo.etaMin > 0 && routeInfo.distKm > 0
+      ? `${routeInfo.etaMin} min • ${routeInfo.distKm} km`
+      : "Calculating route";
+  const statusText =
+    currentStep <= 1
+      ? "Accepted"
+      : currentStep === 2
+        ? "At restaurant"
+        : currentStep === 3
+          ? "Picked up"
+          : currentStep === 4
+            ? "Arriving"
+            : "Delivered";
 
   // Use real GPS for driver marker; fall back to null (shows no driver pin)
   const mapDriverLocation =
@@ -732,7 +793,11 @@ export default function OrderDetailsScreen() {
         </SafeAreaView>
 
         {/* ── Bottom: ETA + action ── */}
-        <View style={navStyles.bottomSheet}>
+        <View
+          style={[
+            navStyles.bottomSheet,
+            { paddingBottom: Math.max(insets.bottom + 12, 22) },
+          ]}>
           {/* ETA row */}
           <View style={navStyles.etaRow}>
             <View style={navStyles.etaBlock}>
@@ -809,12 +874,12 @@ export default function OrderDetailsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Map + Progress Tracker - Collapsible Together */}
+        {/* Map + live route */}
         <Animated.View
           style={{
             height: mapHeightAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [210, 390], // collapsed = 210px, expanded = 390px
+              outputRange: [230, 430],
             }),
           }}>
           {/* Map Section */}
@@ -822,7 +887,7 @@ export default function OrderDetailsScreen() {
             style={{
               height: mapHeightAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [120, 300], // map height adjusts
+                outputRange: [170, 360],
               }),
               overflow: "hidden",
             }}>
@@ -830,14 +895,48 @@ export default function OrderDetailsScreen() {
               driverLocation={safeDriverLoc}
               pickupLocation={displayOrder.pickupLocation}
               dropLocation={displayOrder.dropLocation}
-              showRoute={displayOrder.status !== "accepted"}
+              showRoute={displayOrder.status !== "cancelled"}
+              navigationMode={isActiveOrder}
+              activePhase={navPhase}
               onRouteLoaded={setRouteInfo}
             />
+
+            <View style={orderStyles.mapRouteBar}>
+              <View style={orderStyles.mapRouteIcon}>
+                <Ionicons
+                  name={navPhase === "pickup" ? "restaurant" : "person"}
+                  size={17}
+                  color="#FF6A00"
+                />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={orderStyles.mapRouteLabel} numberOfLines={1}>
+                  {navPhase === "pickup" ? "Go to pickup" : "Go to customer"}
+                </Text>
+                <Text style={orderStyles.mapRouteMeta} numberOfLines={1}>
+                  {routeEtaText}
+                </Text>
+              </View>
+              {isActiveOrder &&
+                displayOrder.status !== "delivered" &&
+                displayOrder.status !== "cancelled" && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setCurrentStepIdx(0);
+                      setIsNavigating(true);
+                    }}
+                    style={orderStyles.mapRouteButton}
+                    activeOpacity={0.85}>
+                    <Ionicons name="navigate" size={16} color="#fff" />
+                    <Text style={orderStyles.mapRouteButtonText}>Start</Text>
+                  </TouchableOpacity>
+                )}
+            </View>
 
             {/* Map Toggle Button */}
             <TouchableOpacity
               onPress={toggleMapCollapse}
-              className="absolute bottom-3 right-3 w-10 h-10 bg-white rounded-full items-center justify-center shadow-xl border-2 border-white"
+              className="absolute top-3 left-3 w-10 h-10 bg-white rounded-full items-center justify-center shadow-xl border-2 border-white"
               activeOpacity={0.7}>
               <Ionicons
                 name={isMapCollapsed ? "chevron-down" : "chevron-up"}
@@ -845,41 +944,41 @@ export default function OrderDetailsScreen() {
                 color="#1A1A1A"
               />
             </TouchableOpacity>
-
-            {/* Navigate Button — only when order is active */}
-            {isActiveOrder &&
-              displayOrder.status !== "delivered" &&
-              displayOrder.status !== "cancelled" && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setCurrentStepIdx(0);
-                    setIsNavigating(true);
-                  }}
-                  style={{
-                    position: "absolute",
-                    bottom: 52,
-                    right: 12,
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    backgroundColor: "#FF6A00",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    shadowColor: "#FF6A00",
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.4,
-                    shadowRadius: 6,
-                    elevation: 8,
-                  }}
-                  activeOpacity={0.8}>
-                  <Ionicons name="navigate" size={20} color="#fff" />
-                </TouchableOpacity>
-              )}
           </Animated.View>
 
-          {/* Progress Tracker - Fixed height, always visible */}
-          <View className="bg-gray-50 px-5 py-2" style={{ height: 90 }}>
-            <ProgressTracker currentStep={currentStep} steps={STEPS} />
+          <View style={orderStyles.statusStrip}>
+            {STEPS.map((step, index) => {
+              const stepNumber = index + 1;
+              const isDone = stepNumber < currentStep;
+              const isActive = stepNumber === currentStep;
+              return (
+                <View
+                  key={step.label}
+                  style={[
+                    orderStyles.statusPill,
+                    isActive && orderStyles.statusPillActive,
+                    isDone && orderStyles.statusPillDone,
+                  ]}>
+                  <Ionicons
+                    name={
+                      isDone
+                        ? "checkmark"
+                        : (step.icon as any)
+                    }
+                    size={13}
+                    color={isActive || isDone ? "#FFFFFF" : "#6B7280"}
+                  />
+                  <Text
+                    style={[
+                      orderStyles.statusPillText,
+                      (isActive || isDone) && orderStyles.statusPillTextActive,
+                    ]}
+                    numberOfLines={1}>
+                    {step.label}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         </Animated.View>
 
@@ -896,40 +995,64 @@ export default function OrderDetailsScreen() {
             />
           }>
           <View className="px-4 pt-4">
-            {/* Restaurant Info */}
-            <OrderInfoCard
-              title="Pickup Location"
-              icon="restaurant"
-              iconBg="#FFF5EB"
-              name={displayOrder.restaurantName}
-              address={displayOrder.restaurantAddress}
-            />
-
-            <View className="flex-row gap-3 mb-3">
-              <TouchableOpacity
-                onPress={() =>
-                  openExternalNavigation(
-                    navPhase === "pickup"
-                      ? displayOrder.pickupLocation
-                      : displayOrder.dropLocation,
-                  )
-                }
-                className="flex-1 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3 flex-row items-center justify-center"
-                activeOpacity={0.75}>
-                <Ionicons name="navigate" size={18} color="#FF6A00" />
-                <Text className="text-orange-600 font-bold text-xs ml-2">
-                  Open Maps
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={triggerSOS}
-                className="w-24 bg-red-50 border border-red-100 rounded-2xl px-4 py-3 flex-row items-center justify-center"
-                activeOpacity={0.75}>
-                <Ionicons name="alert-circle" size={18} color="#DC2626" />
-                <Text className="text-red-600 font-bold text-xs ml-1">
-                  SOS
-                </Text>
-              </TouchableOpacity>
+            <View style={orderStyles.taskCard}>
+              <View style={orderStyles.taskHeader}>
+                <View style={orderStyles.taskIcon}>
+                  <Ionicons
+                    name={navPhase === "pickup" ? "restaurant" : "navigate"}
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={orderStyles.taskEyebrow}>{statusText}</Text>
+                  <Text style={orderStyles.taskTitle} numberOfLines={1}>
+                    {phaseTitle}
+                  </Text>
+                </View>
+                <View style={orderStyles.taskMetric}>
+                  <Text style={orderStyles.taskMetricText} numberOfLines={1}>
+                    {routeEtaText}
+                  </Text>
+                </View>
+              </View>
+              <Text style={orderStyles.taskName} numberOfLines={1}>
+                {phaseName}
+              </Text>
+              <Text style={orderStyles.taskAddress} numberOfLines={2}>
+                {phaseAddress}
+              </Text>
+              <View style={orderStyles.quickActions}>
+                <TouchableOpacity
+                  onPress={() =>
+                    openExternalNavigation(
+                      navPhase === "pickup"
+                        ? displayOrder.pickupLocation
+                        : displayOrder.dropLocation,
+                    )
+                  }
+                  style={orderStyles.primaryQuickAction}
+                  activeOpacity={0.78}>
+                  <Ionicons name="navigate" size={17} color="#FFFFFF" />
+                  <Text style={orderStyles.primaryQuickActionText}>
+                    Open Maps
+                  </Text>
+                </TouchableOpacity>
+                {displayOrder.customerPhone ? (
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL(`tel:${displayOrder.customerPhone}`)}
+                    style={orderStyles.secondaryQuickAction}
+                    activeOpacity={0.78}>
+                    <Ionicons name="call" size={17} color="#111827" />
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  onPress={triggerSOS}
+                  style={orderStyles.sosQuickAction}
+                  activeOpacity={0.78}>
+                  <Ionicons name="alert-circle" size={18} color="#DC2626" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {isActiveOrder && (
@@ -962,16 +1085,38 @@ export default function OrderDetailsScreen() {
               </View>
             )}
 
-            {/* Customer Info */}
-            <OrderInfoCard
-              title="Drop Location"
-              icon="location"
-              iconBg="#D1FAE5"
-              name={displayOrder.customerName}
-              address={displayOrder.customerAddress}
-              phone={displayOrder.customerPhone}
-              showCall
-            />
+            <View style={orderStyles.stopsCard}>
+              <View style={orderStyles.stopRow}>
+                <View style={[orderStyles.stopDot, orderStyles.pickupDot]}>
+                  <Ionicons name="restaurant" size={16} color="#FF6A00" />
+                </View>
+                <View style={orderStyles.stopLine} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={orderStyles.stopLabel}>Pickup</Text>
+                  <Text style={orderStyles.stopName} numberOfLines={1}>
+                    {displayOrder.restaurantName}
+                  </Text>
+                  <Text style={orderStyles.stopAddress} numberOfLines={2}>
+                    {formatAddressText(displayOrder.restaurantAddress)}
+                  </Text>
+                </View>
+              </View>
+              <View style={orderStyles.stopDivider} />
+              <View style={orderStyles.stopRow}>
+                <View style={[orderStyles.stopDot, orderStyles.dropDot]}>
+                  <Ionicons name="person" size={16} color="#065F46" />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={orderStyles.stopLabel}>Drop</Text>
+                  <Text style={orderStyles.stopName} numberOfLines={1}>
+                    {displayOrder.customerName}
+                  </Text>
+                  <Text style={orderStyles.stopAddress} numberOfLines={2}>
+                    {formatAddressText(displayOrder.customerAddress)}
+                  </Text>
+                </View>
+              </View>
+            </View>
 
             {/* Order Items */}
             <View className="bg-white rounded-2xl p-4  border border-gray-100 mb-3">
@@ -1204,9 +1349,9 @@ const navStyles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 36,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 22,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
@@ -1216,14 +1361,14 @@ const navStyles = StyleSheet.create({
   etaRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   etaBlock: {
     alignItems: "center",
     minWidth: 48,
   },
   etaValue: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "800",
     color: "#1F2937",
     lineHeight: 30,
@@ -1237,16 +1382,16 @@ const navStyles = StyleSheet.create({
     width: 1,
     height: 36,
     backgroundColor: "#E5E7EB",
-    marginHorizontal: 16,
+    marginHorizontal: 12,
   },
   phaseTag: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFF5EB",
     borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    maxWidth: 160,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    maxWidth: 140,
   },
   phaseText: {
     color: "#FF6A00",
@@ -1256,22 +1401,23 @@ const navStyles = StyleSheet.create({
   },
   btnRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     alignItems: "center",
   },
   exitBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
   },
   actionBtn: {
     flex: 1,
-    height: 52,
+    minHeight: 48,
     backgroundColor: "#FF6A00",
-    borderRadius: 30,
+    borderRadius: 24,
+    paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#FF6A00",
@@ -1282,8 +1428,268 @@ const navStyles = StyleSheet.create({
   },
   actionBtnText: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     letterSpacing: 0.3,
+  },
+});
+
+const orderStyles = StyleSheet.create({
+  statusStrip: {
+    height: 70,
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+  },
+  statusPill: {
+    flex: 1,
+    minWidth: 0,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 7,
+    gap: 4,
+  },
+  statusPillActive: {
+    backgroundColor: "#111827",
+    borderColor: "#111827",
+  },
+  statusPillDone: {
+    backgroundColor: "#10B981",
+    borderColor: "#10B981",
+  },
+  statusPillText: {
+    color: "#6B7280",
+    fontSize: 10,
+    fontWeight: "800",
+    flexShrink: 1,
+  },
+  statusPillTextActive: {
+    color: "#FFFFFF",
+  },
+  mapRouteBar: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 12,
+    minHeight: 64,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(17,24,39,0.08)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  mapRouteIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF5EB",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  mapRouteLabel: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  mapRouteMeta: {
+    color: "#6B7280",
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 3,
+  },
+  mapRouteButton: {
+    height: 38,
+    borderRadius: 19,
+    paddingHorizontal: 12,
+    backgroundColor: "#FF6A00",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    flexShrink: 0,
+  },
+  mapRouteButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  taskCard: {
+    backgroundColor: "#111827",
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  taskHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  taskIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#FF6A00",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  taskEyebrow: {
+    color: "#9CA3AF",
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  taskTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  taskMetric: {
+    maxWidth: 116,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    flexShrink: 0,
+  },
+  taskMetricText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  taskName: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  taskAddress: {
+    color: "#D1D5DB",
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 5,
+  },
+  quickActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 15,
+  },
+  primaryQuickAction: {
+    flex: 1,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#FF6A00",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  primaryQuickActionText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  secondaryQuickAction: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sosQuickAction: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stopsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#EEF2F7",
+    padding: 16,
+    marginBottom: 12,
+  },
+  stopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  stopDot: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  pickupDot: {
+    backgroundColor: "#FFF5EB",
+  },
+  dropDot: {
+    backgroundColor: "#D1FAE5",
+  },
+  stopLine: {
+    position: "absolute",
+    left: 19,
+    top: 42,
+    width: 2,
+    height: 42,
+    backgroundColor: "#E5E7EB",
+  },
+  stopDivider: {
+    height: 1,
+    backgroundColor: "#F3F4F6",
+    marginVertical: 14,
+    marginLeft: 52,
+  },
+  stopLabel: {
+    color: "#9CA3AF",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  stopName: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  stopAddress: {
+    color: "#6B7280",
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
   },
 });

@@ -6,7 +6,7 @@ const getBaseUrl = (): string => {
   const envApiUrl =
     Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL;
   if (envApiUrl) return envApiUrl;
-  return "https://api.khaaonow.com/api";
+  return "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api";
 };
 
 /**

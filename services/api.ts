@@ -22,7 +22,8 @@ const getApiUrl = () => {
   if (__DEV__) {
     // If you are testing with a local backend, change this to your machine's IP address (e.g., "http://192.168.1.100:3001/api")
     // Note: 'localhost' will not work on physical devices or Android emulators.
-    const fallbackUrl = "https://api.khaaonow.com/api";
+    const fallbackUrl =
+      "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api";
     console.log("🌐 [API] DEV mode fallback URL:", fallbackUrl);
     console.log(
       "💡 [API] To use a different URL locally, make sure EXPO_PUBLIC_API_URL is loaded by clearing metro cache (npm start -c)",
@@ -31,7 +32,8 @@ const getApiUrl = () => {
   }
 
   // Production fallback
-  const productionUrl = "https://api.khaaonow.com/api";
+  const productionUrl =
+    "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api";
   console.log("🌐 [API] Using production backend:", productionUrl);
   return productionUrl;
 };
@@ -155,10 +157,6 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          // Token expired or invalid
-          await AsyncStorage.removeItem(TOKEN_KEY);
-        }
         return Promise.reject(error);
       },
     );

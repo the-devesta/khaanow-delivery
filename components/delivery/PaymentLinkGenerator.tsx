@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { paymentService } from "../../services/paymentService";
+import { subscribeToOrderPayment } from "../../services/realtime.service";
 import { socketService } from "../../services/socket";
 
 interface Props {
@@ -53,7 +54,15 @@ export default function PaymentLinkGenerator({
       setTimeout(onPaymentConfirmed, 800);
     };
     socketService.on("payment-confirmed", handler);
-    return () => socketService.off("payment-confirmed", handler);
+    const unsubscribeFirebase = subscribeToOrderPayment(orderId, () => {
+      stopPolling();
+      setPhase("paid");
+      setTimeout(onPaymentConfirmed, 800);
+    });
+    return () => {
+      socketService.off("payment-confirmed", handler);
+      unsubscribeFirebase();
+    };
   }, [orderId, onPaymentConfirmed]);
 
   const startPolling = useCallback(() => {

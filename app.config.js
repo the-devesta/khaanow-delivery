@@ -19,12 +19,7 @@ const plugins = [
       backgroundColor: "#F7B731",
     },
   ],
-  [
-    "expo-location",
-    {
-      isAndroidForegroundServiceEnabled: true,
-    },
-  ],
+  ["expo-location", {}],
   [
     "expo-notifications",
     {
@@ -39,6 +34,16 @@ const plugins = [
         useFrameworks: "static",
         newArchEnabled: true,
       },
+      android: {
+        newArchEnabled: true,
+      },
+    },
+  ],
+  [
+    "react-native-maps",
+    {
+      iosGoogleMapsApiKey: GOOGLE_MAPS_API_KEY,
+      androidGoogleMapsApiKey: GOOGLE_MAPS_API_KEY,
     },
   ],
   "./plugins/withPodfileFix.js",
@@ -54,7 +59,7 @@ module.exports = {
   expo: {
     name: "KhaaoNow Delivery",
     slug: "khaaonow-delivery",
-    version: "1.0.0",
+    version: "1.0.1",
     orientation: "portrait",
     icon: "./assets/images/DeliveryKhaaoNow.png",
     scheme: "khaaonowdelivery",
@@ -62,7 +67,7 @@ module.exports = {
     newArchEnabled: true,
     extra: {
       eas: {
-        projectId: "e80586c0-7ca7-4966-af42-488b6535dd2f",
+        projectId: "56f92eae-29a4-46fc-94b2-623d2e2d3a72",
       },
     },
     ios: {

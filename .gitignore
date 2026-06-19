@@ -36,7 +36,6 @@ yarn-error.*
 .env
 
 # Sensitive configuration files
-google-services.json
 GoogleService-Info.plist
 *.jks
 *.p8

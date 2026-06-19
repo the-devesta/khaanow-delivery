@@ -6,8 +6,11 @@
 const ENV = {
   // API Configuration
   API_BASE_URL:
-    process.env.EXPO_PUBLIC_API_URL || "https://api.khaaonow.com/api",
-  SOCKET_URL: process.env.EXPO_PUBLIC_SOCKET_URL || "https://api.khaaonow.com",
+    process.env.EXPO_PUBLIC_API_URL ||
+    "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
+  SOCKET_URL:
+    process.env.EXPO_PUBLIC_SOCKET_URL ||
+    "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws",
   SOCKET_PATH: process.env.EXPO_PUBLIC_SOCKET_PATH || "/socket.io",
 
   // Firebase Configuration
