@@ -1,0 +1,61 @@
+{
+  "cli": {
+    "version": ">= 16.25.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
+        "EXPO_PUBLIC_ENABLE_SOCKET_FALLBACK": "false",
+        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
+        "EXPO_PUBLIC_ENABLE_SOCKET_FALLBACK": "false",
+        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU"
+      }
+    },
+    "apk": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+        "EXPO_PUBLIC_API_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
+        "EXPO_PUBLIC_ENABLE_SOCKET_FALLBACK": "false",
+        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
+        "EXPO_PUBLIC_ENABLE_SOCKET_FALLBACK": "false",
+        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "connect.khaaonow@gmail.com",
+        "ascAppId": "6762286394",
+        "appleTeamId": "63DRL842JX"
+      }
+    }
+  }
+}

@@ -35,14 +35,18 @@ yarn-error.*
 .env.local
 .env
 
-# Sensitive configuration files
-GoogleService-Info.plist
+# private signing credentials and local credential exports
+credentials/
+credentials.json
+*keystore*
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
 *.pem
+app.json.bak
+ios_backup/
 
 # typescript
 *.tsbuildinfo
@@ -57,6 +61,3 @@ app-example
 *.aab
 *.apk
 build/
-
-eas.json
-
