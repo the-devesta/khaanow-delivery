@@ -3,7 +3,6 @@ import { BlurView } from "expo-blur";
 import React, { PropsWithChildren } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Platform,
   Text,
   TouchableOpacity,
@@ -12,39 +11,11 @@ import {
 } from "react-native";
 
 const IS_IOS = Platform.OS === "ios";
-const IOS_MAJOR_VERSION =
-  typeof Platform.Version === "string"
-    ? parseInt(Platform.Version, 10)
-    : Number(Platform.Version);
 
-export const supportsLiquidGlass = IS_IOS && IOS_MAJOR_VERSION >= 26;
-
-let SwiftUI: any = {};
-let SwiftUIModifiers: any = {};
-let swiftUILoadError: string | null = null;
-
-if (IS_IOS) {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    SwiftUI = require("@expo/ui/swift-ui");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    SwiftUIModifiers = require("@expo/ui/swift-ui/modifiers");
-  } catch (error: any) {
-    swiftUILoadError = error?.message ?? "Unknown SwiftUI load error";
-  }
-}
-
-if (__DEV__ && IS_IOS && swiftUILoadError) {
-  console.warn("SwiftUI Liquid Glass fallback active:", swiftUILoadError);
-}
+export const supportsLiquidGlass = false;
 
 export function canUseSwiftUIGlass() {
-  return (
-    supportsLiquidGlass &&
-    !swiftUILoadError &&
-    SwiftUI?.Host &&
-    SwiftUIModifiers?.glassEffect
-  );
+  return false;
 }
 
 type GlassSurfaceProps = PropsWithChildren<{
@@ -67,20 +38,10 @@ export function IOSGlassSurface({
   tint = "light",
   cornerRadius = 24,
   shape = "rect",
-  interactive = true,
-  glassTint = "rgba(255,255,255,0.12)",
   fallbackBackgroundColor = "rgba(255,255,255,0.72)",
   fallbackBorderColor = "rgba(255,255,255,0.72)",
   pointerEvents,
 }: GlassSurfaceProps) {
-  const swiftShape = shape === "rect" ? "roundedRectangle" : shape;
-  const useSwiftUIGlass =
-    canUseSwiftUIGlass() &&
-    SwiftUI.Host &&
-    SwiftUI.HStack &&
-    SwiftUI.Spacer &&
-    SwiftUIModifiers.frame;
-
   return (
     <View
       pointerEvents={pointerEvents}
@@ -94,31 +55,7 @@ export function IOSGlassSurface({
         },
         style,
       ]}>
-      {IS_IOS && useSwiftUIGlass ? (
-        <View pointerEvents="none" style={{ ...StyleSheetFill }}>
-          <SwiftUI.Host style={StyleSheetFill}>
-            <SwiftUI.HStack
-              spacing={0}
-              modifiers={[
-                SwiftUIModifiers.glassEffect({
-                  shape: swiftShape,
-                  cornerRadius,
-                  glass: {
-                    variant: "regular",
-                    interactive,
-                    tint: glassTint,
-                  },
-                }),
-                SwiftUIModifiers.frame({
-                  width: Dimensions.get("window").width,
-                  height: 220,
-                }),
-              ]}>
-              <SwiftUI.Spacer minLength={0} />
-            </SwiftUI.HStack>
-          </SwiftUI.Host>
-        </View>
-      ) : IS_IOS ? (
+      {IS_IOS ? (
         <BlurView
           intensity={intensity}
           tint={tint}
@@ -157,29 +94,6 @@ export function IOSGlassButton({
   tintColor = "#F59E0B",
   icon,
 }: GlassButtonProps) {
-  if (IS_IOS && !loading && canUseSwiftUIGlass()) {
-    const { Host, Button } = SwiftUI;
-    const { buttonStyle, controlSize, tint, frame } = SwiftUIModifiers;
-    if (Host && Button && buttonStyle && controlSize && tint && frame) {
-      return (
-        <View style={{ width: "100%", opacity: disabled ? 0.55 : 1 }}>
-          <Host matchContents>
-            <Button
-              label={title}
-              onPress={disabled ? undefined : onPress}
-              modifiers={[
-                buttonStyle(variant === "outline" ? "glass" : "glassProminent"),
-                controlSize("extraLarge"),
-                tint(variant === "secondary" ? "#1F2937" : tintColor),
-                frame({ width: Dimensions.get("window").width - 48 }),
-              ]}
-            />
-          </Host>
-        </View>
-      );
-    }
-  }
-
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -229,7 +143,6 @@ export function IOSGlassButton({
 export function IOSGlassIconButton({
   onPress,
   icon,
-  systemImage,
   color = "#F59E0B",
   size = 48,
 }: {
@@ -239,41 +152,6 @@ export function IOSGlassIconButton({
   color?: string;
   size?: number;
 }) {
-  if (IS_IOS && canUseSwiftUIGlass() && SwiftUI.Button && SwiftUI.Image) {
-    const { Host, Button, Image } = SwiftUI;
-    const { buttonStyle, frame, glassEffect, tint, font } = SwiftUIModifiers;
-    if (
-      Host &&
-      Button &&
-      Image &&
-      buttonStyle &&
-      frame &&
-      glassEffect &&
-      tint &&
-      font
-    ) {
-      return (
-        <Host matchContents>
-          <Button
-            onPress={onPress}
-            modifiers={[
-              buttonStyle("plain"),
-              frame({ width: size, height: size }),
-              glassEffect({
-                shape: "circle",
-                glass: { variant: "regular", interactive: true },
-              }),
-            ]}>
-            <Image
-              systemName={systemImage ?? "magnifyingglass"}
-              modifiers={[tint(color), font({ size: 21, weight: "semibold" })]}
-            />
-          </Button>
-        </Host>
-      );
-    }
-  }
-
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
       <IOSGlassSurface
