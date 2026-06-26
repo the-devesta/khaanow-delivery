@@ -1,14 +1,13 @@
-import PrimaryButton from "@/components/ui/primary-button";
 import { useWhatsAppAuth } from "@/hooks/use-whatsapp-auth";
 import { LoginSchema } from "@/utils/validations";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Formik } from "formik";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
-  Keyboard,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,7 @@ import {
   StatusBar,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,8 +24,6 @@ export default function LoginScreen() {
   const router = useRouter();
   const { sendOtp, loading, error, clearError } = useWhatsAppAuth();
   const insets = useSafeAreaInsets();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -46,48 +44,17 @@ export default function LoginScreen() {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
-  useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSubscription = Keyboard.addListener(showEvent, () => {
-      setKeyboardVisible(true);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 120);
-    });
-    const hideSubscription = Keyboard.addListener(hideEvent, () => {
-      setKeyboardVisible(false);
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
-
-  const scrollToPhoneInput = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 80);
-  };
-
   return (
     <View className="flex-1 bg-[#F3E0D9]">
       <StatusBar barStyle="dark-content" backgroundColor="#F3E0D9" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
         className="flex-1">
         <ScrollView
-          ref={scrollViewRef}
-          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
           contentContainerStyle={{
-            paddingBottom:
-              (insets.bottom || 20) + (keyboardVisible ? 140 : 0),
-            paddingTop: insets.top + (keyboardVisible ? 12 : 20),
+            paddingBottom: (insets.bottom || 20) + 24,
+            paddingTop: insets.top + 20,
             flexGrow: 1,
           }}
           keyboardShouldPersistTaps="handled"
@@ -98,7 +65,7 @@ export default function LoginScreen() {
               transform: [{ translateY: slideAnim }],
               width: "100%",
               flex: 1,
-              justifyContent: keyboardVisible ? "flex-start" : "center",
+              justifyContent: "center",
             }}>
             {/* Header Section */}
             <View className="items-center mb-8 px-6">
@@ -109,7 +76,7 @@ export default function LoginScreen() {
                 Welcome back to KhaaoNow
               </Text>
 
-              <View className="mt-8 mb-4 rounded-2xl drop-shadow-xl shadow-amber-100">
+              <View className="mt-8 mb-4 rounded-2xl">
                 <Image
                   className="rounded-2xl"
                   source={require("../../assets/images/login-illustration.png")}
@@ -120,14 +87,7 @@ export default function LoginScreen() {
 
             {/* Login Card */}
             <View
-              className="bg-white mx-6 rounded-[32px] p-6"
-              style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.05,
-                shadowRadius: 20,
-                elevation: 5,
-              }}>
+              className="bg-white mx-6 rounded-[32px] p-6">
               <View className="items-center mb-6">
                 <Text className="text-xl font-bold text-[#1A1A1A]">Login</Text>
                 <View className="h-1 w-8 bg-[#F59E0B] rounded-full mt-2" />
@@ -167,14 +127,7 @@ export default function LoginScreen() {
                         Phone Number
                       </Text>
                       <View
-                        className="flex-row items-center bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden h-14"
-                        style={{
-                          shadowColor: "#000",
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.03,
-                          shadowRadius: 4,
-                          elevation: 1,
-                        }}>
+                        className="flex-row items-center bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden h-14">
                         <View className="px-4 border-r border-gray-200 h-full justify-center bg-white">
                           <Text className="text-lg font-bold text-[#1A1A1A]">
                             +91
@@ -195,11 +148,12 @@ export default function LoginScreen() {
                             handleChange("phoneNumber")(numericText);
                           }}
                           onBlur={handleBlur("phoneNumber")}
-                          onFocus={scrollToPhoneInput}
                           placeholderTextColor="#9CA3AF"
                           className="flex-1 px-4 text-lg text-[#1A1A1A] font-semibold h-full"
                           style={{
                             includeFontPadding: false,
+                            height: 56,
+                            lineHeight: 24,
                             paddingTop: 0,
                             paddingBottom: 0,
                             textAlignVertical: "center",
@@ -240,11 +194,20 @@ export default function LoginScreen() {
                       </Text>
                     </View>
 
-                    <PrimaryButton
-                      title="Send OTP"
-                      onPress={handleSubmit}
-                      loading={loading}
-                    />
+                    <TouchableOpacity
+                      onPress={() => handleSubmit()}
+                      disabled={loading}
+                      activeOpacity={0.85}
+                      className="self-center bg-[#FF6A00] rounded-[28px] px-12 h-14 min-w-[180px] items-center justify-center"
+                      style={{ opacity: loading ? 0.7 : 1 }}>
+                      {loading ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text className="text-white text-lg font-bold">
+                          Send OTP
+                        </Text>
+                      )}
+                    </TouchableOpacity>
                   </View>
                 )}
               </Formik>

@@ -1,9 +1,28 @@
-import { Audio } from "expo-av";
+type ExpoAV = typeof import("expo-av");
 
-let soundObject: Audio.Sound | null = null;
+let AudioModule: ExpoAV["Audio"] | null | undefined;
+let soundObject: Awaited<
+  ReturnType<ExpoAV["Audio"]["Sound"]["createAsync"]>
+>["sound"] | null = null;
 let isLoading = false;
 
+const getAudio = async () => {
+  if (AudioModule !== undefined) return AudioModule;
+
+  try {
+    AudioModule = (await import("expo-av")).Audio;
+  } catch (error) {
+    AudioModule = null;
+    console.log("[Ringtone] expo-av is unavailable in this runtime; skipping ringtone.");
+  }
+
+  return AudioModule;
+};
+
 const initAudio = async () => {
+  const Audio = await getAudio();
+  if (!Audio) return false;
+
   try {
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
@@ -11,8 +30,10 @@ const initAudio = async () => {
       staysActiveInBackground: true,
       shouldDuckAndroid: true,
     });
+    return true;
   } catch (error) {
     console.error("Failed to set audio mode:", error);
+    return false;
   }
 };
 
@@ -24,7 +45,11 @@ export const playRingtone = async () => {
     }
 
     isLoading = true;
-    await initAudio();
+    const Audio = await getAudio();
+    if (!Audio || !(await initAudio())) {
+      isLoading = false;
+      return;
+    }
 
     const { sound } = await Audio.Sound.createAsync(
       require("../assets/sounds/ringtone.mp3"),

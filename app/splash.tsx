@@ -158,7 +158,7 @@ export function Splash({
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: BRAND_COLOR,
     alignItems: "center",
     justifyContent: "center",

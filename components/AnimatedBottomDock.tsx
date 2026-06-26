@@ -3,7 +3,7 @@ import {
   IOSGlassSurface,
   supportsLiquidGlass,
 } from "@/components/ui/ios-liquid-glass";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { BottomTabBarProps } from "expo-router/build/react-navigation/bottom-tabs";
 import { JSX, useEffect, useRef } from "react";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

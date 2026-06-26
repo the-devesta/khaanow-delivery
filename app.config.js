@@ -19,6 +19,8 @@ const plugins = [
       backgroundColor: "#F7B731",
     },
   ],
+  "expo-font",
+  "expo-image",
   ["expo-location", {}],
   [
     "expo-notifications",
@@ -27,6 +29,8 @@ const plugins = [
       color: "#F7B731",
     },
   ],
+  "expo-status-bar",
+  "expo-web-browser",
   [
     "expo-build-properties",
     {
@@ -37,13 +41,6 @@ const plugins = [
       android: {
         newArchEnabled: true,
       },
-    },
-  ],
-  [
-    "react-native-maps",
-    {
-      iosGoogleMapsApiKey: GOOGLE_MAPS_API_KEY,
-      androidGoogleMapsApiKey: GOOGLE_MAPS_API_KEY,
     },
   ],
   "./plugins/withPodfileFix.js",

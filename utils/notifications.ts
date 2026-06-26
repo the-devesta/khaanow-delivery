@@ -1,20 +1,72 @@
 import axios from "axios";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { API_BASE_URL } from "../services/api";
 import { useAuthStore } from "../store/auth";
 
-// Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+type ExpoNotifications = typeof import("expo-notifications");
+
+let NotificationsModule: ExpoNotifications | null | undefined;
+let notificationHandlerConfigured = false;
+
+function isAndroidExpoGo() {
+  return Platform.OS === "android" && Constants.appOwnership === "expo";
+}
+
+async function getNotifications() {
+  if (NotificationsModule !== undefined) return NotificationsModule;
+
+  if (isAndroidExpoGo()) {
+    NotificationsModule = null;
+    console.log(
+      "[Notifications] Android push notifications are not available in Expo Go; skipping push notifications.",
+    );
+    return NotificationsModule;
+  }
+
+  try {
+    NotificationsModule = await import("expo-notifications");
+  } catch (error) {
+    NotificationsModule = null;
+    console.log(
+      "[Notifications] expo-notifications is unavailable in this runtime; skipping push notifications.",
+    );
+  }
+
+  if (
+    NotificationsModule &&
+    typeof NotificationsModule.setNotificationHandler === "function" &&
+    !notificationHandlerConfigured
+  ) {
+    notificationHandlerConfigured = true;
+    NotificationsModule.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  }
+
+  return NotificationsModule;
+}
+
+export async function getPushNotificationPermissionStatus() {
+  const Notifications = await getNotifications();
+  if (!Notifications) return "unavailable";
+
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status;
+  } catch (error) {
+    console.log(
+      "[Notifications] Push notifications are unavailable in this runtime.",
+    );
+    return "unavailable";
+  }
+}
 
 /**
  * Register for push notifications and return the token
@@ -22,6 +74,9 @@ Notifications.setNotificationHandler({
 export async function registerForPushNotificationsAsync({
   requestPermission = false,
 }: { requestPermission?: boolean } = {}) {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+
   let token;
 
   if (Platform.OS === "android") {

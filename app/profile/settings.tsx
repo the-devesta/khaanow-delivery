@@ -1,11 +1,11 @@
 import { ApiService } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
 import {
+  getPushNotificationPermissionStatus,
   registerForPushNotificationsAsync,
   registerPushTokenWithBackend,
 } from "@/utils/notifications";
 import { Ionicons } from "@expo/vector-icons";
-import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -26,7 +26,7 @@ export default function SettingsScreen() {
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
-    Notifications.getPermissionsAsync().then(({ status }) => {
+    getPushNotificationPermissionStatus().then((status) => {
       setNotificationsEnabled(status === "granted");
     });
   }, []);
