@@ -70,6 +70,14 @@ module.exports = {
     scheme: "khaaonowdelivery",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
+    autolinking: {
+      ios: {
+        exclude: ["@expo/ui", "expo-glass-effect"],
+      },
+      android: {
+        exclude: ["@expo/ui", "expo-glass-effect"],
+      },
+    },
     extra: {
       eas: {
         projectId: "56f92eae-29a4-46fc-94b2-623d2e2d3a72",

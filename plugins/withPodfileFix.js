@@ -1,8 +1,23 @@
-const { withDangerousMod } = require('@expo/config-plugins');
+const { withDangerousMod, withXcodeProject } = require('@expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
+const withMapKitFramework = (config) => {
+  return withXcodeProject(config, (config) => {
+    const project = config.modResults;
+    const target = project.getFirstTarget()?.uuid;
+
+    if (target && !project.hasFile('MapKit.framework')) {
+      project.addFramework('MapKit.framework', { target, weak: false });
+    }
+
+    return config;
+  });
+};
+
 const withPodfileFix = (config) => {
+  config = withMapKitFramework(config);
+
   return withDangerousMod(config, [
     'ios',
     async (config) => {
@@ -10,17 +25,6 @@ const withPodfileFix = (config) => {
       if (!fs.existsSync(file)) return config;
 
       let contents = fs.readFileSync(file, 'utf8');
-
-      if (!contents.includes("pod 'react-native-maps/Google'")) {
-        contents = contents.replace(
-          /(\s*)config = use_native_modules!\(config_command\)/,
-          [
-            "$1rn_maps_path = File.dirname(`node --print \"require.resolve('react-native-maps/package.json')\"`)",
-            "$1pod 'react-native-maps/Google', :path => rn_maps_path",
-            "$1config = use_native_modules!(config_command)",
-          ].join('\n')
-        );
-      }
 
       const postInstallFix = [
         "  installer.pods_project.targets.each do |target|",

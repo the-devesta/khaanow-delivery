@@ -2,6 +2,22 @@
   "name": "khaaonow-delivery",
   "main": "expo-router/entry",
   "version": "1.0.1",
+  "expo": {
+    "autolinking": {
+      "ios": {
+        "exclude": [
+          "@expo/ui",
+          "expo-glass-effect"
+        ]
+      },
+      "android": {
+        "exclude": [
+          "@expo/ui",
+          "expo-glass-effect"
+        ]
+      }
+    }
+  },
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
