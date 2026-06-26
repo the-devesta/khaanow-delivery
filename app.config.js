@@ -37,10 +37,18 @@ const plugins = [
       ios: {
         useFrameworks: "static",
         newArchEnabled: true,
+        deploymentTarget: "16.4",
       },
       android: {
         newArchEnabled: true,
       },
+    },
+  ],
+  [
+    "react-native-maps",
+    {
+      iosGoogleMapsApiKey: GOOGLE_MAPS_API_KEY,
+      androidGoogleMapsApiKey: GOOGLE_MAPS_API_KEY,
     },
   ],
   "./plugins/withPodfileFix.js",

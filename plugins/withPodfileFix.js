@@ -11,6 +11,17 @@ const withPodfileFix = (config) => {
 
       let contents = fs.readFileSync(file, 'utf8');
 
+      if (!contents.includes("pod 'react-native-maps/Google'")) {
+        contents = contents.replace(
+          /(\s*)config = use_native_modules!\(config_command\)/,
+          [
+            "$1rn_maps_path = File.dirname(`node --print \"require.resolve('react-native-maps/package.json')\"`)",
+            "$1pod 'react-native-maps/Google', :path => rn_maps_path",
+            "$1config = use_native_modules!(config_command)",
+          ].join('\n')
+        );
+      }
+
       const postInstallFix = [
         "  installer.pods_project.targets.each do |target|",
         "    target.build_configurations.each do |config|",
@@ -27,7 +38,7 @@ const withPodfileFix = (config) => {
         "      # Sed fix for @import GoogleMaps;",
         "      system(\"find -E \\\"#{installer.sandbox.root}/Google-Maps-iOS-Utils/Sources/GoogleMapsUtilsObjC/include\\\" -type f -name \\\"*.h\\\" -exec sed -i \\\"\\\" \\\"s/@import GoogleMaps;/#import <GoogleMaps\\\\/GoogleMaps.h>/g\\\" {} +\")",
         "    end",
-        "    if target.name == 'react-native-google-maps'",
+        "    if target.name == 'react-native-maps' || target.name.start_with?('react-native-maps-')",
         "      target.build_configurations.each do |config|",
         "        # Xcode 16+ module validation can fail on react-native-maps Obj-C headers when built as frameworks.",
         "        config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'",
