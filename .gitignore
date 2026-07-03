@@ -61,3 +61,4 @@ app-example
 *.aab
 *.apk
 build/
+builds/
