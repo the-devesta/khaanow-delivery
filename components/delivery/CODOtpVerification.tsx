@@ -5,6 +5,7 @@
  * 2. Customer reads OTP aloud → driver enters it here
  * 3. Tap "Verify" → backend validates → onVerified() called
  */
+import { inputTextStyle } from "@/constants/form-styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRef, useState } from "react";
 import {
@@ -163,7 +164,8 @@ export default function CODOtpVerification({ orderId, onVerified }: Props) {
             maxLength={6}
             placeholder="• • • • • •"
             placeholderTextColor="#D1D5DB"
-            className="border border-gray-200 rounded-2xl text-center text-2xl font-bold tracking-widest text-gray-900 py-4 mb-3"
+            className="border border-gray-200 rounded-2xl text-center font-bold tracking-widest text-gray-900 mb-3"
+            style={[inputTextStyle.phone, { width: "100%" }]}
           />
 
           {error ? (

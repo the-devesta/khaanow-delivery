@@ -11,6 +11,7 @@ import { socketService } from "@/services/socket";
 import { useAuthStore } from "@/store/auth";
 import { uploadImageToFirebase } from "@/services/storage";
 import { Location, useOrderStore } from "@/store/orders";
+import { openPhoneDialer } from "@/utils/phone";
 import { Ionicons } from "@expo/vector-icons";
 import * as ExpoLocation from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -202,7 +203,13 @@ export default function OrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { activeOrder, updateOrderStatus, completeOrder, setDriverLocation } =
+  const {
+    activeOrder,
+    updateOrderStatus,
+    completeOrder,
+    releaseActiveOrder,
+    setDriverLocation,
+  } =
     useOrderStore();
   const partnerId = useAuthStore((state) => state.partner?.id);
 
@@ -306,6 +313,7 @@ export default function OrderDetailsScreen() {
         const loc = {
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
+          heading: pos.coords.heading,
         };
         setDriverLoc(loc);
         setDriverLocation(loc); // update store too
@@ -314,11 +322,12 @@ export default function OrderDetailsScreen() {
           if (partnerId) {
             updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
           }
-          socketService.updateLocation(activeOrder.id, loc);
+          socketService.updateLocation(activeOrder.id, loc, pos.coords.heading ?? 0);
         }
         ApiService.updateLocation(loc.latitude, loc.longitude, {
           accuracy: pos.coords.accuracy,
           mocked: (pos as any).mocked ?? false,
+          heading: pos.coords.heading,
         });
       }
 
@@ -334,6 +343,7 @@ export default function OrderDetailsScreen() {
           const loc = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
+            heading: location.coords.heading,
           };
           setDriverLoc(loc);
           setDriverLocation(loc);
@@ -341,11 +351,16 @@ export default function OrderDetailsScreen() {
             if (partnerId) {
               updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
             }
-            socketService.updateLocation(activeOrder.id, loc);
+            socketService.updateLocation(
+              activeOrder.id,
+              loc,
+              location.coords.heading ?? 0,
+            );
           }
           ApiService.updateLocation(loc.latitude, loc.longitude, {
             accuracy: location.coords.accuracy,
             mocked: (location as any).mocked ?? false,
+            heading: location.coords.heading,
           });
         },
       );
@@ -403,13 +418,28 @@ export default function OrderDetailsScreen() {
         ? displayOrder?.restaurantName
         : displayOrder?.customerName;
     const encodedLabel = encodeURIComponent(label || "KhaaoNow destination");
-    const url =
-      Platform.OS === "ios"
-        ? `http://maps.apple.com/?daddr=${destination.latitude},${destination.longitude}&q=${encodedLabel}`
-        : `https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}&travelmode=driving`;
+    const webGoogleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}&travelmode=driving`;
+    const nativeGoogleMapsUrl = `comgooglemaps://?daddr=${destination.latitude},${destination.longitude}&directionsmode=driving&q=${encodedLabel}`;
 
-    Linking.openURL(url).catch(() =>
-      Alert.alert("Navigation unavailable", "Could not open maps on this device."),
+    if (Platform.OS === "ios") {
+      Linking.canOpenURL("comgooglemaps://")
+        .then((canOpenGoogleMaps) =>
+          Linking.openURL(canOpenGoogleMaps ? nativeGoogleMapsUrl : webGoogleMapsUrl),
+        )
+        .catch(() =>
+          Alert.alert(
+            "Navigation unavailable",
+            "Could not open Google Maps on this device.",
+          ),
+        );
+      return;
+    }
+
+    Linking.openURL(webGoogleMapsUrl).catch(() =>
+      Alert.alert(
+        "Navigation unavailable",
+        "Could not open Google Maps on this device.",
+      ),
     );
   };
 
@@ -422,7 +452,7 @@ export default function OrderDetailsScreen() {
         {
           text: "Call 112",
           style: "destructive",
-          onPress: () => Linking.openURL("tel:112"),
+          onPress: () => openPhoneDialer("112"),
         },
       ],
     );
@@ -436,15 +466,18 @@ export default function OrderDetailsScreen() {
         text: "Report",
         onPress: async () => {
           setReportingIssue(true);
-          const res = await ApiService.reportDeliveryDelay(
-            String(displayOrder.id),
-            "Traffic or operational delay",
-          );
-          setReportingIssue(false);
-          Alert.alert(
-            res.success ? "Delay Reported" : "Failed",
-            res.message || "Delay update sent.",
-          );
+          try {
+            const res = await ApiService.reportDeliveryDelay(
+              String(displayOrder.id),
+              "Traffic or operational delay",
+            );
+            Alert.alert(
+              res.success ? "Delay Reported" : "Failed",
+              res.message || "Delay update sent.",
+            );
+          } finally {
+            setReportingIssue(false);
+          }
         },
       },
     ]);
@@ -462,18 +495,23 @@ export default function OrderDetailsScreen() {
           style: "destructive",
           onPress: async () => {
             setReportingIssue(true);
-            const res = await ApiService.requestOrderReassignment(
-              String(displayOrder.id),
-              "Rider unable to continue delivery",
-            );
-            setReportingIssue(false);
-            if (res.success) {
-              completeOrder(String(displayOrder.id));
-              Alert.alert("Reassignment Requested", "Order released for another rider.", [
-                { text: "OK", onPress: () => router.replace("/(tabs)") },
-              ]);
-            } else {
-              Alert.alert("Failed", res.message || "Could not release order.");
+            try {
+              const res = await ApiService.requestOrderReassignment(
+                String(displayOrder.id),
+                "Rider unable to continue delivery",
+              );
+              if (res.success) {
+                releaseActiveOrder(String(displayOrder.id));
+                Alert.alert(
+                  "Reassignment Requested",
+                  "Order released for another rider.",
+                  [{ text: "OK", onPress: () => router.replace("/(tabs)") }],
+                );
+              } else {
+                Alert.alert("Failed", res.message || "Could not release order.");
+              }
+            } finally {
+              setReportingIssue(false);
             }
           },
         },
@@ -1040,7 +1078,7 @@ export default function OrderDetailsScreen() {
                 </TouchableOpacity>
                 {displayOrder.customerPhone ? (
                   <TouchableOpacity
-                    onPress={() => Linking.openURL(`tel:${displayOrder.customerPhone}`)}
+                    onPress={() => openPhoneDialer(displayOrder.customerPhone)}
                     style={orderStyles.secondaryQuickAction}
                     activeOpacity={0.78}>
                     <Ionicons name="call" size={17} color="#111827" />

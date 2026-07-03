@@ -1,4 +1,5 @@
 import { useWhatsAppAuth } from "@/hooks/use-whatsapp-auth";
+import { inputTextStyle } from "@/constants/form-styles";
 import { LoginSchema } from "@/utils/validations";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -129,7 +130,9 @@ export default function LoginScreen() {
                       <View
                         className="flex-row items-center bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden h-14">
                         <View className="px-4 border-r border-gray-200 h-full justify-center bg-white">
-                          <Text className="text-lg font-bold text-[#1A1A1A]">
+                          <Text
+                            className="font-bold text-[#1A1A1A]"
+                            style={inputTextStyle.phonePrefix}>
                             +91
                           </Text>
                         </View>
@@ -149,15 +152,8 @@ export default function LoginScreen() {
                           }}
                           onBlur={handleBlur("phoneNumber")}
                           placeholderTextColor="#9CA3AF"
-                          className="flex-1 px-4 text-lg text-[#1A1A1A] font-semibold h-full"
-                          style={{
-                            includeFontPadding: false,
-                            height: 56,
-                            lineHeight: 24,
-                            paddingTop: 0,
-                            paddingBottom: 0,
-                            textAlignVertical: "center",
-                          }}
+                          className="flex-1 px-4 text-[#1A1A1A] font-semibold"
+                          style={inputTextStyle.phone}
                           selectionColor="#F59E0B"
                         />
                         <View className="pr-4">

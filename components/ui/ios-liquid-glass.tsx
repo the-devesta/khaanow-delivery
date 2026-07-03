@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import React, { PropsWithChildren } from "react";
 import {
   ActivityIndicator,
@@ -12,10 +11,27 @@ import {
 
 const IS_IOS = Platform.OS === "ios";
 
-export const supportsLiquidGlass = false;
+let NativeGlassView: React.ComponentType<any> | null = null;
+let nativeGlassAvailable = false;
+
+if (IS_IOS) {
+  try {
+    const glassEffect = require("expo-glass-effect");
+    NativeGlassView = glassEffect.GlassView;
+    nativeGlassAvailable =
+      glassEffect.isGlassEffectAPIAvailable?.() ||
+      glassEffect.isLiquidGlassAvailable?.() ||
+      false;
+  } catch {
+    NativeGlassView = null;
+    nativeGlassAvailable = false;
+  }
+}
+
+export const supportsLiquidGlass = nativeGlassAvailable;
 
 export function canUseSwiftUIGlass() {
-  return false;
+  return nativeGlassAvailable;
 }
 
 type GlassSurfaceProps = PropsWithChildren<{
@@ -38,10 +54,38 @@ export function IOSGlassSurface({
   tint = "light",
   cornerRadius = 24,
   shape = "rect",
+  glassTint,
   fallbackBackgroundColor = "rgba(255,255,255,0.72)",
   fallbackBorderColor = "rgba(255,255,255,0.72)",
   pointerEvents,
 }: GlassSurfaceProps) {
+  if (IS_IOS && NativeGlassView && nativeGlassAvailable) {
+    return (
+      <View
+        pointerEvents={pointerEvents}
+        style={[
+          {
+            overflow: "hidden",
+            borderRadius: shape === "capsule" ? 999 : cornerRadius,
+            borderWidth: 1,
+            borderColor: fallbackBorderColor,
+            backgroundColor: "transparent",
+          },
+          style,
+        ]}>
+        <NativeGlassView
+          pointerEvents="none"
+          glassEffectStyle="regular"
+          colorScheme={tint === "dark" ? "dark" : tint === "light" ? "light" : "auto"}
+          tintColor={glassTint}
+          style={StyleSheetFill}
+        />
+        <View pointerEvents="none" style={StyleSheetFill} />
+        {children}
+      </View>
+    );
+  }
+
   return (
     <View
       pointerEvents={pointerEvents}
@@ -56,10 +100,17 @@ export function IOSGlassSurface({
         style,
       ]}>
       {IS_IOS ? (
-        <BlurView
-          intensity={intensity}
-          tint={tint}
-          style={{ ...StyleSheetFill }}
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheetFill,
+            {
+              backgroundColor:
+                tint === "dark"
+                  ? `rgba(0,0,0,${Math.min(intensity / 120, 0.58)})`
+                  : "rgba(255,255,255,0.38)",
+            },
+          ]}
         />
       ) : null}
       {children}

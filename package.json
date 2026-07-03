@@ -1,24 +1,23 @@
 {
   "name": "khaaonow-delivery",
   "main": "expo-router/entry",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "expo": {
     "autolinking": {
       "ios": {
         "exclude": [
-          "@expo/ui",
-          "expo-glass-effect"
+          "@expo/ui"
         ]
       },
       "android": {
         "exclude": [
-          "@expo/ui",
-          "expo-glass-effect"
+          "@expo/ui"
         ]
       }
     }
   },
   "scripts": {
+    "postinstall": "node scripts/patch-expo-router-glass.js",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
@@ -30,11 +29,6 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-firebase/app": "^23.7.0",
-    "@react-native-firebase/auth": "^23.7.0",
-    "@react-navigation/bottom-tabs": "^7.4.0",
-    "@react-navigation/elements": "^2.6.3",
-    "@react-navigation/native": "^7.1.8",
     "axios": "^1.13.2",
     "expo": "~56.0.0",
     "expo-auth-session": "~56.0.14",
@@ -42,9 +36,9 @@
     "expo-build-properties": "~56.0.19",
     "expo-constants": "~56.0.18",
     "expo-crypto": "~56.0.4",
-    "expo-dev-client": "~56.0.20",
     "expo-device": "~56.0.4",
     "expo-font": "~56.0.7",
+    "expo-glass-effect": "^56.0.4",
     "expo-haptics": "~56.0.3",
     "expo-image": "~56.0.11",
     "expo-image-picker": "~56.0.18",

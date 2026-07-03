@@ -1,10 +1,12 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
+import { inputTextStyle } from "@/constants/form-styles";
 import { ApiService } from "@/services/api";
 import { uploadImageToFirebase } from "@/services/storage";
 import { OnboardingStatus, useAuthStore } from "@/store/auth";
+import { goBackOrReplace } from "@/utils/navigation";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import { SafeBlurView } from "@/components/ui/safe-blur-view";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -220,7 +222,10 @@ export default function VehicleDetailsScreen() {
       }
     } catch (error: any) {
       console.error("Vehicle details upload error:", error);
-      Alert.alert("Error", "Failed to save vehicle details. Please try again.");
+      Alert.alert(
+        "Error",
+        error?.message || "Failed to save vehicle details. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -237,12 +242,12 @@ export default function VehicleDetailsScreen() {
       {/* Background Image with Blur */}
       <View className="absolute w-full h-full overflow-hidden">
         <Image
-          source={require("../../assets/images/reg-vehicle.png")}
+          source={require("../../assets/images/background.png")}
           className="w-full h-full"
           resizeMode="cover"
         />
         {Platform.OS === "ios" ? (
-          <BlurView
+          <SafeBlurView
             intensity={40}
             tint="dark"
             className="absolute w-full h-full"
@@ -272,7 +277,9 @@ export default function VehicleDetailsScreen() {
           {/* Header */}
           <View className="px-6 mb-6">
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() =>
+                goBackOrReplace(router, "/registration/kyc-documents")
+              }
               activeOpacity={0.8}
               style={{
                 width: 44,
@@ -289,7 +296,7 @@ export default function VehicleDetailsScreen() {
             </TouchableOpacity>
 
             <View className="items-center">
-              <AnimatedStepIndicator currentStep={3} totalSteps={5} />
+              <AnimatedStepIndicator currentStep={3} totalSteps={6} />
             </View>
           </View>
 
@@ -453,11 +460,14 @@ export default function VehicleDetailsScreen() {
                         maxLength={10}
                         value={vehicleNumber}
                         onChangeText={(text) => {
-                          setVehicleNumber(text.toUpperCase());
+                          setVehicleNumber(
+                            text.replace(/[^a-zA-Z0-9]/g, "").toUpperCase(),
+                          );
                           if (errors.vehicleNum)
                             setErrors({ ...errors, vehicleNum: "" });
                         }}
-                        className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                        className="flex-1 ml-3 text-gray-900 font-semibold"
+                        style={inputTextStyle.base}
                         selectionColor="#F59E0B"
                       />
                       {vehicleNumber &&
@@ -498,10 +508,13 @@ export default function VehicleDetailsScreen() {
                         autoCapitalize="characters"
                         value={dlNumber}
                         onChangeText={(text) => {
-                          setDlNumber(text.toUpperCase());
+                          setDlNumber(
+                            text.replace(/[^a-zA-Z0-9]/g, "").toUpperCase(),
+                          );
                           if (errors.dl) setErrors({ ...errors, dl: "" });
                         }}
-                        className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                        className="flex-1 ml-3 text-gray-900 font-semibold"
+                        style={inputTextStyle.base}
                         selectionColor="#F59E0B"
                       />
                       {dlNumber && !validateDL(dlNumber) && (

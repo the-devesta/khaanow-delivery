@@ -1,10 +1,12 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
+import { inputTextStyle } from "@/constants/form-styles";
 import { ApiService } from "@/services/api";
 import { uploadImageToFirebase } from "@/services/storage";
 import { OnboardingStatus, useAuthStore } from "@/store/auth";
+import { goBackOrReplace } from "@/utils/navigation";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import { SafeBlurView } from "@/components/ui/safe-blur-view";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -180,7 +182,10 @@ export default function KycDocumentsScreen() {
       }
     } catch (error: any) {
       console.error("Document upload error:", error);
-      Alert.alert("Error", "Failed to upload documents. Please try again.");
+      Alert.alert(
+        "Error",
+        error?.message || "Failed to upload documents. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -197,12 +202,12 @@ export default function KycDocumentsScreen() {
       {/* Background Image with Blur */}
       <View className="absolute w-full h-full overflow-hidden">
         <Image
-          source={require("../../assets/images/reg-docs.png")}
+          source={require("../../assets/images/background.png")}
           className="w-full h-full"
           resizeMode="cover"
         />
         {Platform.OS === "ios" ? (
-          <BlurView
+          <SafeBlurView
             intensity={40}
             tint="dark"
             className="absolute w-full h-full"
@@ -232,7 +237,9 @@ export default function KycDocumentsScreen() {
           {/* Header */}
           <View className="px-6 mb-6">
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() =>
+                goBackOrReplace(router, "/registration/basic-details")
+              }
               className="w-10 h-10 rounded-full items-center justify-center mb-6"
               style={{
                 backgroundColor: "rgba(0,0,0,0.45)",
@@ -244,7 +251,7 @@ export default function KycDocumentsScreen() {
             </TouchableOpacity>
 
             <View className="items-center">
-              <AnimatedStepIndicator currentStep={2} totalSteps={5} />
+              <AnimatedStepIndicator currentStep={2} totalSteps={6} />
             </View>
           </View>
 
@@ -285,10 +292,11 @@ export default function KycDocumentsScreen() {
                     maxLength={12}
                     value={aadhaarNumber}
                     onChangeText={(text) => {
-                      setAadhaarNumber(text);
+                      setAadhaarNumber(text.replace(/[^0-9]/g, ""));
                       if (errors.aadhaar) setErrors({ ...errors, aadhaar: "" });
                     }}
-                    className="flex-1 text-lg text-gray-900 font-semibold h-full"
+                    className="flex-1 text-gray-900 font-semibold"
+                    style={inputTextStyle.base}
                     selectionColor="#F59E0B"
                   />
                   {aadhaarNumber.length === 12 &&
@@ -333,10 +341,11 @@ export default function KycDocumentsScreen() {
                     maxLength={10}
                     value={panNumber}
                     onChangeText={(text) => {
-                      setPanNumber(text.toUpperCase());
+                      setPanNumber(text.replace(/[^a-zA-Z0-9]/g, "").toUpperCase());
                       if (errors.pan) setErrors({ ...errors, pan: "" });
                     }}
-                    className="flex-1 text-lg text-gray-900 font-semibold h-full"
+                    className="flex-1 text-gray-900 font-semibold"
+                    style={inputTextStyle.base}
                     selectionColor="#F59E0B"
                   />
                   {panNumber.length === 10 && !validatePan(panNumber) && (

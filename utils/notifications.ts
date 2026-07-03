@@ -9,6 +9,8 @@ type ExpoNotifications = typeof import("expo-notifications");
 
 let NotificationsModule: ExpoNotifications | null | undefined;
 let notificationHandlerConfigured = false;
+let pushTokenListenerConfigured = false;
+const PUSH_TOKEN_REGISTER_RETRIES = 3;
 
 function isAndroidExpoGo() {
   return Platform.OS === "android" && Constants.appOwnership === "expo";
@@ -27,7 +29,7 @@ async function getNotifications() {
 
   try {
     NotificationsModule = await import("expo-notifications");
-  } catch (error) {
+  } catch {
     NotificationsModule = null;
     console.log(
       "[Notifications] expo-notifications is unavailable in this runtime; skipping push notifications.",
@@ -60,7 +62,7 @@ export async function getPushNotificationPermissionStatus() {
   try {
     const { status } = await Notifications.getPermissionsAsync();
     return status;
-  } catch (error) {
+  } catch {
     console.log(
       "[Notifications] Push notifications are unavailable in this runtime.",
     );
@@ -115,6 +117,18 @@ export async function registerForPushNotificationsAsync({
         })
       ).data;
       console.log("📱 Expo Push Token:", token);
+
+      if (
+        !pushTokenListenerConfigured &&
+        typeof (Notifications as any).addPushTokenListener === "function"
+      ) {
+        pushTokenListenerConfigured = true;
+        (Notifications as any).addPushTokenListener((nextToken: { data?: string }) => {
+          if (nextToken.data) {
+            void registerPushTokenWithBackend(nextToken.data);
+          }
+        });
+      }
     } catch (e) {
       console.error("Error getting push token:", e);
     }
@@ -129,39 +143,53 @@ export async function registerForPushNotificationsAsync({
  * Register the push token with the backend
  */
 export async function registerPushTokenWithBackend(token: string) {
-  try {
-    const API_URL =
-      API_BASE_URL ||
-      "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api";
-    const { token: authToken } = useAuthStore.getState();
+  const API_URL =
+    API_BASE_URL ||
+    "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api";
 
-    if (!authToken) {
-      console.log("❌ No auth token found, skipping push token registration");
-      return;
-    }
+  for (let attempt = 1; attempt <= PUSH_TOKEN_REGISTER_RETRIES; attempt += 1) {
+    try {
+      const { token: authToken } = useAuthStore.getState();
 
-    console.log("📤 Registering push token with backend...", { token });
+      if (!authToken) {
+        console.log("❌ No auth token found, skipping push token registration");
+        return;
+      }
 
-    const response = await axios.post(
-      `${API_URL}/notifications/register`,
-      { pushToken: token },
-      {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
+      console.log("📤 Registering push token with backend...", {
+        attempt,
+        token,
+      });
+
+      const response = await axios.post(
+        `${API_URL}/notifications/register`,
+        { pushToken: token },
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+          },
         },
-      },
-    );
+      );
 
-    console.log("✅ Push token registered successfully:", response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error(
-      "❌ Failed to register push token with backend:",
-      error.message,
-    );
-    if (error.response) {
-      console.error("Server response:", error.response.data);
+      console.log("✅ Push token registered successfully:", response.data);
+      return response.data;
+    } catch (error: any) {
+      const canRetry =
+        !error.response ||
+        error.response.status >= 500 ||
+        error.code === "ECONNABORTED";
+
+      console.error(
+        `❌ Failed to register push token with backend (attempt ${attempt}):`,
+        error.response?.data || error.message,
+      );
+
+      if (!canRetry || attempt === PUSH_TOKEN_REGISTER_RETRIES) {
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
     }
   }
 }

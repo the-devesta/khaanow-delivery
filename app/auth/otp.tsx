@@ -1,6 +1,7 @@
 import PrimaryButton from "@/components/ui/primary-button";
 import { useWhatsAppAuth } from "@/hooks/use-whatsapp-auth";
 import { useAuthStore } from "@/store/auth";
+import { goBackOrReplace } from "@/utils/navigation";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -62,7 +63,7 @@ export default function OtpScreen() {
   const phoneNumber = params.phoneNumber as string;
 
   const { sendOtp, verifyOtp, loading, error, clearError } = useWhatsAppAuth();
-  const { setAuthenticated, getNavigationRoute } = useAuthStore();
+  const { setAuthenticated, fetchProfile, getNavigationRoute } = useAuthStore();
 
   const [resendLoading, setResendLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
@@ -111,7 +112,11 @@ export default function OtpScreen() {
           response.data.isApproved || false,
         );
 
-        // Get the correct navigation route based on state
+        // Refresh the full partner profile before routing. The OTP response can
+        // be stale/minimal for an already completed account.
+        await fetchProfile();
+
+        // Get the correct navigation route based on the latest profile state
         const route = getNavigationRoute();
         console.log("🧭 [OTP] Navigating to:", route);
 
@@ -173,7 +178,7 @@ export default function OtpScreen() {
           <View className="flex-1 px-6 pt-12">
             {/* Back Button */}
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() => goBackOrReplace(router, "/auth/login")}
               className="w-12 h-12 bg-[#F8F8F8] rounded-full items-center justify-center mb-8"
               activeOpacity={0.7}
             >

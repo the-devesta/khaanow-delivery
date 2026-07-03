@@ -15,7 +15,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-const KhaaoNowLogo = require("../assets/images/KhaaoNowSplash.gif");
+const KhaaoNowLogo = require("../assets/images/DeliveryKhaaoNow.png");
 
 interface AnimatedSplashScreenProps {
   isAppReady: boolean;
@@ -165,18 +165,9 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     elevation: 9999,
   },
-  logoWrap: {
-    width: 600,
-    height: 600,
-    borderRadius: 0,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 28,
-  },
   logo: {
-    width: 600,
-    height: 600,
+    width: 300,
+    height: 300,
   },
   textGroup: {
     alignItems: "center",

@@ -1,7 +1,8 @@
 import PrimaryButton from "@/components/ui/primary-button";
+import { inputTextStyle } from "@/constants/form-styles";
 import { ApiService } from "@/services/api";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import { SafeBlurView } from "@/components/ui/safe-blur-view";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Formik } from "formik";
@@ -106,7 +107,7 @@ export default function EditProfileScreen() {
           className="w-full h-full"
           resizeMode="cover"
         />
-        <BlurView
+        <SafeBlurView
           intensity={40}
           tint="dark"
           className="absolute w-full h-full"
@@ -187,7 +188,8 @@ export default function EditProfileScreen() {
                           value={values.name}
                           onChangeText={handleChange("name")}
                           onBlur={handleBlur("name")}
-                          className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                          className="flex-1 ml-3 text-gray-900 font-semibold"
+                          style={inputTextStyle.base}
                           selectionColor="#F59E0B"
                         />
                       </View>
@@ -217,7 +219,8 @@ export default function EditProfileScreen() {
                           value={values.email}
                           onChangeText={handleChange("email")}
                           onBlur={handleBlur("email")}
-                          className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                          className="flex-1 ml-3 text-gray-900 font-semibold"
+                          style={inputTextStyle.base}
                           selectionColor="#F59E0B"
                         />
                       </View>

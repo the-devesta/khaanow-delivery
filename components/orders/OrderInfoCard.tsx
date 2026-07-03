@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Linking, Text, TouchableOpacity, View } from "react-native";
+import { openPhoneDialer } from "@/utils/phone";
+import { Text, TouchableOpacity, View } from "react-native";
 
 interface OrderInfoCardProps {
   title: string;
@@ -38,7 +39,7 @@ export default function OrderInfoCard({
 }: OrderInfoCardProps) {
   const handleCall = () => {
     if (phone) {
-      Linking.openURL(`tel:${phone}`);
+      openPhoneDialer(phone);
     }
   };
 

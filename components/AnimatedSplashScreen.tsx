@@ -22,8 +22,8 @@ interface AnimatedSplashScreenProps {
 
 const MIN_DISPLAY_MS = 2400;
 const TEXT_ENTER_DELAY_MS = 600;
-const BRAND_COLOR = "#F7B731";
-const CIRCLE_COLOR = "#FFEC56";
+const BRAND_COLOR = "#FFD230";
+const CIRCLE_COLOR = "#FFD230";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 

@@ -1,6 +1,8 @@
 import PrimaryButton from "@/components/ui/primary-button";
+import { inputTextStyle } from "@/constants/form-styles";
 import { ApiService } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
+import { goBackOrReplace } from "@/utils/navigation";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -25,7 +27,7 @@ const PhoneSchema = Yup.object().shape({
 
 export default function PhoneVerificationScreen() {
   const router = useRouter();
-  const { setAuthenticated } = useAuthStore();
+  const { setAuthenticated, fetchProfile, getNavigationRoute } = useAuthStore();
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [loading, setLoading] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -102,18 +104,14 @@ export default function PhoneVerificationScreen() {
           true,
           response.data.deliveryPartnerId,
           `+91${phoneNumber}`,
-          response.data.token
+          response.data.token,
+          response.data.onboardingStatus,
+          response.data.onboardingProgress,
+          response.data.isApproved || false,
         );
 
-        // Navigate based on onboarding status
-        if (
-          response.data.onboardingStatus === "COMPLETED" ||
-          response.data.onboardingStatus === "completed"
-        ) {
-          router.replace("/(tabs)");
-        } else {
-          router.replace("/registration/basic-details");
-        }
+        await fetchProfile();
+        router.replace(getNavigationRoute() as any);
       } else {
         Alert.alert(
           "Verification Failed",
@@ -161,7 +159,9 @@ export default function PhoneVerificationScreen() {
             {/* Back Button */}
             <TouchableOpacity
               onPress={() =>
-                step === "otp" ? setStep("phone") : router.back()
+                step === "otp"
+                  ? setStep("phone")
+                  : goBackOrReplace(router, "/auth/login")
               }
               className="w-12 h-12 bg-[#F8F8F8] rounded-full items-center justify-center mb-8"
               activeOpacity={0.7}
@@ -191,15 +191,22 @@ export default function PhoneVerificationScreen() {
                     Phone Number
                   </Text>
                   <View className="flex-row items-center bg-[#F8F8F8] rounded-2xl border-2 border-[#E5E5E5] px-4">
-                    <Text className="text-base text-[#1A1A1A] mr-2">+91</Text>
+                    <Text
+                      className="font-semibold text-[#1A1A1A] mr-2"
+                      style={inputTextStyle.phonePrefix}>
+                      +91
+                    </Text>
                     <View className="w-[1px] h-6 bg-[#E5E5E5] mr-3" />
                     <TextInput
                       value={phoneNumber}
-                      onChangeText={setPhoneNumber}
+                      onChangeText={(text) =>
+                        setPhoneNumber(text.replace(/[^0-9]/g, ""))
+                      }
                       placeholder="Enter 10 digit number"
                       keyboardType="phone-pad"
                       maxLength={10}
-                      className="flex-1 py-4 text-base text-[#1A1A1A]"
+                      className="flex-1 text-[#1A1A1A] font-semibold"
+                      style={inputTextStyle.base}
                       placeholderTextColor="#9CA3AF"
                     />
                   </View>
@@ -253,8 +260,8 @@ export default function PhoneVerificationScreen() {
                         onKeyPress={(e) => handleKeyPress(e, index)}
                         keyboardType="number-pad"
                         maxLength={1}
-                        className="text-xl font-bold text-[#1A1A1A] text-center"
-                        style={{ padding: 0 }}
+                        className="font-bold text-[#1A1A1A] text-center"
+                        style={inputTextStyle.base}
                       />
                     </TouchableOpacity>
                   ))}

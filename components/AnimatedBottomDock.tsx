@@ -9,8 +9,8 @@ import { Animated, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const PRIMARY = "#F59E0B";
-const CIRCLE_SIZE = 60;
-const ACTIVE_WIDTH = 125;
+const CIRCLE_SIZE = 56;
+const ACTIVE_WIDTH = 114;
 
 const TAB_META = {
   index: {
@@ -112,14 +112,14 @@ function TabDockItem({
             borderRadius: CIRCLE_SIZE,
             backgroundColor: isFocused
               ? supportsLiquidGlass
-                ? "rgba(245,158,11,0.86)"
+                ? "rgba(245,158,11,0.92)"
                 : PRIMARY
               : supportsLiquidGlass
-                ? "rgba(255,255,255,0.36)"
+                ? "rgba(255,255,255,0.28)"
                 : "#ffffff",
             borderWidth: supportsLiquidGlass ? 1 : 0,
             borderColor: supportsLiquidGlass
-              ? "rgba(255,255,255,0.48)"
+              ? "rgba(255,255,255,0.55)"
               : "transparent",
             transform: [{ scale }],
             justifyContent: "center",
@@ -135,7 +135,7 @@ function TabDockItem({
               marginLeft: 8,
               color: "#ffffff",
               fontWeight: "600",
-              fontSize: 16,
+              fontSize: 13,
             }}
           >
             {label}
@@ -177,25 +177,25 @@ export default function AnimatedBottomDock({
       <Animated.View
         style={{
           position: "absolute",
-          bottom: insets.bottom + 20,
+          bottom: Math.max(insets.bottom, 8) + 12,
           alignSelf: "center",
-          paddingHorizontal: 4,
-          paddingVertical: 4,
+          paddingHorizontal: 5,
+          paddingVertical: 5,
           backgroundColor: supportsLiquidGlass
-            ? "rgba(255,255,255,0.22)"
-            : "#000000",
-          borderWidth: supportsLiquidGlass ? 1 : 0,
+            ? "rgba(255,255,255,0.24)"
+            : "rgba(17,24,39,0.94)",
+          borderWidth: 1,
           borderColor: supportsLiquidGlass
-            ? "rgba(255,255,255,0.54)"
-            : "transparent",
+            ? "rgba(255,255,255,0.58)"
+            : "rgba(255,255,255,0.12)",
           overflow: "hidden",
           borderRadius: 100,
           flexDirection: "row",
           alignItems: "center",
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 12 },
-          shadowOpacity: 0.18,
-          shadowRadius: 20,
+          shadowOffset: { width: 0, height: 14 },
+          shadowOpacity: 0.22,
+          shadowRadius: 24,
           elevation: 12,
           transform: [{ translateY }],
         }}
@@ -207,8 +207,8 @@ export default function AnimatedBottomDock({
             shape="capsule"
             cornerRadius={100}
             intensity={30}
-            fallbackBackgroundColor="rgba(255,255,255,0.22)"
-            fallbackBorderColor="rgba(255,255,255,0.54)"
+            fallbackBackgroundColor="rgba(255,255,255,0.24)"
+            fallbackBorderColor="rgba(255,255,255,0.58)"
             style={{
               position: "absolute",
               left: 0,

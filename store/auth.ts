@@ -9,6 +9,7 @@ export enum OnboardingStatus {
   PERSONAL_INFO = "personal_info",
   DOCUMENTS = "documents",
   VEHICLE_INFO = "vehicle_info",
+  PROFILE_PHOTO = "profile_photo",
   BANK_DETAILS = "bank_details",
   COMPLETED = "completed",
   REJECTED = "rejected",
@@ -72,6 +73,23 @@ const STORAGE_KEYS = {
   IS_APPROVED: "isApproved",
 };
 
+const normalizeStatus = (status?: string | null) =>
+  status ? status.toLowerCase() : null;
+
+const normalizePartner = (partner: any): DeliveryPartner | null => {
+  if (!partner) return null;
+
+  return {
+    ...partner,
+    id: partner.id || partner._id,
+    onboardingStatus:
+      normalizeStatus(partner.onboardingStatus) ||
+      OnboardingStatus.PHONE_VERIFIED,
+    onboardingProgress: Number(partner.onboardingProgress || 0),
+    isApproved: Boolean(partner.isApproved),
+  };
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   userId: null,
@@ -104,8 +122,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: isAuth,
       userId: userId || null,
       phoneNumber: phoneNumber || null,
+      partner: null,
       token: token || null,
-      onboardingStatus: onboardingStatus || null,
+      onboardingStatus: normalizeStatus(onboardingStatus) || null,
       onboardingProgress: onboardingProgress || 0,
       isApproved: isApproved || false,
     });
@@ -115,7 +134,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         [STORAGE_KEYS.IS_AUTHENTICATED, "true"],
         [STORAGE_KEYS.USER_ID, userId || ""],
         [STORAGE_KEYS.PHONE_NUMBER, phoneNumber || ""],
-        [STORAGE_KEYS.ONBOARDING_STATUS, onboardingStatus || ""],
+        [STORAGE_KEYS.ONBOARDING_STATUS, normalizeStatus(onboardingStatus) || ""],
         [STORAGE_KEYS.ONBOARDING_PROGRESS, String(onboardingProgress || 0)],
         [STORAGE_KEYS.IS_APPROVED, isApproved ? "true" : "false"],
       ]);
@@ -141,32 +160,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setPartner: async (partner) => {
-    console.log("👤 [Auth] setPartner called:", partner?.id);
+    const normalizedPartner = normalizePartner(partner);
+
+    console.log("👤 [Auth] setPartner called:", normalizedPartner?.id);
 
     set({
-      partner,
-      onboardingStatus: partner?.onboardingStatus || null,
-      onboardingProgress: partner?.onboardingProgress || 0,
-      isApproved: partner?.isApproved || false,
+      partner: normalizedPartner,
+      onboardingStatus: normalizedPartner?.onboardingStatus || null,
+      onboardingProgress: normalizedPartner?.onboardingProgress || 0,
+      isApproved: normalizedPartner?.isApproved || false,
     });
 
     // Register partnerId on the socket so the server can track which partners were notified
-    if (partner?.id) {
-      socketService.setPartnerId(partner.id);
+    if (normalizedPartner?.id) {
+      socketService.setPartnerId(normalizedPartner.id);
     }
 
-    if (partner) {
+    if (normalizedPartner) {
       await AsyncStorage.setItem(
         STORAGE_KEYS.PARTNER_DATA,
-        JSON.stringify(partner),
+        JSON.stringify(normalizedPartner),
       );
       await AsyncStorage.multiSet([
-        [STORAGE_KEYS.ONBOARDING_STATUS, partner.onboardingStatus || ""],
+        [
+          STORAGE_KEYS.ONBOARDING_STATUS,
+          normalizedPartner.onboardingStatus || "",
+        ],
         [
           STORAGE_KEYS.ONBOARDING_PROGRESS,
-          String(partner.onboardingProgress || 0),
+          String(normalizedPartner.onboardingProgress || 0),
         ],
-        [STORAGE_KEYS.IS_APPROVED, partner.isApproved ? "true" : "false"],
+        [
+          STORAGE_KEYS.IS_APPROVED,
+          normalizedPartner.isApproved ? "true" : "false",
+        ],
       ]);
     } else {
       await AsyncStorage.removeItem(STORAGE_KEYS.PARTNER_DATA);
@@ -265,7 +292,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       if (isAuth === "true" && token) {
-        const partner = partnerData ? JSON.parse(partnerData) : null;
+        const partner = partnerData
+          ? normalizePartner(JSON.parse(partnerData))
+          : null;
 
         set({
           isAuthenticated: true,
@@ -274,7 +303,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           partner,
           token,
           onboardingStatus:
-            onboardingStatus || partner?.onboardingStatus || null,
+            normalizeStatus(onboardingStatus) || partner?.onboardingStatus || null,
           onboardingProgress:
             parseInt(onboardingProgress || "0", 10) ||
             partner?.onboardingProgress ||
@@ -301,14 +330,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await ApiService.getProfile();
 
       if (response.success && response.data) {
+        const payload = response.data as any;
+        const partner = normalizePartner(payload.partner || payload);
+
         console.log("✅ [Auth] Profile fetched:", {
-          id: response.data.id,
-          onboardingStatus: response.data.onboardingStatus,
-          onboardingProgress: response.data.onboardingProgress,
-          isApproved: response.data.isApproved,
+          id: partner?.id,
+          onboardingStatus: partner?.onboardingStatus,
+          onboardingProgress: partner?.onboardingProgress,
+          isApproved: partner?.isApproved,
         });
 
-        await get().setPartner(response.data);
+        await get().setPartner(partner);
       } else {
         console.warn("⚠️ [Auth] Failed to fetch profile:", response.message);
       }
@@ -345,8 +377,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     // Use partner data if available, fallback to stored state
-    const status = partner?.onboardingStatus || onboardingStatus;
+    const status = normalizeStatus(
+      partner?.onboardingStatus || onboardingStatus,
+    );
     const approved = partner?.isApproved || isApproved;
+    const progress = partner?.onboardingProgress || get().onboardingProgress || 0;
 
     // Check for rejection
     if (status === OnboardingStatus.REJECTED) {
@@ -355,7 +390,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     // Registration completed - check approval status
-    if (status === OnboardingStatus.COMPLETED) {
+    if (status === OnboardingStatus.COMPLETED || (approved && progress >= 100)) {
       if (approved) {
         console.log("➡️ [Auth] Route: /(tabs) (approved)");
         return "/(tabs)";
@@ -392,6 +427,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           "➡️ [Auth] Route: /registration/profile-photo (vehicle info done)",
         );
         return "/registration/profile-photo";
+
+      case OnboardingStatus.PROFILE_PHOTO:
+        console.log(
+          "➡️ [Auth] Route: /registration/bank-details (profile photo done)",
+        );
+        return "/registration/bank-details";
 
       case OnboardingStatus.BANK_DETAILS:
         console.log(

@@ -1,7 +1,4 @@
-// Dynamic Expo config that conditionally loads native Firebase plugins
-// In Expo Go, the native modules aren't available, so we skip them
-
-const IS_DEV_BUILD = process.env.EAS_BUILD || process.env.EXPO_DEV_CLIENT;
+// Dynamic Expo config for EAS/Expo builds.
 
 const GOOGLE_MAPS_API_KEY =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
@@ -16,7 +13,7 @@ const plugins = [
       image: "./assets/images/DeliveryKhaaoNow.png",
       imageWidth: 250,
       resizeMode: "contain",
-      backgroundColor: "#F7B731",
+      backgroundColor: "#FFD230",
     },
   ],
   "expo-font",
@@ -26,7 +23,7 @@ const plugins = [
     "expo-notifications",
     {
       icon: "./assets/images/DeliveryKhaaoNow.png",
-      color: "#F7B731",
+      color: "#FFD230",
     },
   ],
   "expo-status-bar",
@@ -54,17 +51,11 @@ const plugins = [
   "./plugins/withPodfileFix.js",
 ];
 
-// Only add native Firebase plugins for development/production builds (not Expo Go)
-if (IS_DEV_BUILD) {
-  plugins.push("@react-native-firebase/app");
-  plugins.push("@react-native-firebase/auth");
-}
-
 module.exports = {
   expo: {
     name: "KhaaoNow Delivery",
     slug: "khaaonow-delivery",
-    version: "1.0.1",
+    version: "1.0.2",
     orientation: "portrait",
     icon: "./assets/images/DeliveryKhaaoNow.png",
     scheme: "khaaonowdelivery",
@@ -72,10 +63,10 @@ module.exports = {
     newArchEnabled: true,
     autolinking: {
       ios: {
-        exclude: ["@expo/ui", "expo-glass-effect"],
+        exclude: ["@expo/ui"],
       },
       android: {
-        exclude: ["@expo/ui", "expo-glass-effect"],
+        exclude: ["@expo/ui"],
       },
     },
     extra: {
@@ -87,6 +78,7 @@ module.exports = {
       supportsTablet: false,
       requireFullScreen: true,
       bundleIdentifier: "com.khaaonow.delivery",
+      buildNumber: "2026070301",
       config: {
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
       },
@@ -98,6 +90,7 @@ module.exports = {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         GMSApiKey: GOOGLE_MAPS_API_KEY,
+        LSApplicationQueriesSchemes: ["comgooglemaps"],
         NSLocationWhenInUseUsageDescription:
           "Allow KhaaoNow Delivery to use your location to navigate to pickup and drop-off points.",
         NSCameraUsageDescription:
@@ -110,6 +103,7 @@ module.exports = {
     },
     android: {
       package: "com.khaaonow.delivery",
+      versionCode: 2026070301,
       config: {
         googleMaps: {
           apiKey: GOOGLE_MAPS_API_KEY,
@@ -118,7 +112,7 @@ module.exports = {
       googleServicesFile:
         process.env.ANDROID_GOOGLE_SERVICES_JSON || "./google-services.json",
       adaptiveIcon: {
-        backgroundColor: "#F7B731",
+        backgroundColor: "#FFD230",
         foregroundImage: "./assets/images/DeliveryKhaaoNow.png",
       },
       edgeToEdgeEnabled: true,

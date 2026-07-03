@@ -1,10 +1,12 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
+import { inputTextStyle } from "@/constants/form-styles";
 import { ApiService } from "@/services/api";
 import { uploadImageToFirebase } from "@/services/storage";
 import { OnboardingStatus, useAuthStore } from "@/store/auth";
+import { goBackOrReplace } from "@/utils/navigation";
+import { SafeBlurView } from "@/components/ui/safe-blur-view";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -142,14 +144,7 @@ export default function BankDetailsScreen() {
       const response = await ApiService.addBankDetails(bankData);
 
       if (response.success) {
-        // Just move to review step, assumes 90% progress
-        await updateOnboardingStatus(OnboardingStatus.COMPLETED, 90);
-        // Note: The backend sets it to COMPLETED, but here we might want to go to Review screen first?
-        // Actually the previous flow was vehicle -> photo -> review.
-        // Now it is vehicle -> photo -> bank -> review.
-        // So here we should probably NOT set COMPLETED yet, but maybe 90 and go to review.
-        // The backend `addBankDetails` sets it to COMPLETED. This might be premature if we want a review screen.
-        // But let's stick to the flow. success -> review.
+        await updateOnboardingStatus(OnboardingStatus.BANK_DETAILS, 90);
 
         router.push({
           pathname: "/registration/review-submit",
@@ -160,7 +155,10 @@ export default function BankDetailsScreen() {
       }
     } catch (error: any) {
       console.error("Bank details upload error:", error);
-      Alert.alert("Error", "Failed to save bank details. Please try again.");
+      Alert.alert(
+        "Error",
+        error?.message || "Failed to save bank details. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -177,12 +175,12 @@ export default function BankDetailsScreen() {
       {/* Background Image with Blur */}
       <View className="absolute w-full h-full overflow-hidden">
         <Image
-          source={require("../../assets/images/reg-docs.png")}
+          source={require("../../assets/images/background.png")}
           className="w-full h-full"
           resizeMode="cover"
         />
         {Platform.OS === "ios" ? (
-          <BlurView
+          <SafeBlurView
             intensity={40}
             tint="dark"
             className="absolute w-full h-full"
@@ -212,7 +210,9 @@ export default function BankDetailsScreen() {
           {/* Header */}
           <View className="px-6 mb-6">
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() =>
+                goBackOrReplace(router, "/registration/profile-photo")
+              }
               className="w-10 h-10 rounded-full items-center justify-center mb-6"
               style={{
                 backgroundColor: "rgba(0,0,0,0.45)",
@@ -270,7 +270,8 @@ export default function BankDetailsScreen() {
                       if (errors.accountName)
                         setErrors({ ...errors, accountName: "" });
                     }}
-                    className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                    className="flex-1 ml-3 text-gray-900 font-semibold"
+                    style={inputTextStyle.base}
                     selectionColor="#F59E0B"
                   />
                 </View>
@@ -294,11 +295,12 @@ export default function BankDetailsScreen() {
                     keyboardType="numeric"
                     value={accountNumber}
                     onChangeText={(text) => {
-                      setAccountNumber(text);
+                      setAccountNumber(text.replace(/[^0-9]/g, ""));
                       if (errors.accountNumber)
                         setErrors({ ...errors, accountNumber: "" });
                     }}
-                    className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                    className="flex-1 ml-3 text-gray-900 font-semibold"
+                    style={inputTextStyle.base}
                     selectionColor="#F59E0B"
                   />
                 </View>
@@ -322,10 +324,11 @@ export default function BankDetailsScreen() {
                     autoCapitalize="characters"
                     value={ifsc}
                     onChangeText={(text) => {
-                      setIfsc(text.toUpperCase());
+                      setIfsc(text.replace(/[^a-zA-Z0-9]/g, "").toUpperCase());
                       if (errors.ifsc) setErrors({ ...errors, ifsc: "" });
                     }}
-                    className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                    className="flex-1 ml-3 text-gray-900 font-semibold"
+                    style={inputTextStyle.base}
                     selectionColor="#F59E0B"
                   />
                   {ifsc && !validateIFSC(ifsc) && (
@@ -356,10 +359,11 @@ export default function BankDetailsScreen() {
                     autoCapitalize="none"
                     value={upiId}
                     onChangeText={(text) => {
-                      setUpiId(text);
+                      setUpiId(text.trim());
                       if (errors.upiId) setErrors({ ...errors, upiId: "" });
                     }}
-                    className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                    className="flex-1 ml-3 text-gray-900 font-semibold"
+                    style={inputTextStyle.base}
                     selectionColor="#F59E0B"
                   />
                 </View>

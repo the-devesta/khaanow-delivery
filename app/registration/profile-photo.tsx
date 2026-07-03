@@ -3,8 +3,9 @@ import PrimaryButton from "@/components/ui/primary-button";
 import { ApiService } from "@/services/api";
 import { uploadImageToFirebase } from "@/services/storage";
 import { OnboardingStatus, useAuthStore } from "@/store/auth";
+import { goBackOrReplace } from "@/utils/navigation";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import { SafeBlurView } from "@/components/ui/safe-blur-view";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -111,7 +112,7 @@ export default function ProfilePhotoScreen() {
       });
 
       if (response.success) {
-        await updateOnboardingStatus(OnboardingStatus.BANK_DETAILS, 80);
+        await updateOnboardingStatus(OnboardingStatus.PROFILE_PHOTO, 80);
         router.push({
           pathname: "/registration/bank-details",
           params: { profilePhoto: photoUrl },
@@ -124,7 +125,10 @@ export default function ProfilePhotoScreen() {
       }
     } catch (error: any) {
       console.error("Profile photo upload error:", error);
-      Alert.alert("Error", "Failed to upload profile photo. Please try again.");
+      Alert.alert(
+        "Error",
+        error?.message || "Failed to upload profile photo. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -141,12 +145,12 @@ export default function ProfilePhotoScreen() {
       {/* Background Image with Blur */}
       <View className="absolute w-full h-full overflow-hidden">
         <Image
-          source={require("../../assets/images/reg-basic.png")}
+          source={require("../../assets/images/background.png")}
           className="w-full h-full"
           resizeMode="cover"
         />
         {Platform.OS === "ios" ? (
-          <BlurView
+          <SafeBlurView
             intensity={40}
             tint="dark"
             className="absolute w-full h-full"
@@ -173,7 +177,9 @@ export default function ProfilePhotoScreen() {
         {/* Header */}
         <View className="px-6 mb-6">
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() =>
+              goBackOrReplace(router, "/registration/vehicle-details")
+            }
             className="w-10 h-10 rounded-full items-center justify-center mb-6"
             style={{
               backgroundColor: "rgba(0,0,0,0.45)",
@@ -185,7 +191,7 @@ export default function ProfilePhotoScreen() {
           </TouchableOpacity>
 
           <View className="items-center">
-            <AnimatedStepIndicator currentStep={4} totalSteps={5} />
+            <AnimatedStepIndicator currentStep={4} totalSteps={6} />
           </View>
         </View>
 
@@ -232,10 +238,10 @@ export default function ProfilePhotoScreen() {
                       <Ionicons
                         name="person"
                         size={32}
-                        color="rgba(255,255,255,0.8)"
+                        color="#9CA3AF"
                       />
                     </View>
-                    <Text className="text-sm text-white/60 font-medium">
+                    <Text className="text-sm text-gray-500 font-medium">
                       Tap to add
                     </Text>
                   </View>

@@ -190,6 +190,12 @@ class ApiClient {
 
 const apiClient = new ApiClient();
 
+const getApiErrorMessage = (error: any, fallback: string) =>
+  error.response?.data?.message ||
+  error.response?.data?.error ||
+  error.message ||
+  fallback;
+
 // API Service
 export const ApiService = {
   // ==================== AUTHENTICATION ====================
@@ -482,6 +488,7 @@ export const ApiService = {
     metadata?: {
       accuracy?: number | null;
       mocked?: boolean | null;
+      heading?: number | null;
     },
   ): Promise<ApiResponse> {
     try {
@@ -689,17 +696,23 @@ export const ApiService = {
     reason: string,
   ): Promise<ApiResponse> {
     try {
+      const updatedEta = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       const response = await apiClient.post<ApiResponse>(
         `/delivery-partners/orders/${orderId}/report-delay`,
-        { reason },
+        {
+          reason,
+          delayReason: reason,
+          delayType: "RIDER_DELAY",
+          updatedEta,
+          significant: false,
+        },
       );
       return response;
     } catch (error: any) {
       console.error("Report delivery delay error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to report delivery delay",
+        message: getApiErrorMessage(error, "Failed to report delivery delay"),
       };
     }
   },
@@ -711,15 +724,19 @@ export const ApiService = {
     try {
       const response = await apiClient.post<ApiResponse>(
         `/delivery-partners/orders/${orderId}/request-reassignment`,
-        { reason },
+        {
+          reason,
+          delayReason: reason,
+          delayType: "REASSIGNMENT_DELAY",
+          significant: true,
+        },
       );
       return response;
     } catch (error: any) {
       console.error("Request reassignment error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to request reassignment",
+        message: getApiErrorMessage(error, "Failed to request reassignment"),
       };
     }
   },

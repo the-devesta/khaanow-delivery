@@ -1,11 +1,13 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
+import { ApiService } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
+import { goBackOrReplace } from "@/utils/navigation";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import { SafeBlurView } from "@/components/ui/safe-blur-view";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -26,9 +28,11 @@ function InfoRow({
 }: {
   icon: string;
   label: string;
-  value: string;
+  value?: string;
   verified?: boolean;
 }) {
+  const displayValue = value || "Not provided";
+
   return (
     <View className="flex-row items-center py-3.5 border-b border-white/10">
       <View className="w-10 h-10 bg-white/10 rounded-xl items-center justify-center mr-3 border border-white/10">
@@ -38,16 +42,21 @@ function InfoRow({
         <Text className="text-xs text-white/50 mb-0.5 uppercase tracking-wider">
           {label}
         </Text>
-        <Text className="text-[15px] font-semibold text-white">{value}</Text>
+        <Text
+          className={`text-[15px] font-semibold ${
+            value ? "text-white" : "text-white/40"
+          }`}>
+          {displayValue}
+        </Text>
       </View>
-      {verified && (
+      {verified && value ? (
         <View className="bg-green-500/20 rounded-full px-2 py-1 flex-row items-center border border-green-500/30">
           <Ionicons name="checkmark-circle" size={14} color="#4ADE80" />
           <Text className="text-xs text-green-400 font-medium ml-1">
             Verified
           </Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -56,34 +65,111 @@ export default function ReviewAndSubmitScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [reviewProfile, setReviewProfile] = useState<any>(null);
   const [agreed, setAgreed] = useState(false);
-  const { partner, phoneNumber } = useAuthStore();
+  const { partner, phoneNumber, setPartner } = useAuthStore();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      setProfileLoading(true);
+      try {
+        const response = await ApiService.getProfile();
+        if (!mounted) return;
+
+        if (response.success && response.data) {
+          const loadedProfile = (response.data as any).partner || response.data;
+          setReviewProfile(loadedProfile);
+          await setPartner(loadedProfile as any);
+        } else {
+          setReviewProfile(partner);
+        }
+      } catch (error) {
+        console.error("❌ [ReviewSubmit] Failed to load profile:", error);
+        if (mounted) setReviewProfile(partner);
+      } finally {
+        if (mounted) setProfileLoading(false);
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const profile = reviewProfile || partner || {};
+  const getParam = (key: string) => {
+    const value = params[key];
+    return Array.isArray(value) ? value[0] : value;
+  };
+  const firstValue = (...values: any[]) =>
+    values.find((value) => value !== undefined && value !== null && value !== "");
+  const maskLast = (value: any, visible = 4, prefix = "") => {
+    if (!value) return "";
+    const text = String(value);
+    return `${prefix}${"•".repeat(Math.max(text.length - visible, 4))}${text.slice(-visible)}`;
+  };
+  const maskPan = (value: any) => {
+    if (!value) return "";
+    const text = String(value).toUpperCase();
+    if (text.length <= 2) return text;
+    return `${text.slice(0, 5)}••••${text.slice(-1)}`;
+  };
+  const formatVehicleType = (value: any) => {
+    if (!value) return "";
+    return String(value)
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
 
   // Collect registration data
   const registrationData = {
-    name: partner?.name || "",
-    email: partner?.email || "",
-    phone: phoneNumber || "",
-    aadhaarNumber: params.aadhaarNumber
-      ? `••••••••${String(params.aadhaarNumber).slice(-4)}`
-      : "",
-    panNumber: params.panNumber
-      ? `${String(params.panNumber).slice(0, 5)}••••${String(
-          params.panNumber,
-        ).slice(-1)}`
-      : "",
-    vehicleType: (params.vehicleType as string) || "",
-    vehicleNumber: (params.vehicleNumber as string) || "",
-    drivingLicenseNumber: params.drivingLicenseNumber
-      ? `DL••••••${String(params.drivingLicenseNumber).slice(-4)}`
-      : "",
-    bankAccountName: (params.bankAccountName as string) || "",
-    bankAccountNumber: params.bankAccountNumber
-      ? `••••${String(params.bankAccountNumber).slice(-4)}`
-      : "",
-    bankIFSC: (params.bankIFSC as string) || "",
-    upiId: (params.upiId as string) || "",
+    name: firstValue(profile.name, partner?.name),
+    email: firstValue(profile.email, partner?.email),
+    phone: firstValue(profile.phone, phoneNumber),
+    aadhaarNumber: maskLast(
+      firstValue(getParam("aadhaarNumber"), profile.aadhaarNumber),
+    ),
+    panNumber: maskPan(firstValue(getParam("panNumber"), profile.panNumber)),
+    vehicleType: formatVehicleType(
+      firstValue(getParam("vehicleType"), profile.vehicleType),
+    ),
+    vehicleNumber: firstValue(getParam("vehicleNumber"), profile.vehicleNumber),
+    drivingLicenseNumber:
+      firstValue(getParam("drivingLicenseNumber"), profile.drivingLicenseNumber) ===
+      "N/A"
+        ? "Not required"
+        : maskLast(
+            firstValue(
+              getParam("drivingLicenseNumber"),
+              profile.drivingLicenseNumber,
+            ),
+            4,
+            "DL",
+          ),
+    bankAccountName: firstValue(
+      getParam("bankAccountName"),
+      profile.bankAccountName,
+      profile.bankDetails?.accountName,
+    ),
+    bankAccountNumber: maskLast(
+      firstValue(
+        getParam("bankAccountNumber"),
+        profile.bankAccountNumber,
+        profile.bankDetails?.accountNumber,
+      ),
+    ),
+    bankIFSC: firstValue(
+      getParam("bankIFSC"),
+      profile.bankIFSC,
+      profile.bankDetails?.ifsc,
+    ),
+    upiId: firstValue(getParam("upiId"), profile.upiId),
   };
 
   const handleSubmit = async () => {
@@ -128,12 +214,12 @@ export default function ReviewAndSubmitScreen() {
       {/* Background Image with Blur */}
       <View className="absolute w-full h-full overflow-hidden">
         <Image
-          source={require("../../assets/images/reg-docs.png")}
+          source={require("../../assets/images/background.png")}
           className="w-full h-full"
           resizeMode="cover"
         />
         {Platform.OS === "ios" ? (
-          <BlurView
+          <SafeBlurView
             intensity={40}
             tint="dark"
             className="absolute w-full h-full"
@@ -160,7 +246,7 @@ export default function ReviewAndSubmitScreen() {
         {/* Header */}
         <View className="px-6 mb-6">
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => goBackOrReplace(router, "/registration/bank-details")}
             className="w-10 h-10 rounded-full items-center justify-center mb-6"
             style={{
               backgroundColor: "rgba(0,0,0,0.45)",
@@ -172,7 +258,7 @@ export default function ReviewAndSubmitScreen() {
           </TouchableOpacity>
 
           <View className="items-center">
-            <AnimatedStepIndicator currentStep={5} totalSteps={5} />
+            <AnimatedStepIndicator currentStep={6} totalSteps={6} />
           </View>
         </View>
 
@@ -203,13 +289,15 @@ export default function ReviewAndSubmitScreen() {
               </View>
               <View className="ml-4 flex-1">
                 <Text className="text-lg font-bold text-white">
-                  {registrationData.name}
+                  {profileLoading
+                    ? "Loading..."
+                    : registrationData.name || "Not provided"}
                 </Text>
                 <Text className="text-sm text-white/60">
-                  {registrationData.email}
+                  {registrationData.email || "Email not provided"}
                 </Text>
                 <Text className="text-sm text-white/60">
-                  {registrationData.phone}
+                  {registrationData.phone || "Phone not provided"}
                 </Text>
               </View>
               <TouchableOpacity
@@ -245,13 +333,13 @@ export default function ReviewAndSubmitScreen() {
               icon="card-outline"
               label="Aadhaar Number"
               value={registrationData.aadhaarNumber}
-              verified
+              verified={!!registrationData.aadhaarNumber}
             />
             <InfoRow
               icon="card-outline"
               label="PAN Number"
               value={registrationData.panNumber}
-              verified
+              verified={!!registrationData.panNumber}
             />
           </View>
 
@@ -288,7 +376,7 @@ export default function ReviewAndSubmitScreen() {
               icon="document-outline"
               label="Driving License"
               value={registrationData.drivingLicenseNumber}
-              verified
+              verified={!!registrationData.drivingLicenseNumber}
             />
           </View>
 

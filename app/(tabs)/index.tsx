@@ -160,7 +160,9 @@ export default function HomeScreen() {
     // Register for push notifications
     const registerPush = async () => {
       try {
-        const token = await registerForPushNotificationsAsync();
+        const token = await registerForPushNotificationsAsync({
+          requestPermission: true,
+        });
         if (token) {
           await registerPushTokenWithBackend(token);
         }

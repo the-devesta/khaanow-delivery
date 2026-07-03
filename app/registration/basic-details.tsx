@@ -1,10 +1,12 @@
 import AnimatedStepIndicator from "@/components/ui/animated-step-indicator";
 import PrimaryButton from "@/components/ui/primary-button";
 import { ApiService } from "@/services/api";
+import { inputTextStyle } from "@/constants/form-styles";
 import { OnboardingStatus, useAuthStore } from "@/store/auth";
+import { goBackOrReplace } from "@/utils/navigation";
 import { BasicDetailsSchema } from "@/utils/validations";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import { SafeBlurView } from "@/components/ui/safe-blur-view";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Formik } from "formik";
@@ -61,12 +63,12 @@ export default function BasicDetailsScreen() {
       {/* Background Image with Blur */}
       <View className="absolute w-full h-full overflow-hidden">
         <Image
-          source={require("../../assets/images/reg-basic.png")}
+          source={require("../../assets/images/background.png")}
           className="w-full h-full"
           resizeMode="cover"
         />
         {Platform.OS === "ios" ? (
-          <BlurView
+          <SafeBlurView
             intensity={40}
             tint="dark"
             className="absolute w-full h-full"
@@ -96,14 +98,19 @@ export default function BasicDetailsScreen() {
           {/* Header */}
           <View className="px-6 mb-6">
             <TouchableOpacity
-              onPress={() => router.back()}
-              className="w-10 h-10 bg-white rounded-full items-center justify-center border border-white/30 mb-6"
+              onPress={() => goBackOrReplace(router, "/auth/login")}
+              className="w-10 h-10 rounded-full items-center justify-center mb-6"
+              style={{
+                backgroundColor: "rgba(0,0,0,0.45)",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.3)",
+              }}
               activeOpacity={0.8}>
               <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
             </TouchableOpacity>
 
             <View className="items-center">
-              <AnimatedStepIndicator currentStep={1} totalSteps={5} />
+              <AnimatedStepIndicator currentStep={1} totalSteps={6} />
             </View>
           </View>
 
@@ -157,7 +164,8 @@ export default function BasicDetailsScreen() {
                           value={values.name}
                           onChangeText={handleChange("name")}
                           onBlur={handleBlur("name")}
-                          className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                          className="flex-1 ml-3 text-gray-900 font-semibold"
+                          style={inputTextStyle.base}
                           selectionColor="#F59E0B"
                         />
                       </View>
@@ -187,7 +195,8 @@ export default function BasicDetailsScreen() {
                           value={values.email}
                           onChangeText={handleChange("email")}
                           onBlur={handleBlur("email")}
-                          className="flex-1 ml-3 text-lg text-gray-900 font-semibold h-full"
+                          className="flex-1 ml-3 text-gray-900 font-semibold"
+                          style={inputTextStyle.base}
                           selectionColor="#F59E0B"
                         />
                       </View>

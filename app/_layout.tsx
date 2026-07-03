@@ -42,6 +42,10 @@ export default function RootLayout() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
+              name="registration/bank-details"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
               name="registration/review-submit"
               options={{ headerShown: false }}
             />

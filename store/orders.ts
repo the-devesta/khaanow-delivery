@@ -175,6 +175,7 @@ interface OrderState {
     },
   ) => Promise<boolean>;
   completeOrder: (orderId?: string) => void;
+  releaseActiveOrder: (orderId?: string) => void;
   setDriverLocation: (location: Location) => void;
   simulateDriverMovement: () => void;
   fetchAvailableOrders: () => Promise<void>;
@@ -843,6 +844,22 @@ export const useOrderStore = create<OrderState>()(
           });
           get().fetchRoutePlan();
         }
+      },
+
+      releaseActiveOrder: (orderId?: string) => {
+        const { activeOrder, activeOrders } = get();
+        const releasedOrder =
+          activeOrders.find((order) => order.id === orderId) || activeOrder;
+        if (!releasedOrder) return;
+
+        const remainingActive = activeOrders.filter(
+          (order) => order.id !== releasedOrder.id,
+        );
+        set({
+          activeOrder: remainingActive[0] || null,
+          activeOrders: remainingActive,
+        });
+        get().fetchRoutePlan();
       },
 
       setDriverLocation: (location) => set({ driverLocation: location }),

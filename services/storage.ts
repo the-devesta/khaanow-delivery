@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import * as FileSystem from "expo-file-system/legacy";
 
 // Resolve the backend base URL (same logic as api.ts)
 const getBaseUrl = (): string => {
@@ -45,39 +46,47 @@ export const uploadImageToFirebase = async (
     };
     const mimeType = mimeMap[ext] ?? "image/jpeg";
 
-    // Build FormData
-    const formData = new FormData();
-    formData.append("image", {
-      uri,
-      name: `upload-${Date.now()}.${ext}`,
-      type: mimeType,
-    } as any);
-    formData.append("folder", folder);
-
     const baseUrl = getBaseUrl();
     const uploadUrl = `${baseUrl}/delivery-partners/upload-image`;
 
     console.log(`📤 [Storage] Uploading to backend: ${uploadUrl}`);
 
-    const response = await fetch(uploadUrl, {
-      method: "POST",
+    const response = await FileSystem.uploadAsync(uploadUrl, uri, {
+      httpMethod: "POST",
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: "image",
+      mimeType,
+      parameters: { folder },
       headers: {
         Authorization: `Bearer ${token}`,
-        // Do NOT set Content-Type manually — fetch sets it with the correct boundary for multipart
       },
-      body: formData,
     });
 
-    const json = await response.json();
+    const responseText = response.body;
+    let json: any = {};
+    if (responseText) {
+      try {
+        json = JSON.parse(responseText);
+      } catch {
+        json = { message: responseText };
+      }
+    }
 
-    if (!response.ok || !json.success) {
+    if (response.status < 200 || response.status >= 300 || !json.success) {
       throw new Error(
-        json.message || `Upload failed with status ${response.status}`,
+        json.message ||
+          json.error ||
+          `Upload failed with status ${response.status}`,
       );
     }
 
-    console.log(`✅ [Storage] Upload successful: ${json.url}`);
-    return json.url as string;
+    const downloadUrl = json.url || json.downloadUrl || json.data?.url;
+    if (!downloadUrl) {
+      throw new Error("Upload completed but no download URL was returned");
+    }
+
+    console.log(`✅ [Storage] Upload successful: ${downloadUrl}`);
+    return downloadUrl as string;
   } catch (error: any) {
     console.error("❌ [Storage] Upload error:", error);
     throw new Error(error.message || "Failed to upload image");

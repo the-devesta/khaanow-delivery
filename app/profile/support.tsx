@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { openPhoneDialer } from "@/utils/phone";
 import { useRouter } from "expo-router";
 import { Linking, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,7 +9,7 @@ export default function SupportScreen() {
   const insets = useSafeAreaInsets();
 
   const handleCall = () => {
-    Linking.openURL("tel:+919876543210");
+    openPhoneDialer("+919876543210");
   };
 
   const handleEmail = () => {

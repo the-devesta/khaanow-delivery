@@ -1,11 +1,8 @@
 /**
- * Firebase Configuration - Unified for Expo Go and Native Builds
+ * Firebase Configuration
  *
- * This module provides a unified Firebase auth interface that works in both:
- * - Expo Go: Uses Firebase JS SDK (web) with test phone numbers
- * - Development/Production Builds: Uses @react-native-firebase (native) for real SMS
- *
- * IMPORTANT: For Expo Go testing, use Firebase test phone numbers configured in Firebase Console
+ * The app uses Firebase JS SDK services where needed. Phone OTP auth is handled
+ * by the backend, so native Firebase Auth is intentionally not bundled.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -63,28 +60,7 @@ export const storage = getStorage(app);
 // Export types for use in hooks
 export type { ConfirmationResult } from "firebase/auth";
 
-// Helper function for native Firebase import (only used in native builds)
-let nativeAuth: any = null;
-
-export const getNativeAuth = async () => {
-  if (isExpoGo) {
-    throw new Error("Native Firebase not available in Expo Go");
-  }
-
-  if (!nativeAuth) {
-    try {
-      const firebaseAuth = await import("@react-native-firebase/auth");
-      nativeAuth = firebaseAuth.default;
-    } catch (e) {
-      console.warn("Native Firebase auth not available:", e);
-      throw e;
-    }
-  }
-
-  return nativeAuth;
-};
-
 console.log(
   "🔥 Firebase initialized:",
-  isExpoGo ? "Expo Go (JS SDK)" : "Native Build",
+  isExpoGo ? "Expo Go (JS SDK)" : "Native Build (JS SDK)",
 );

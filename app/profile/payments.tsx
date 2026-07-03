@@ -1,3 +1,4 @@
+import { inputTextStyle } from "@/constants/form-styles";
 import { ApiService } from "@/services/api";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -108,13 +109,26 @@ export default function PaymentsScreen() {
       <Text className="text-xs text-gray-500 uppercase tracking-wider mb-2">
         {label}
       </Text>
-      <View className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+      <View className="bg-gray-50 border border-gray-200 rounded-xl px-4 h-12 justify-center">
         <TextInput
           value={value}
-          onChangeText={(text) => setFormData({ ...formData, [key]: text })}
+          onChangeText={(text) => {
+            const nextValue =
+              key === "accountNumber"
+                ? text.replace(/[^0-9]/g, "")
+                : key === "ifsc"
+                  ? text.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()
+                  : key === "upiId"
+                    ? text.trim()
+                    : text;
+            setFormData({ ...formData, [key]: nextValue });
+          }}
           placeholder={placeholder}
           placeholderTextColor="#9CA3AF"
-          className="text-base font-semibold text-gray-900"
+          keyboardType={key === "accountNumber" ? "numeric" : "default"}
+          autoCapitalize={key === "ifsc" ? "characters" : "none"}
+          className="font-semibold text-gray-900"
+          style={inputTextStyle.base}
         />
       </View>
     </View>

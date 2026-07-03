@@ -23,7 +23,7 @@ export default function PrimaryButton({
   variant = "primary",
   icon,
 }: PrimaryButtonProps) {
-  if (supportsLiquidGlass) {
+  if (supportsLiquidGlass && !disabled) {
     return (
       <IOSGlassButton
         title={title}

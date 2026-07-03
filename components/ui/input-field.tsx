@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { inputTextStyle } from "@/constants/form-styles";
 import {
   IOSGlassSurface,
   supportsLiquidGlass,
@@ -46,9 +47,9 @@ export default function InputField({
         {icon && <View className="mr-3">{icon}</View>}
         <TextInput
           {...props}
-          className="flex-1 text-base text-[#1A1A1A]"
+          className="flex-1 text-[#1A1A1A] font-semibold"
           placeholderTextColor={Colors.textLight}
-          style={{ padding: 0 }}
+          style={[inputTextStyle.base, props.style]}
         />
       </IOSGlassSurface>
       {error && <Text className="text-red-500 text-xs mt-1 ml-2">{error}</Text>}

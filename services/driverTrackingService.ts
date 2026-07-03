@@ -14,6 +14,7 @@ import {
     onValue,
     ref,
     set,
+    update,
 } from "firebase/database";
 
 // Re-use the same Firebase app instance
@@ -26,17 +27,28 @@ const db = getDatabase(app, firebaseConfig.databaseURL);
  */
 export async function updateDriverLocationInFirebase(
   partnerId: string,
-  location: { latitude: number; longitude: number },
+  location: { latitude: number; longitude: number; heading?: number | null },
   orderId?: string,
 ): Promise<void> {
   try {
-    const locationRef = ref(db, `delivery/partners/${partnerId}/location`);
-    await set(locationRef, {
+    const payload = {
+      partnerId,
+      location: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      },
       latitude: location.latitude,
       longitude: location.longitude,
+      heading: typeof location.heading === "number" ? location.heading : null,
       orderId: orderId ?? null,
       updatedAt: Date.now(),
-    });
+    };
+    const locationRef = ref(db, `delivery/partners/${partnerId}/location`);
+    await set(locationRef, payload);
+
+    if (orderId) {
+      await update(ref(db, `orders/${orderId}/driverLocation`), payload);
+    }
   } catch (err) {
     // Non-fatal — socket already handles real-time location
     console.warn("[DriverTracking] Firebase write failed:", err);
