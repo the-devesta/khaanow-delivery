@@ -2,7 +2,7 @@
   "expo": {
     "name": "KhaaoNow Delivery",
     "slug": "khaaonow-delivery",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/DeliveryKhaaoNow.png",
     "scheme": "khaaonowdelivery",
