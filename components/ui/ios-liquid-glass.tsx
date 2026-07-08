@@ -145,6 +145,10 @@ export function IOSGlassButton({
   tintColor = "#F59E0B",
   icon,
 }: GlassButtonProps) {
+  const isOutline = variant === "outline";
+  const fillColor = variant === "secondary" ? "#1F2937" : tintColor;
+  const textColor = disabled ? "#6B7280" : isOutline ? tintColor : "#FFFFFF";
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -161,23 +165,40 @@ export function IOSGlassButton({
         shape="capsule"
         cornerRadius={26}
         fallbackBackgroundColor={
-          variant === "outline" ? "rgba(255,255,255,0.62)" : tintColor
+          disabled ? "#D1D5DB" : isOutline ? "rgba(255,255,255,0.62)" : fillColor
         }
         fallbackBorderColor={
-          variant === "outline" ? "rgba(245,158,11,0.55)" : "rgba(255,255,255,0.35)"
+          isOutline ? "rgba(245,158,11,0.55)" : "rgba(255,255,255,0.35)"
         }
         style={{
           minHeight: 52,
           alignItems: "center",
           justifyContent: "center",
         }}>
+        {!isOutline ? (
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheetFill,
+              {
+                backgroundColor: disabled ? "#D1D5DB" : fillColor,
+                opacity: nativeGlassAvailable ? 0.92 : 1,
+              },
+            ]}
+          />
+        ) : null}
         {loading ? (
-          <ActivityIndicator color={variant === "outline" ? tintColor : "#fff"} />
+          <ActivityIndicator color={isOutline ? tintColor : "#fff"} />
         ) : (
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              zIndex: 1,
+            }}>
             <Text
               style={{
-                color: variant === "outline" ? tintColor : "#fff",
+                color: textColor,
                 fontSize: 16,
                 fontWeight: "800",
               }}>
