@@ -12,7 +12,7 @@
       "supportsTablet": false,
       "requireFullScreen": true,
       "bundleIdentifier": "com.khaaonow.delivery",
-      "buildNumber": "2026071003",
+      "buildNumber": "2026071004",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
