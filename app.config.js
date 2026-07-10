@@ -78,7 +78,7 @@ module.exports = {
       supportsTablet: false,
       requireFullScreen: true,
       bundleIdentifier: "com.khaaonow.delivery",
-      buildNumber: "2026071003",
+      buildNumber: "2026071005",
       config: {
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
       },
@@ -103,7 +103,7 @@ module.exports = {
     },
     android: {
       package: "com.khaaonow.delivery",
-      versionCode: 2026071003,
+      versionCode: 2026071005,
       config: {
         googleMaps: {
           apiKey: GOOGLE_MAPS_API_KEY,

@@ -12,12 +12,12 @@
       "supportsTablet": false,
       "requireFullScreen": true,
       "bundleIdentifier": "com.khaaonow.delivery",
-      "buildNumber": "2026071004",
+      "buildNumber": "2026071006",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "com.khaaonow.delivery",
-      "versionCode": 2026071003,
+      "versionCode": 2026071004,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFD230",
