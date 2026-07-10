@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+common_args=(ENABLE_DEBUG_DYLIB=NO)
+
+if [[ -n "${EXPO_DERIVED_DATA_PATH:-}" ]]; then
+  exec /usr/bin/xcodebuild -derivedDataPath "${EXPO_DERIVED_DATA_PATH}" "${common_args[@]}" "$@"
+fi
+
+exec /usr/bin/xcodebuild "${common_args[@]}" "$@"

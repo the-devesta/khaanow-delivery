@@ -1,19 +1,15 @@
 import { Location } from "@/store/orders";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  LayoutChangeEvent,
-  Platform,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
-import Svg, { Path } from "react-native-svg";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import MapView, {
+  Marker,
+  Polyline,
+  PROVIDER_GOOGLE,
+} from "react-native-maps";
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
-/** Decode a Google / OSRM encoded polyline string into lat/lng array */
 function decodePolyline(
   encoded: string,
 ): { latitude: number; longitude: number }[] {
@@ -21,6 +17,7 @@ function decodePolyline(
   let lat = 0;
   let lng = 0;
   const result: { latitude: number; longitude: number }[] = [];
+
   while (index < encoded.length) {
     let shift = 0;
     let value = 0;
@@ -31,6 +28,7 @@ function decodePolyline(
       shift += 5;
     } while (b >= 0x20);
     lat += (value & 1) !== 0 ? ~(value >> 1) : value >> 1;
+
     shift = 0;
     value = 0;
     do {
@@ -39,8 +37,10 @@ function decodePolyline(
       shift += 5;
     } while (b >= 0x20);
     lng += (value & 1) !== 0 ? ~(value >> 1) : value >> 1;
+
     result.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
   }
+
   return result;
 }
 
@@ -55,7 +55,6 @@ export interface RouteInfo {
   distKm: number;
 }
 
-/** Haversine distance in metres between two lat/lng points */
 export function haversineM(a: Location, b: Location): number {
   const R = 6371000;
   const dLat = (b.latitude - a.latitude) * (Math.PI / 180);
@@ -73,17 +72,12 @@ interface DeliveryMapProps {
   pickupLocation?: Location;
   dropLocation?: Location;
   showRoute?: boolean;
-  /** Highlight the active navigation phase on the map */
   navigationMode?: boolean;
-  /** Which leg is being navigated */
   activePhase?: "pickup" | "dropoff";
-  /** Called with basic route metrics when the road route is loaded */
   onRouteLoaded?: (info: RouteInfo) => void;
 }
 
 type MapKind = "standard" | "satellite" | "hybrid";
-type MarkerRole = "pickup" | "drop" | "driver";
-type MarkerPoint = { role: MarkerRole; x: number; y: number };
 type RouteFetchResult = {
   coordinates: { latitude: number; longitude: number }[];
   etaMin: number;
@@ -103,16 +97,6 @@ function areSameCoord(a?: Location | null, b?: Location | null): boolean {
     Math.abs(a.latitude - b.latitude) < 0.00001 &&
     Math.abs(a.longitude - b.longitude) < 0.00001
   );
-}
-
-function offsetCoord(loc: Location, index: number, total: number): Location {
-  if (total <= 1) return loc;
-  const radius = 0.00018;
-  const angle = (Math.PI * 2 * index) / total - Math.PI / 2;
-  return {
-    latitude: loc.latitude + Math.sin(angle) * radius,
-    longitude: loc.longitude + Math.cos(angle) * radius,
-  };
 }
 
 function getNextMapType(type: MapKind): MapKind {
@@ -257,17 +241,12 @@ async function fetchGoogleRoutesApiRoute(
   }
 }
 
-/**
- * Fetch road route. Tries Google Routes API first, then legacy Directions,
- * then OSRM. Caller already draws an instant straight fallback.
- */
 async function fetchRoadRoute(
   origin: Location,
   destination: Location,
 ): Promise<RouteFetchResult> {
   const fallbackMetrics = getStraightLineMetrics(origin, destination);
 
-  // ── 1. Google Routes API ────────────────────────────────────────────────────
   if (GOOGLE_MAPS_API_KEY && !GOOGLE_MAPS_API_KEY.includes("YOUR_")) {
     const twoWheelerRoute = await fetchGoogleRoutesApiRoute(
       origin,
@@ -288,7 +267,6 @@ async function fetchRoadRoute(
     );
   }
 
-  // ── 2. Legacy Google Directions fallback ───────────────────────────────────
   if (GOOGLE_MAPS_API_KEY && !GOOGLE_MAPS_API_KEY.includes("YOUR_")) {
     try {
       const gUrl =
@@ -324,12 +302,11 @@ async function fetchRoadRoute(
         };
       }
       console.log("[DeliveryMap] Google Directions status:", gData.status);
-    } catch (e) {
-      console.log("[DeliveryMap] Google Directions error:", e);
+    } catch (error) {
+      console.log("[DeliveryMap] Google Directions error:", error);
     }
   }
 
-  // ── 3. OSRM fallback (free, no key) ────────────────────────────────────────
   try {
     const osrmUrl =
       `https://router.project-osrm.org/route/v1/driving/` +
@@ -350,14 +327,14 @@ async function fetchRoadRoute(
           : fallbackMetrics.distKm,
       };
     }
-  } catch (e) {
-    console.log("[DeliveryMap] OSRM error:", e);
+  } catch (error) {
+    console.log("[DeliveryMap] OSRM error:", error);
   }
 
   return {
-    coordinates: [],
+    coordinates: [origin, destination],
     ...fallbackMetrics,
-  }; // straight-line fallback handled by caller
+  };
 }
 
 export default function DeliveryMap({
@@ -370,16 +347,24 @@ export default function DeliveryMap({
   onRouteLoaded,
 }: DeliveryMapProps) {
   void navigationMode;
+
   const mapRef = useRef<MapView>(null);
+  const driverMarkerRef = useRef<InstanceType<typeof Marker>>(null);
+  const initialDriverCoordRef = useRef<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const isFirstFit = useRef(true);
+  const onRouteLoadedRef = useRef(onRouteLoaded);
+  const lastRouteSignatureRef = useRef<string>("");
   const [mapType, setMapType] = useState<MapKind>("standard");
-  const [mapReady, setMapReady] = useState(false);
-  const [markerPoints, setMarkerPoints] = useState<MarkerPoint[]>([]);
-  const [routePath, setRoutePath] = useState("");
-  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
   const [routeCoords, setRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
+
+  useEffect(() => {
+    onRouteLoadedRef.current = onRouteLoaded;
+  }, [onRouteLoaded]);
 
   const getInitialCenter = (): { latitude: number; longitude: number } => {
     if (isValidCoord(pickupLocation)) return pickupLocation;
@@ -396,282 +381,167 @@ export default function DeliveryMap({
   const validDriverLocation = isValidCoord(driverLocation)
     ? driverLocation
     : null;
-  const markerLocations = [
-    validPickupLocation,
-    validDropLocation,
-    validDriverLocation,
-  ].filter(Boolean) as Location[];
-  const hasOverlappingMarkers =
-    areSameCoord(validPickupLocation, validDropLocation) ||
-    areSameCoord(validPickupLocation, validDriverLocation) ||
-    areSameCoord(validDropLocation, validDriverLocation);
-  const pickupOffsetIndex = validPickupLocation
-    ? markerLocations.indexOf(validPickupLocation)
-    : 0;
-  const dropOffsetIndex = validDropLocation
-    ? markerLocations.indexOf(validDropLocation)
-    : 0;
-  const driverOffsetIndex = validDriverLocation
-    ? markerLocations.indexOf(validDriverLocation)
-    : 0;
-  const pickupMarkerCoord =
-    validPickupLocation && hasOverlappingMarkers
-      ? offsetCoord(
-          validPickupLocation,
-          pickupOffsetIndex,
-          markerLocations.length,
-        )
-      : validPickupLocation;
-  const dropMarkerCoord =
-    validDropLocation && hasOverlappingMarkers
-      ? offsetCoord(validDropLocation, dropOffsetIndex, markerLocations.length)
-      : validDropLocation;
-  const driverMarkerCoord =
-    validDriverLocation && hasOverlappingMarkers
-      ? offsetCoord(
-          validDriverLocation,
-          driverOffsetIndex,
-          markerLocations.length,
-        )
-      : validDriverLocation;
-  const phaseRouteOrigin = validDriverLocation ?? validPickupLocation;
-  const phaseRouteDestination =
-    validDriverLocation && activePhase === "dropoff"
-      ? validDropLocation
-      : validDriverLocation
-        ? validPickupLocation
-        : validDropLocation;
-  const shouldShowOrderLeg =
-    getDistanceM(phaseRouteOrigin, phaseRouteDestination) < 80 &&
-    isValidCoord(validPickupLocation) &&
-    isValidCoord(validDropLocation) &&
-    !areSameCoord(validPickupLocation, validDropLocation);
-  const routeOrigin = shouldShowOrderLeg ? validPickupLocation : phaseRouteOrigin;
-  const routeDestination = shouldShowOrderLeg
-    ? validDropLocation
-    : phaseRouteDestination;
+  const driverHeading =
+    typeof (driverLocation as any)?.heading === "number"
+      ? (driverLocation as any).heading
+      : 0;
+
+  // Animate the driver marker smoothly instead of letting it snap between
+  // GPS pings. The Marker's declarative `coordinate` prop is only used for
+  // the very first position (captured once into a ref); every update after
+  // that moves the marker imperatively so it doesn't fight the animation.
+  useEffect(() => {
+    if (!validDriverLocation) {
+      initialDriverCoordRef.current = null;
+      return;
+    }
+    if (!initialDriverCoordRef.current) {
+      initialDriverCoordRef.current = {
+        latitude: validDriverLocation.latitude,
+        longitude: validDriverLocation.longitude,
+      };
+      return;
+    }
+    driverMarkerRef.current?.animateMarkerToCoordinate(
+      {
+        latitude: validDriverLocation.latitude,
+        longitude: validDriverLocation.longitude,
+      },
+      1000,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validDriverLocation?.latitude, validDriverLocation?.longitude]);
+
+  const routeOrigin =
+    activePhase === "dropoff"
+      ? validDriverLocation ?? validPickupLocation
+      : validDriverLocation ?? validPickupLocation;
+  const routeDestination =
+    activePhase === "dropoff" ? validDropLocation : validPickupLocation;
   const canDrawRoute =
     showRoute && isValidCoord(routeOrigin) && isValidCoord(routeDestination);
 
-  const updateMarkerPoints = useCallback(async () => {
-    if (!mapRef.current || !mapReady) return;
+  const updateRouteState = useCallback(
+    (
+      nextCoords: { latitude: number; longitude: number }[],
+      info: RouteInfo,
+    ) => {
+      const coordSignature = nextCoords
+        .map((coord) => `${coord.latitude.toFixed(6)},${coord.longitude.toFixed(6)}`)
+        .join("|");
+      const infoSignature = `${info.etaMin}|${info.distKm}|${info.steps.length}`;
+      const nextSignature = `${coordSignature}::${infoSignature}`;
 
-    const markerCoords: { role: MarkerRole; coord: Location | null }[] = [
-      { role: "pickup", coord: pickupMarkerCoord },
-      { role: "drop", coord: dropMarkerCoord },
-      { role: "driver", coord: driverMarkerCoord },
-    ];
+      if (lastRouteSignatureRef.current === nextSignature) {
+        return;
+      }
 
-    const points = await Promise.all(
-      markerCoords
-        .filter((item): item is { role: MarkerRole; coord: Location } =>
-          isValidCoord(item.coord),
-        )
-        .map(async (item) => {
-          const point = await mapRef.current!.pointForCoordinate(item.coord);
-          return { role: item.role, x: point.x, y: point.y };
-        }),
-    );
+      lastRouteSignatureRef.current = nextSignature;
+      setRouteCoords(nextCoords);
+      onRouteLoadedRef.current?.(info);
+    },
+    [],
+  );
 
-    setMarkerPoints(points);
-  }, [
-    mapReady,
-    pickupMarkerCoord?.latitude,
-    pickupMarkerCoord?.longitude,
-    dropMarkerCoord?.latitude,
-    dropMarkerCoord?.longitude,
-    driverMarkerCoord?.latitude,
-    driverMarkerCoord?.longitude,
-  ]);
-
-  const updateRouteSegments = useCallback(async () => {
-    if (!mapRef.current || !mapReady || !canDrawRoute) {
-      setRoutePath("");
-      return;
-    }
-
-    const coords =
-      routeCoords.length >= 2
-        ? routeCoords
-        : isValidCoord(routeOrigin) &&
-            isValidCoord(routeDestination) &&
-            !areSameCoord(routeOrigin, routeDestination)
-          ? [routeOrigin, routeDestination]
-          : [];
-
-    if (coords.length < 2) {
-      setRoutePath("");
-      return;
-    }
-
-    const step = Math.max(1, Math.floor(coords.length / 70));
-    const sampled = coords.filter(
-      (_coord, index) => index % step === 0 || index === coords.length - 1,
-    );
-
-    const points = await Promise.all(
-      sampled.map((coord) => mapRef.current!.pointForCoordinate(coord)),
-    );
-
-    const path = points
-      .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-      .join(" ");
-
-    setRoutePath(path);
-  }, [
-    mapReady,
-    canDrawRoute,
-    mapSize.width,
-    mapSize.height,
-    routeCoords,
-    routeOrigin?.latitude,
-    routeOrigin?.longitude,
-    routeDestination?.latitude,
-    routeDestination?.longitude,
-  ]);
-
-  const updateMapOverlays = useCallback(() => {
-    updateMarkerPoints();
-    updateRouteSegments();
-  }, [updateMarkerPoints, updateRouteSegments]);
-
-  // Fetch road-following route for rider's current leg. Before pickup:
-  // driver -> restaurant. After pickup: driver -> customer.
   useEffect(() => {
     if (!canDrawRoute) {
+      lastRouteSignatureRef.current = "";
       setRouteCoords([]);
       return;
     }
     if (areSameCoord(routeOrigin, routeDestination)) {
+      lastRouteSignatureRef.current = "";
       setRouteCoords([]);
       return;
     }
 
     const fallbackCoords = [routeOrigin!, routeDestination!];
     const fallback = getStraightLineMetrics(routeOrigin!, routeDestination!);
-    setRouteCoords(fallbackCoords);
-    onRouteLoaded?.({
+    updateRouteState(fallbackCoords, {
       steps: [],
       etaMin: fallback.etaMin,
       distKm: fallback.distKm,
     });
+    let cancelled = false;
 
     fetchRoadRoute(routeOrigin!, routeDestination!)
       .then((route) => {
-        setRouteCoords(
-          route.coordinates.length >= 2
-            ? route.coordinates
-            : fallbackCoords,
-        );
-        if (onRouteLoaded) {
-          onRouteLoaded({
-            steps: [],
-            etaMin: route.etaMin,
-            distKm: route.distKm,
-          });
-        }
+        if (cancelled) return;
+        const nextCoords =
+          route.coordinates.length >= 2 ? route.coordinates : fallbackCoords;
+        updateRouteState(nextCoords, {
+          steps: [],
+          etaMin: route.etaMin,
+          distKm: route.distKm,
+        });
       })
       .catch((error) => {
+        if (cancelled) return;
         console.log("[DeliveryMap] Route fetch failed:", error);
-        setRouteCoords(fallbackCoords);
-        onRouteLoaded?.({
+        updateRouteState(fallbackCoords, {
           steps: [],
           etaMin: fallback.etaMin,
           distKm: fallback.distKm,
         });
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     canDrawRoute,
     routeOrigin?.latitude,
     routeOrigin?.longitude,
     routeDestination?.latitude,
     routeDestination?.longitude,
+    updateRouteState,
   ]);
 
   const fitMapToMarkers = useCallback(
     (animated = true) => {
       if (!mapRef.current) return;
+
       const coords: Location[] = [];
-      if (isValidCoord(driverMarkerCoord)) coords.push(driverMarkerCoord);
-      if (isValidCoord(pickupMarkerCoord)) coords.push(pickupMarkerCoord);
-      if (isValidCoord(dropMarkerCoord)) coords.push(dropMarkerCoord);
+      if (isValidCoord(validDriverLocation)) coords.push(validDriverLocation);
+      if (isValidCoord(validPickupLocation)) coords.push(validPickupLocation);
+      if (isValidCoord(validDropLocation)) coords.push(validDropLocation);
+      if (routeCoords.length > 1) {
+        coords.push(...routeCoords);
+      }
+
       if (coords.length === 0) return;
+
       if (coords.length === 1) {
         mapRef.current.animateToRegion(
           { ...coords[0], latitudeDelta: 0.018, longitudeDelta: 0.018 },
           500,
         );
-        setTimeout(updateMapOverlays, 550);
         return;
       }
+
       mapRef.current.fitToCoordinates(coords, {
         edgePadding: { top: 130, right: 115, bottom: 135, left: 115 },
         animated,
       });
-      setTimeout(updateMapOverlays, animated ? 550 : 100);
     },
     [
-      driverMarkerCoord?.latitude,
-      driverMarkerCoord?.longitude,
-      pickupMarkerCoord?.latitude,
-      pickupMarkerCoord?.longitude,
-      dropMarkerCoord?.latitude,
-      dropMarkerCoord?.longitude,
-      updateMapOverlays,
+      routeCoords,
+      validDriverLocation,
+      validDropLocation,
+      validPickupLocation,
     ],
   );
 
-  // Fit map to rendered marker positions, including visual overlap offsets.
   useEffect(() => {
     fitMapToMarkers(!isFirstFit.current);
     isFirstFit.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    driverMarkerCoord?.latitude,
-    driverMarkerCoord?.longitude,
-    pickupMarkerCoord?.latitude,
-    pickupMarkerCoord?.longitude,
-    dropMarkerCoord?.latitude,
-    dropMarkerCoord?.longitude,
-  ]);
-
-  useEffect(() => {
-    updateMapOverlays();
-  }, [updateMapOverlays, mapType, routeCoords]);
-
-  const getMarkerPoint = (role: MarkerRole) =>
-    markerPoints.find((point) => point.role === role);
-  const fallbackStartPoint =
-    activePhase === "pickup"
-      ? (getMarkerPoint("driver") ?? getMarkerPoint("pickup"))
-      : (getMarkerPoint("driver") ?? getMarkerPoint("pickup"));
-  const fallbackEndPoint =
-    activePhase === "pickup"
-      ? (getMarkerPoint("pickup") ?? getMarkerPoint("drop"))
-      : (getMarkerPoint("drop") ?? getMarkerPoint("pickup"));
-  const fallbackScreenPath =
-    showRoute &&
-    fallbackStartPoint &&
-    fallbackEndPoint &&
-    Math.hypot(
-      fallbackEndPoint.x - fallbackStartPoint.x,
-      fallbackEndPoint.y - fallbackStartPoint.y,
-    ) > 8
-      ? `M ${fallbackStartPoint.x} ${fallbackStartPoint.y} L ${fallbackEndPoint.x} ${fallbackEndPoint.y}`
-      : "";
-  const visibleRoutePath = routePath || fallbackScreenPath;
+  }, [fitMapToMarkers]);
 
   return (
-    <View
-      style={styles.container}
-      onLayout={(event: LayoutChangeEvent) => {
-        const { width, height } = event.nativeEvent.layout;
-        setMapSize({ width, height });
-      }}>
+    <View style={styles.container}>
       <MapView
         ref={mapRef}
-        provider={Platform.OS === "ios" ? undefined : PROVIDER_GOOGLE}
+        provider={PROVIDER_GOOGLE}
         mapType={mapType}
         style={styles.map}
         initialRegion={{
@@ -684,93 +554,79 @@ export default function DeliveryMap({
         showsMyLocationButton={false}
         showsCompass={false}
         showsTraffic={false}
+        pitchEnabled={false}
+        rotateEnabled={false}
+        showsBuildings={false}
         loadingEnabled
         onMapReady={() => {
-          setMapReady(true);
-          setTimeout(updateMapOverlays, 250);
+          setTimeout(() => fitMapToMarkers(false), 250);
         }}
-        onRegionChangeComplete={updateMapOverlays}
-        customMapStyle={
-          Platform.OS === "ios"
-            ? undefined
-            : [
-                {
-                  featureType: "water",
-                  elementType: "geometry",
-                  stylers: [{ color: "#C6DBEF" }],
-                },
-                {
-                  featureType: "landscape",
-                  elementType: "geometry",
-                  stylers: [{ color: "#F9FAFB" }],
-                },
-                {
-                  featureType: "road",
-                  elementType: "geometry",
-                  stylers: [{ color: "#FFFFFF" }],
-                },
-                { featureType: "poi", stylers: [{ visibility: "off" }] },
-              ]
-        }>
-      </MapView>
-
-      <View pointerEvents="none" style={styles.overlayLayer}>
-        {visibleRoutePath.length > 0 && mapSize.width > 0 && mapSize.height > 0 && (
-          <Svg
-            width={mapSize.width}
-            height={mapSize.height}
-            style={StyleSheet.absoluteFill}>
-            <Path
-              d={visibleRoutePath}
-              fill="none"
-              stroke="rgba(255,255,255,0.95)"
+        customMapStyle={[
+          {
+            featureType: "water",
+            elementType: "geometry",
+            stylers: [{ color: "#C6DBEF" }],
+          },
+          {
+            featureType: "landscape",
+            elementType: "geometry",
+            stylers: [{ color: "#F9FAFB" }],
+          },
+          {
+            featureType: "road",
+            elementType: "geometry",
+            stylers: [{ color: "#FFFFFF" }],
+          },
+          { featureType: "poi", stylers: [{ visibility: "off" }] },
+        ]}>
+        {routeCoords.length > 1 && (
+          <>
+            <Polyline
+              coordinates={routeCoords}
+              strokeColor="rgba(255,255,255,0.95)"
               strokeWidth={10}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              lineCap="round"
+              lineJoin="round"
             />
-            <Path
-              d={visibleRoutePath}
-              fill="none"
-              stroke="#FF6A00"
+            <Polyline
+              coordinates={routeCoords}
+              strokeColor="#FF6A00"
               strokeWidth={6}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              lineCap="round"
+              lineJoin="round"
             />
-          </Svg>
+          </>
         )}
 
-        {markerPoints.map((point) => (
-          <View
-            key={point.role}
-            style={[
-              styles.markerOverlay,
-              {
-                left: point.x - 22,
-                top: point.y - 22,
-                zIndex:
-                  point.role === "driver" ? 30 : point.role === "drop" ? 20 : 10,
-              },
-            ]}>
-            <View
-              style={[
-                styles.markerBubble,
-                point.role === "pickup" && styles.pickupBubble,
-                point.role === "drop" && styles.dropBubble,
-                point.role === "driver" && styles.driverBubble,
-              ]}>
-              {point.role === "pickup" && (
-                <MaterialCommunityIcons name="store" size={20} color="#FF6A00" />
-              )}
-              {point.role === "drop" && (
-                <Ionicons name="person" size={18} color="#fff" />
-              )}
-              {point.role === "driver" && (
-                <Ionicons name="bicycle" size={18} color="#fff" />
-              )}
+        {validPickupLocation && (
+          <Marker coordinate={validPickupLocation} anchor={{ x: 0.5, y: 0.5 }}>
+            <View style={[styles.markerBubble, styles.pickupBubble]}>
+              <MaterialCommunityIcons name="store" size={20} color="#FF6A00" />
             </View>
-          </View>
-        ))}
-      </View>
+          </Marker>
+        )}
+
+        {validDropLocation && (
+          <Marker coordinate={validDropLocation} anchor={{ x: 0.5, y: 0.5 }}>
+            <View style={[styles.markerBubble, styles.dropBubble]}>
+              <Ionicons name="person" size={18} color="#fff" />
+            </View>
+          </Marker>
+        )}
+
+        {validDriverLocation && (
+          <Marker
+            ref={driverMarkerRef}
+            coordinate={initialDriverCoordRef.current ?? validDriverLocation}
+            anchor={{ x: 0.5, y: 0.5 }}
+            flat={Platform.OS === "android"}
+            rotation={driverHeading}>
+            <View style={[styles.markerBubble, styles.driverBubble]}>
+              <MaterialCommunityIcons name="motorbike" size={18} color="#fff" />
+            </View>
+          </Marker>
+        )}
+      </MapView>
 
       <View style={styles.mapControls}>
         <TouchableOpacity
@@ -799,7 +655,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderTopLeftRadius: 24,
     marginHorizontal: 5,
-
     borderTopRightRadius: 24,
     borderBottomEndRadius: 24,
     borderBottomStartRadius: 24,
@@ -809,39 +664,28 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  overlayLayer: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 20,
-    elevation: 20,
-  },
-  markerOverlay: {
-    position: "absolute",
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   markerBubble: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
     borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 6,
   },
   driverBubble: {
     backgroundColor: "#FF6A00",
-    borderColor: "#fff",
   },
   pickupBubble: {
     backgroundColor: "#FFF5EB",
-    borderColor: "#fff",
   },
   dropBubble: {
     backgroundColor: "#111827",
-    borderColor: "#fff",
   },
   mapControls: {
     position: "absolute",

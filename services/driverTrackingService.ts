@@ -1,8 +1,7 @@
 /**
  * Driver Tracking Service — Firebase Realtime Database
- * Publishes driver GPS to Firebase so all clients get live updates.
- * The existing socket service is still used for immediate events;
- * Firebase provides persistent, reliable location for the customer map.
+ * Reads driver GPS from Firebase so clients get live updates.
+ * Writes are performed by the backend after /delivery-partners/location succeeds.
  */
 
 import { firebaseConfig } from "@/config/firebase";
@@ -20,6 +19,8 @@ import {
 // Re-use the same Firebase app instance
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(app, firebaseConfig.databaseURL);
+const CLIENT_FIREBASE_LOCATION_WRITE_ENABLED =
+  process.env.EXPO_PUBLIC_ENABLE_CLIENT_FIREBASE_LOCATION_WRITE === "true";
 
 /**
  * Write driver location to Firebase Realtime DB.
@@ -30,28 +31,37 @@ export async function updateDriverLocationInFirebase(
   location: { latitude: number; longitude: number; heading?: number | null },
   orderId?: string,
 ): Promise<void> {
-  try {
-    const payload = {
-      partnerId,
-      location: {
-        latitude: location.latitude,
-        longitude: location.longitude,
-      },
+  if (!CLIENT_FIREBASE_LOCATION_WRITE_ENABLED) {
+    return;
+  }
+
+  const payload = {
+    partnerId,
+    location: {
       latitude: location.latitude,
       longitude: location.longitude,
-      heading: typeof location.heading === "number" ? location.heading : null,
-      orderId: orderId ?? null,
-      updatedAt: Date.now(),
-    };
+    },
+    latitude: location.latitude,
+    longitude: location.longitude,
+    heading: typeof location.heading === "number" ? location.heading : null,
+    orderId: orderId ?? null,
+    updatedAt: Date.now(),
+  };
+
+  if (orderId) {
+    try {
+      await update(ref(db, `orders/${orderId}/driverLocation`), payload);
+    } catch (err) {
+      console.warn("[DriverTracking] Order Firebase write failed:", err);
+    }
+  }
+
+  try {
     const locationRef = ref(db, `delivery/partners/${partnerId}/location`);
     await set(locationRef, payload);
-
-    if (orderId) {
-      await update(ref(db, `orders/${orderId}/driverLocation`), payload);
-    }
   } catch (err) {
-    // Non-fatal — socket already handles real-time location
-    console.warn("[DriverTracking] Firebase write failed:", err);
+    // Non-fatal — customer tracking still works via orders/{orderId}/driverLocation.
+    console.warn("[DriverTracking] Partner Firebase write failed:", err);
   }
 }
 

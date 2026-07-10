@@ -4,16 +4,34 @@ import { useRouter } from "expo-router";
 import { Linking, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+const SUPPORT_PHONE = "+919875054989";
+const SUPPORT_PHONE_DISPLAY = "+91 98750 54989";
+const SUPPORT_EMAIL = "support@khaaonow.com";
+const SUPPORT_WHATSAPP_PHONE = "919875054989";
+
 export default function SupportScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const handleCall = () => {
-    openPhoneDialer("+919876543210");
+    openPhoneDialer(SUPPORT_PHONE);
   };
 
   const handleEmail = () => {
-    Linking.openURL("mailto:support@khaaonow.com");
+    const subject = encodeURIComponent("Delivery Partner Support");
+    const body = encodeURIComponent(
+      "Hi KhaaoNow Support,\n\nI need help with my delivery partner account.\n\nName:\nIssue:\n",
+    );
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
+  };
+
+  const handleWhatsApp = () => {
+    const text = encodeURIComponent(
+      "Hi KhaaoNow Support,\n\nI need help with my delivery partner account.\n\nName:\nIssue:\n",
+    );
+    Linking.openURL(
+      `https://api.whatsapp.com/send?phone=${SUPPORT_WHATSAPP_PHONE}&text=${text}`,
+    );
   };
 
   return (
@@ -49,20 +67,32 @@ export default function SupportScreen() {
             </View>
             <View>
               <Text className="font-bold text-gray-900">Call Us</Text>
-              <Text className="text-gray-500 text-sm">+91 98765 43210</Text>
+              <Text className="text-gray-500 text-sm">{SUPPORT_PHONE_DISPLAY}</Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={handleEmail}
-            className="flex-row items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
+            className="flex-row items-center bg-blue-50 p-4 rounded-xl mb-3 border border-blue-100">
             <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center mr-4">
               <Ionicons name="mail" size={20} color="#3B82F6" />
             </View>
             <View>
               <Text className="font-bold text-gray-900">Email Us</Text>
+              <Text className="text-gray-500 text-sm">{SUPPORT_EMAIL}</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleWhatsApp}
+            className="flex-row items-center bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+            <View className="w-10 h-10 bg-emerald-100 rounded-full items-center justify-center mr-4">
+              <Ionicons name="logo-whatsapp" size={20} color="#10B981" />
+            </View>
+            <View>
+              <Text className="font-bold text-gray-900">WhatsApp Us</Text>
               <Text className="text-gray-500 text-sm">
-                support@khaaonow.com
+                Chat with support on WhatsApp
               </Text>
             </View>
           </TouchableOpacity>

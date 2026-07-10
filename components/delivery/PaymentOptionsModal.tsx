@@ -12,7 +12,10 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Keyboard,
   Modal,
+  Platform,
+  Pressable,
   Text,
   TouchableOpacity,
   View,
@@ -49,6 +52,7 @@ export default function PaymentOptionsModal({
   onClose,
 }: Props) {
   const slideAnim = useRef(new Animated.Value(height)).current;
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
   const [subView, setSubView] = useState<SubView>("menu");
 
   // Determine payment type from order's paymentMethod field
@@ -64,7 +68,7 @@ export default function PaymentOptionsModal({
       setSubView("menu");
       Animated.spring(slideAnim, {
         toValue: 0,
-        useNativeDriver: true,
+        useNativeDriver: false,
         tension: 65,
         friction: 11,
       }).start();
@@ -72,11 +76,43 @@ export default function PaymentOptionsModal({
       Animated.timing(slideAnim, {
         toValue: height,
         duration: 250,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const animateKeyboard = (toValue: number, duration = 220) => {
+      Animated.timing(keyboardOffset, {
+        toValue,
+        duration,
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      animateKeyboard(event.endCoordinates?.height || 0, event.duration || 220);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, (event) => {
+      animateKeyboard(0, event.duration || 200);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [keyboardOffset]);
+
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
 
   const alreadyPaid =
     paymentStatus === "paid" ||
@@ -88,16 +124,18 @@ export default function PaymentOptionsModal({
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={onClose}>
-      <TouchableOpacity
-        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}
-        activeOpacity={1}
-        onPress={onClose}
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      onRequestClose={handleClose}>
+      <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}>
+      <Pressable
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        onPress={handleClose}
       />
       <Animated.View
         style={{
           position: "absolute",
-          bottom: 0,
+          bottom: keyboardOffset,
           left: 0,
           right: 0,
           borderTopLeftRadius: 24,
@@ -122,7 +160,12 @@ export default function PaymentOptionsModal({
           <View className="w-10 h-1 bg-gray-200 rounded-full mb-4" />
           <View className="flex-row items-center justify-between w-full">
             {subView !== "menu" ? (
-              <TouchableOpacity onPress={() => setSubView("menu")} hitSlop={8}>
+              <TouchableOpacity
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setSubView("menu");
+                }}
+                hitSlop={8}>
                 <Ionicons name="arrow-back" size={22} color="#1F2937" />
               </TouchableOpacity>
             ) : (
@@ -137,7 +180,7 @@ export default function PaymentOptionsModal({
                     ? "Payment Link"
                     : "UPI QR Code"}
             </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <TouchableOpacity onPress={handleClose} hitSlop={8}>
               <Ionicons name="close" size={22} color="#6B7280" />
             </TouchableOpacity>
           </View>
@@ -250,6 +293,7 @@ export default function PaymentOptionsModal({
         )}
         </IOSGlassSurface>
       </Animated.View>
+      </View>
     </Modal>
   );
 }

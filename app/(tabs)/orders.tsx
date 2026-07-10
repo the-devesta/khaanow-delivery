@@ -71,10 +71,10 @@ export default function OrdersScreen() {
   const allOrders = Array.from(
     new Map(
       [
-        ...(activeOrder ? [activeOrder] : []),
-        ...activeOrders,
-        ...expiredMissedAsOrders,
         ...orderHistory,
+        ...expiredMissedAsOrders,
+        ...activeOrders,
+        ...(activeOrder ? [activeOrder] : []),
       ].map((o) => [o.id, o]),
     ).values(),
   );
@@ -345,6 +345,8 @@ export default function OrdersScreen() {
             <Text className="text-lg font-bold text-[#1A1A1A]">
               {activeFilter === "all"
                 ? "All Orders"
+                : activeFilter === "active"
+                  ? "In Progress Orders"
                 : activeFilter === "delivered"
                   ? "Completed Orders"
                   : "Cancelled Orders"}

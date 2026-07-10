@@ -10,10 +10,10 @@ const plugins = [
   [
     "expo-splash-screen",
     {
-      image: "./assets/images/DeliveryKhaaoNow.png",
-      imageWidth: 250,
+      image: "./assets/images/logo.png",
+      imageWidth: 260,
       resizeMode: "contain",
-      backgroundColor: "#FFD230",
+      backgroundColor: "#111111",
     },
   ],
   "expo-font",
@@ -55,7 +55,7 @@ module.exports = {
   expo: {
     name: "KhaaoNow Delivery",
     slug: "khaaonow-delivery",
-    version: "1.0.2",
+    version: "1.0.4",
     orientation: "portrait",
     icon: "./assets/images/DeliveryKhaaoNow.png",
     scheme: "khaaonowdelivery",
@@ -63,10 +63,10 @@ module.exports = {
     newArchEnabled: true,
     autolinking: {
       ios: {
-        exclude: ["@expo/ui"],
+        exclude: ["@expo/ui", "expo-glass-effect", "expo-symbols"],
       },
       android: {
-        exclude: ["@expo/ui"],
+        exclude: ["@expo/ui", "expo-glass-effect", "expo-symbols"],
       },
     },
     extra: {
@@ -78,7 +78,7 @@ module.exports = {
       supportsTablet: false,
       requireFullScreen: true,
       bundleIdentifier: "com.khaaonow.delivery",
-      buildNumber: "2026070301",
+      buildNumber: "2026071003",
       config: {
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
       },
@@ -103,7 +103,7 @@ module.exports = {
     },
     android: {
       package: "com.khaaonow.delivery",
-      versionCode: 2026070301,
+      versionCode: 2026071003,
       config: {
         googleMaps: {
           apiKey: GOOGLE_MAPS_API_KEY,

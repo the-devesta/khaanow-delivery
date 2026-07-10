@@ -193,9 +193,10 @@ interface OrderState {
 // ── Helper: transform a raw backend order into our Order shape ───────────────
 function transformSocketOrder(order: any): Order {
   const earnings =
-    order.estimatedDeliveryFee ||
-    order.deliveryFee ||
-    Math.max(50, (order.totalAmount || 0) * 0.1);
+    order.earnings ??
+    order.estimatedDeliveryFee ??
+    order.deliveryFee ??
+    0;
 
   const _pickupLoc =
     parseLocation(order.restaurant?.location) ??
@@ -284,6 +285,15 @@ function transformSocketOrder(order: any): Order {
   return result;
 }
 
+function mergeIncomingOrder(existing: Order, incomingRaw: any): Order {
+  const incoming = transformSocketOrder(incomingRaw);
+  return {
+    ...existing,
+    ...incoming,
+    status: (incoming.status || incomingRaw?.status || existing.status) as OrderStatus,
+  };
+}
+
 const MISSED_ORDER_TTL_MS = 15 * 60 * 1000; // 15 minutes accept window (controls Accept button)
 /** How long missed-order cards stay visible in "Pending Requests" before auto-pruning. */
 const MISSED_ORDER_DISPLAY_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -363,17 +373,18 @@ export const useOrderStore = create<OrderState>()(
             updatedOrder.status,
           );
           const { activeOrder, activeOrders, pendingOrder, missedOrders } = get();
+          const updatedId = updatedOrder._id || updatedOrder.id;
 
-          if (activeOrder && activeOrder.id === updatedOrder._id) {
+          if (activeOrder && activeOrder.id === updatedId) {
             set({
-              activeOrder: { ...activeOrder, status: updatedOrder.status },
+              activeOrder: mergeIncomingOrder(activeOrder, updatedOrder),
             });
           }
-          if (activeOrders.some((order) => order.id === updatedOrder._id)) {
+          if (activeOrders.some((order) => order.id === updatedId)) {
             set({
               activeOrders: activeOrders.map((order) =>
-                order.id === updatedOrder._id
-                  ? { ...order, status: updatedOrder.status }
+                order.id === updatedId
+                  ? mergeIncomingOrder(order, updatedOrder)
                   : order,
               ),
             });
@@ -382,16 +393,16 @@ export const useOrderStore = create<OrderState>()(
           // If the order is already in missedOrders, update it in-place so it
           // gets the correct status (e.g. "cancelled") and appears in history.
           const hasMissedEntry = missedOrders.some(
-            (m) => m.order.id === updatedOrder._id,
+            (m) => m.order.id === updatedId,
           );
           if (hasMissedEntry) {
             set({
               missedOrders: missedOrders.map((m) =>
-                m.order.id !== updatedOrder._id
+                m.order.id !== updatedId
                   ? m
                   : {
                       ...m,
-                      order: { ...m.order, status: updatedOrder.status },
+                      order: mergeIncomingOrder(m.order, updatedOrder),
                       reason:
                         updatedOrder.status === "cancelled"
                           ? ("cancelled" as MissedReason)
@@ -408,7 +419,7 @@ export const useOrderStore = create<OrderState>()(
           }
 
           // If the pending order got cancelled, move it to missed with reason "cancelled"
-          if (pendingOrder && pendingOrder.id === updatedOrder._id) {
+          if (pendingOrder && pendingOrder.id === updatedId) {
             if (
               updatedOrder.status === "cancelled" ||
               updatedOrder.status === "delivered"
@@ -434,7 +445,7 @@ export const useOrderStore = create<OrderState>()(
               });
             } else {
               set({
-                pendingOrder: { ...pendingOrder, status: updatedOrder.status },
+                pendingOrder: mergeIncomingOrder(pendingOrder, updatedOrder),
               });
             }
           }
@@ -536,7 +547,7 @@ export const useOrderStore = create<OrderState>()(
 
               if (activeOrder && activeOrder.id === updatedId) {
                 set({
-                  activeOrder: { ...activeOrder, status: nextStatus },
+                  activeOrder: mergeIncomingOrder(activeOrder, updatedOrder),
                 });
               }
 
@@ -544,7 +555,7 @@ export const useOrderStore = create<OrderState>()(
                 set({
                   activeOrders: activeOrders.map((order) =>
                     order.id === updatedId
-                      ? { ...order, status: nextStatus }
+                      ? mergeIncomingOrder(order, updatedOrder)
                       : order,
                   ),
                 });
@@ -571,7 +582,7 @@ export const useOrderStore = create<OrderState>()(
                   });
                 } else {
                   set({
-                    pendingOrder: { ...pendingOrder, status: nextStatus },
+                    pendingOrder: mergeIncomingOrder(pendingOrder, updatedOrder),
                   });
                 }
               }
@@ -1093,10 +1104,10 @@ export const useOrderStore = create<OrderState>()(
               distance: order.deliveryInfo?.distanceKm || order.distance || 0,
               estimatedTime: "30 min",
               earnings:
-                order.earnings ||
-                order.estimatedDeliveryFee ||
-                order.deliveryFee ||
-                Math.max(50, (order.totalAmount || 0) * 0.1),
+                order.earnings ??
+                order.estimatedDeliveryFee ??
+                order.deliveryFee ??
+                0,
               totalAmount: order.totalAmount,
               items:
                 order.items?.map((item: any) => ({

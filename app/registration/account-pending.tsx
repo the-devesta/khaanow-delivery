@@ -9,6 +9,7 @@ import {
   Alert,
   BackHandler,
   Image,
+  Linking,
   Platform,
   RefreshControl,
   ScrollView,
@@ -26,6 +27,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const SUPPORT_PHONE = "+919875054989";
+const SUPPORT_EMAIL = "support@khaaonow.com";
+const SUPPORT_WHATSAPP_PHONE = "919875054989";
 
 function StatusStep({
   icon,
@@ -223,10 +228,39 @@ export default function AccountPendingScreen() {
   };
 
   const handleContactSupport = () => {
+    const emailSubject = encodeURIComponent(
+      "Delivery Partner Application Support",
+    );
+    const emailBody = encodeURIComponent(
+      "Hi KhaaoNow Support,\n\nI need help with my delivery partner application.\n\nApplication status: Pending\nName:\nIssue:\n",
+    );
+    const whatsappText = encodeURIComponent(
+      "Hi KhaaoNow Support,\n\nI need help with my delivery partner application.\n\nApplication status: Pending\nName:\nIssue:\n",
+    );
     Alert.alert(
       "Contact Support",
-      "For any queries, please contact us at:\n\n📧 support@khaaonow.com\n📞 +91 1800-XXX-XXXX",
-      [{ text: "OK" }],
+      "Choose how you want to contact KhaaoNow support.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Call",
+          onPress: () => Linking.openURL(`tel:${SUPPORT_PHONE}`),
+        },
+        {
+          text: "Email",
+          onPress: () =>
+            Linking.openURL(
+              `mailto:${SUPPORT_EMAIL}?subject=${emailSubject}&body=${emailBody}`,
+            ),
+        },
+        {
+          text: "WhatsApp",
+          onPress: () =>
+            Linking.openURL(
+              `https://api.whatsapp.com/send?phone=${SUPPORT_WHATSAPP_PHONE}&text=${whatsappText}`,
+            ),
+        },
+      ],
     );
   };
 

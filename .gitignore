@@ -62,3 +62,7 @@ app-example
 *.apk
 build/
 builds/
+
+# local AI/editor scratch files
+.codex*
+.codex-staging/

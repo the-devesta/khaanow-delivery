@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import {
   Alert,
   Image,
+  Linking,
   Platform,
   ScrollView,
   StatusBar,
@@ -14,6 +15,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const SUPPORT_PHONE = "+919875054989";
+const SUPPORT_EMAIL = "support@khaaonow.com";
+const SUPPORT_WHATSAPP_PHONE = "919875054989";
 
 export default function AccountRejectedScreen() {
   const router = useRouter();
@@ -27,10 +32,39 @@ export default function AccountRejectedScreen() {
   };
 
   const handleContactSupport = () => {
+    const emailSubject = encodeURIComponent(
+      "Delivery Partner Application Support",
+    );
+    const emailBody = encodeURIComponent(
+      "Hi KhaaoNow Support,\n\nI need help with my delivery partner application.\n\nApplication status: Rejected\nName:\nIssue:\n",
+    );
+    const whatsappText = encodeURIComponent(
+      "Hi KhaaoNow Support,\n\nI need help with my delivery partner application.\n\nApplication status: Rejected\nName:\nIssue:\n",
+    );
     Alert.alert(
       "Contact Support",
-      "For any queries regarding your application, please contact us at:\n\n📧 support@khaaonow.com\n📞 +91 1800-XXX-XXXX\n\nOur team will help you understand the rejection reason and guide you through the reapplication process.",
-      [{ text: "OK" }],
+      "Choose how you want to contact KhaaoNow support.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Call",
+          onPress: () => Linking.openURL(`tel:${SUPPORT_PHONE}`),
+        },
+        {
+          text: "Email",
+          onPress: () =>
+            Linking.openURL(
+              `mailto:${SUPPORT_EMAIL}?subject=${emailSubject}&body=${emailBody}`,
+            ),
+        },
+        {
+          text: "WhatsApp",
+          onPress: () =>
+            Linking.openURL(
+              `https://api.whatsapp.com/send?phone=${SUPPORT_WHATSAPP_PHONE}&text=${whatsappText}`,
+            ),
+        },
+      ],
     );
   };
 

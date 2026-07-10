@@ -13,6 +13,7 @@ import { uploadImageToFirebase } from "@/services/storage";
 import { Location, useOrderStore } from "@/store/orders";
 import { openPhoneDialer } from "@/utils/phone";
 import { Ionicons } from "@expo/vector-icons";
+import * as Device from "expo-device";
 import * as ExpoLocation from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -22,6 +23,7 @@ import {
   ReactElement,
   ReactNode,
   ReactPortal,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -205,6 +207,7 @@ export default function OrderDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {
     activeOrder,
+    activeOrders,
     updateOrderStatus,
     completeOrder,
     releaseActiveOrder,
@@ -237,8 +240,29 @@ export default function OrderDetailsScreen() {
     distKm: 0,
   });
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
+  const handleRouteLoaded = useCallback((info: RouteInfo) => {
+    setRouteInfo((current) => {
+      const sameEta = current.etaMin === info.etaMin;
+      const sameDist = current.distKm === info.distKm;
+      const sameSteps = current.steps.length === info.steps.length;
+      return sameEta && sameDist && sameSteps ? current : info;
+    });
+    setCurrentStepIdx((current) => (current === 0 ? current : 0));
+  }, []);
 
-  const isActiveOrder = activeOrder?.id === id;
+  const getFallbackCurrentLocation = async (): Promise<Location | null> => {
+    const lastKnown = await ExpoLocation.getLastKnownPositionAsync();
+    if (!lastKnown?.coords) return null;
+    return {
+      latitude: lastKnown.coords.latitude,
+      longitude: lastKnown.coords.longitude,
+    };
+  };
+
+  const matchedActiveOrder =
+    activeOrders.find((order) => order.id === id) ||
+    (activeOrder?.id === id ? activeOrder : null);
+  const isActiveOrder = Boolean(matchedActiveOrder);
 
   // Fetch full order details from API (gives us properly populated restaurant/customer)
   const fetchOrder = async () => {
@@ -302,48 +326,29 @@ export default function OrderDetailsScreen() {
     let cancelled = false;
 
     const startGPS = async () => {
-      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
-      if (status !== "granted" || cancelled) return;
+      try {
+        const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+        if (status !== "granted" || cancelled) return;
 
-      // Get immediate fix
-      const pos = await ExpoLocation.getCurrentPositionAsync({
-        accuracy: ExpoLocation.Accuracy.High,
-      });
-      if (!cancelled) {
-        const loc = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          heading: pos.coords.heading,
-        };
-        setDriverLoc(loc);
-        setDriverLocation(loc); // update store too
-        // Broadcast via socket
-        if (activeOrder) {
-          if (partnerId) {
-            updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
+        let pos: ExpoLocation.LocationObject | null = null;
+        try {
+          pos = await ExpoLocation.getCurrentPositionAsync({
+            accuracy: ExpoLocation.Accuracy.High,
+          });
+        } catch (error) {
+          console.warn("[DeliveryOrder] getCurrentPositionAsync failed:", error);
+          const fallback = await getFallbackCurrentLocation();
+          if (fallback && !cancelled) {
+            setDriverLoc(fallback);
+            setDriverLocation(fallback);
           }
-          socketService.updateLocation(activeOrder.id, loc, pos.coords.heading ?? 0);
         }
-        ApiService.updateLocation(loc.latitude, loc.longitude, {
-          accuracy: pos.coords.accuracy,
-          mocked: (pos as any).mocked ?? false,
-          heading: pos.coords.heading,
-        });
-      }
 
-      // Watch continuously
-      locationWatchRef.current = await ExpoLocation.watchPositionAsync(
-        {
-          accuracy: ExpoLocation.Accuracy.High,
-          distanceInterval: 15, // every 15 metres
-          timeInterval: 5000, // or every 5 seconds
-        },
-        (location) => {
-          if (cancelled) return;
+        if (!cancelled && pos) {
           const loc = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            heading: location.coords.heading,
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            heading: pos.coords.heading,
           };
           setDriverLoc(loc);
           setDriverLocation(loc);
@@ -351,19 +356,50 @@ export default function OrderDetailsScreen() {
             if (partnerId) {
               updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
             }
-            socketService.updateLocation(
-              activeOrder.id,
-              loc,
-              location.coords.heading ?? 0,
-            );
+            socketService.updateLocation(activeOrder.id, loc, pos.coords.heading ?? 0);
           }
           ApiService.updateLocation(loc.latitude, loc.longitude, {
-            accuracy: location.coords.accuracy,
-            mocked: (location as any).mocked ?? false,
-            heading: location.coords.heading,
+            accuracy: pos.coords.accuracy,
+            mocked: (pos as any).mocked ?? false,
+            heading: pos.coords.heading,
           });
-        },
-      );
+        }
+
+        locationWatchRef.current = await ExpoLocation.watchPositionAsync(
+          {
+            accuracy: ExpoLocation.Accuracy.High,
+            distanceInterval: 15,
+            timeInterval: 5000,
+          },
+          (location) => {
+            if (cancelled) return;
+            const loc = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              heading: location.coords.heading,
+            };
+            setDriverLoc(loc);
+            setDriverLocation(loc);
+            if (activeOrder) {
+              if (partnerId) {
+                updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
+              }
+              socketService.updateLocation(
+                activeOrder.id,
+                loc,
+                location.coords.heading ?? 0,
+              );
+            }
+            ApiService.updateLocation(loc.latitude, loc.longitude, {
+              accuracy: location.coords.accuracy,
+              mocked: (location as any).mocked ?? false,
+              heading: location.coords.heading,
+            });
+          },
+        );
+      } catch (error) {
+        console.error("[DeliveryOrder] Failed to start GPS tracking:", error);
+      }
     };
 
     startGPS();
@@ -525,25 +561,25 @@ export default function OrderDetailsScreen() {
         ...apiOrder,
         // Always use local store status for the flow logic (it's more up-to-date)
         status: isActiveOrder
-          ? (activeOrder?.status ?? apiOrder.status)
+          ? (matchedActiveOrder?.status ?? apiOrder.status)
           : apiOrder.status,
       }
-    : isActiveOrder && activeOrder
-      ? activeOrder
+    : matchedActiveOrder
+      ? matchedActiveOrder
       : null;
 
   // Navigate back if order truly not found anymore
   useEffect(() => {
-    if (!apiOrder && !activeOrder && id) {
+    if (!apiOrder && !matchedActiveOrder && id) {
       // Give fetchOrder a chance first — only go back if both are null after a beat
       const timer = setTimeout(() => {
-        if (!apiOrder && !activeOrder) {
+        if (!apiOrder && !matchedActiveOrder) {
           router.back();
         }
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [apiOrder, activeOrder, id, router]);
+  }, [apiOrder, matchedActiveOrder, id, router]);
 
   if (!displayOrder) {
     return (
@@ -672,9 +708,39 @@ export default function OrderDetailsScreen() {
   };
 
   const captureProofPhoto = async (): Promise<string | null> => {
+    const usePhotoLibraryOnly = !Device.isDevice;
+
+    if (usePhotoLibraryOnly) {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Photos Required",
+          "Select a delivery proof image from the photo library to complete this order.",
+        );
+        return null;
+      }
+
+      Alert.alert(
+        "Simulator Mode",
+        "The iOS simulator does not provide a real camera. Please choose a proof image from Photos.",
+      );
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: false,
+        quality: 0.65,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return null;
+      return uploadImageToFirebase(result.assets[0].uri, "delivery_proofs");
+    }
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Camera Required", "Take a delivery proof photo to complete this order.");
+      Alert.alert(
+        "Camera Required",
+        "Take a delivery proof photo to complete this order.",
+      );
       return null;
     }
 
@@ -770,16 +836,7 @@ export default function OrderDetailsScreen() {
             : "Delivered";
 
   // Use real GPS for driver marker; fall back to null (shows no driver pin)
-  const mapDriverLocation =
-    driverLocation ?? activeOrder?.pickupLocation ?? null;
-
-  // Safe fallback: use pickup/drop coords so the map centres on the right city,
-  // not the hardcoded India centre. Hide the driver pin until real GPS arrives.
-  const safeDriverLoc =
-    mapDriverLocation ??
-    displayOrder?.pickupLocation ??
-    displayOrder?.dropLocation ??
-    null;
+  const safeDriverLoc = driverLocation;
 
   // ── Full-screen Navigation Mode ──────────────────────────────────────────
   if (isNavigating && displayOrder && isActiveOrder) {
@@ -798,10 +855,7 @@ export default function OrderDetailsScreen() {
           showRoute
           navigationMode
           activePhase={navPhase}
-          onRouteLoaded={(info: RouteInfo) => {
-            setRouteInfo(info);
-            setCurrentStepIdx(0);
-          }}
+          onRouteLoaded={handleRouteLoaded}
         />
 
         {/* ── Top: instruction card ── */}
@@ -936,7 +990,7 @@ export default function OrderDetailsScreen() {
               showRoute={displayOrder.status !== "cancelled"}
               navigationMode={isActiveOrder}
               activePhase={navPhase}
-              onRouteLoaded={setRouteInfo}
+              onRouteLoaded={handleRouteLoaded}
             />
 
             <View style={orderStyles.mapRouteBar}>

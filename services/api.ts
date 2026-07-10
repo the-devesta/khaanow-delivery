@@ -188,7 +188,7 @@ class ApiClient {
   }
 }
 
-const apiClient = new ApiClient();
+export const apiClient = new ApiClient();
 
 const getApiErrorMessage = (error: any, fallback: string) =>
   error.response?.data?.message ||
