@@ -182,6 +182,10 @@ function transformApiOrder(raw: any) {
     dropLocation,
     earnings,
     totalAmount,
+    returnReason:
+      raw.status === "returning_to_restaurant"
+        ? raw.pendingDecision?.reason
+        : undefined,
     distance: raw.deliveryInfo?.distanceKm || 0,
     paymentType,
     rawPaymentMethod,
@@ -212,6 +216,7 @@ export default function OrderDetailsScreen() {
     completeOrder,
     releaseActiveOrder,
     setDriverLocation,
+    confirmReturnedToRestaurant,
   } =
     useOrderStore();
   const partnerId = useAuthStore((state) => state.partner?.id);
@@ -222,6 +227,7 @@ export default function OrderDetailsScreen() {
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [proofUploading, setProofUploading] = useState(false);
   const [reportingIssue, setReportingIssue] = useState(false);
+  const [confirmingReturn, setConfirmingReturn] = useState(false);
   const [apiOrder, setApiOrder] = useState<ReturnType<
     typeof transformApiOrder
   > | null>(null);
@@ -584,6 +590,33 @@ export default function OrderDetailsScreen() {
               }
             } finally {
               setReportingIssue(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const confirmReturned = () => {
+    if (!displayOrder?.id) return;
+    Alert.alert(
+      "Confirm Return",
+      "Confirm you've handed this order back to the restaurant?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            setConfirmingReturn(true);
+            try {
+              const ok = await confirmReturnedToRestaurant(String(displayOrder.id));
+              if (ok) {
+                router.replace("/(tabs)");
+              } else {
+                Alert.alert("Failed", "Could not confirm the return. Try again.");
+              }
+            } finally {
+              setConfirmingReturn(false);
             }
           },
         },
@@ -1183,7 +1216,32 @@ export default function OrderDetailsScreen() {
               </View>
             </View>
 
-            {isActiveOrder && (
+            {displayOrder.status === "returning_to_restaurant" && (
+              <View className="bg-red-50 border border-red-100 rounded-2xl p-4 mb-3">
+                <View className="flex-row items-start">
+                  <Ionicons name="return-up-back" size={18} color="#DC2626" />
+                  <View className="ml-2 flex-1">
+                    <Text className="text-red-700 font-bold text-xs mb-1">
+                      Return this order to the restaurant
+                    </Text>
+                    <Text className="text-red-600 font-semibold text-xs">
+                      {displayOrder.returnReason ||
+                        "Admin decided this order needs to go back to the restaurant."}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={confirmReturned}
+                  disabled={confirmingReturn}
+                  className="bg-red-600 rounded-xl py-2.5 items-center mt-3">
+                  <Text className="text-white font-bold text-xs">
+                    {confirmingReturn ? "Confirming..." : "Mark as Returned to Restaurant"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {isActiveOrder && displayOrder.status !== "returning_to_restaurant" && (
               <View className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-3">
                 <View className="flex-row items-start">
                   <Ionicons name="battery-charging-outline" size={18} color="#D97706" />
@@ -1398,7 +1456,8 @@ export default function OrderDetailsScreen() {
         {/* Action Footer - Only show for active orders */}
         {isActiveOrder &&
           displayOrder.status !== "delivered" &&
-          displayOrder.status !== "cancelled" && (
+          displayOrder.status !== "cancelled" &&
+          displayOrder.status !== "returning_to_restaurant" && (
             <ActionFooter
               label={proofUploading ? "Uploading Proof..." : getActionLabel()}
               onPress={handleAction}

@@ -88,9 +88,13 @@ export type OrderStatus =
   | "delivery_partner_accepted"
   | "delivery_partner_reached"
   | "delivery_partner_picked_up"
-  | "delivery_partner_reached_user_dest";
+  | "delivery_partner_reached_user_dest"
+  | "returning_to_restaurant"
+  | "returned";
 
 export type MissedReason = "timeout" | "taken" | "cancelled";
+
+const TERMINAL_STATUSES: OrderStatus[] = ["cancelled", "delivered", "returned"];
 
 export interface Order {
   id: string;
@@ -114,6 +118,9 @@ export interface Order {
   acceptanceTimeoutSeconds?: number;
   cancellationReason?: string | null;
   autoCancelled?: boolean;
+  // Set by an admin when this order is sent back with status
+  // "returning_to_restaurant" - shown as the instruction on the order screen.
+  returnReason?: string | null;
 }
 
 export interface RoutePlanStop {
@@ -176,6 +183,7 @@ interface OrderState {
   ) => Promise<boolean>;
   completeOrder: (orderId?: string) => void;
   releaseActiveOrder: (orderId?: string) => void;
+  confirmReturnedToRestaurant: (orderId: string) => Promise<boolean>;
   setDriverLocation: (location: Location) => void;
   simulateDriverMovement: () => void;
   fetchAvailableOrders: () => Promise<void>;
@@ -268,6 +276,10 @@ function transformSocketOrder(order: any): Order {
     createdAt: new Date(order.createdAt),
     pickupLocation: _pickupLoc,
     dropLocation: _dropLoc,
+    returnReason:
+      order.status === "returning_to_restaurant"
+        ? order.pendingDecision?.reason
+        : undefined,
   };
 
   // Calculate distance if missing or zero from backend
@@ -401,6 +413,22 @@ export const useOrderStore = create<OrderState>()(
                     ...orderHistory.filter((o) => o.id !== updatedId),
                   ]
                 : orderHistory,
+            });
+            get().fetchRoutePlan();
+          } else if (
+            !activeOrders.some((order) => order.id === updatedId) &&
+            activeOrder?.id !== updatedId &&
+            String(updatedOrder.deliveryInfo?.driverId) ===
+              String(useAuthStore.getState().partner?.id)
+          ) {
+            // Order isn't in our active list (e.g. it was cancelled and
+            // pruned earlier) but an admin just sent it back to us -
+            // "returning_to_restaurant" or a normal delivery status. Add it
+            // back instead of silently dropping the update.
+            const transformed = transformSocketOrder(updatedOrder);
+            set({
+              activeOrders: [...activeOrders, transformed],
+              activeOrder: activeOrder || transformed,
             });
             get().fetchRoutePlan();
           } else {
@@ -595,6 +623,18 @@ export const useOrderStore = create<OrderState>()(
                         ...orderHistory.filter((o) => o.id !== updatedId),
                       ]
                     : orderHistory,
+                });
+                get().fetchRoutePlan();
+              } else if (
+                !activeOrders.some((order) => order.id === updatedId) &&
+                activeOrder?.id !== updatedId &&
+                String(updatedOrder.deliveryInfo?.driverId) ===
+                  String(useAuthStore.getState().partner?.id)
+              ) {
+                const transformed = transformSocketOrder(updatedOrder);
+                set({
+                  activeOrders: [...activeOrders, transformed],
+                  activeOrder: activeOrder || transformed,
                 });
                 get().fetchRoutePlan();
               } else {
@@ -908,6 +948,38 @@ export const useOrderStore = create<OrderState>()(
             ],
           });
           get().fetchRoutePlan();
+        }
+      },
+
+      confirmReturnedToRestaurant: async (orderId: string) => {
+        try {
+          const response = await ApiService.confirmReturnedToRestaurant(orderId);
+          if (!response.success) return false;
+
+          const { activeOrder, activeOrders, orderHistory } = get();
+          const returnedOrder =
+            activeOrders.find((order) => order.id === orderId) || activeOrder;
+          if (returnedOrder) {
+            const remainingActive = activeOrders.filter(
+              (order) => order.id !== orderId,
+            );
+            set({
+              activeOrder:
+                activeOrder?.id === orderId
+                  ? remainingActive[0] || null
+                  : activeOrder,
+              activeOrders: remainingActive,
+              orderHistory: [
+                { ...returnedOrder, status: "returned" },
+                ...orderHistory,
+              ],
+            });
+            get().fetchRoutePlan();
+          }
+          return true;
+        } catch (error) {
+          console.error("Confirm returned to restaurant error:", error);
+          return false;
         }
       },
 

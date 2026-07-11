@@ -741,6 +741,21 @@ export const ApiService = {
     }
   },
 
+  async confirmReturnedToRestaurant(orderId: string): Promise<ApiResponse> {
+    try {
+      const response = await apiClient.post<ApiResponse>(
+        `/delivery-partners/orders/${orderId}/confirm-returned`,
+      );
+      return response;
+    } catch (error: any) {
+      console.error("Confirm returned error:", error);
+      return {
+        success: false,
+        message: getApiErrorMessage(error, "Failed to confirm order return"),
+      };
+    }
+  },
+
   /**
    * Get order history
    */
