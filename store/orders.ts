@@ -375,19 +375,49 @@ export const useOrderStore = create<OrderState>()(
           const { activeOrder, activeOrders, pendingOrder, missedOrders } = get();
           const updatedId = updatedOrder._id || updatedOrder.id;
 
-          if (activeOrder && activeOrder.id === updatedId) {
+          // A cancelled order (by restaurant/admin/customer) must drop out of
+          // activeOrders entirely, not just have its status field updated in
+          // place - otherwise it keeps occupying a batch slot forever, both
+          // in the "N active" route widget and in the backend's own
+          // ACTIVE_DELIVERY_STATUSES-based accept-order count (which already
+          // excludes "cancelled" - the bug was purely this stale client array).
+          if (updatedOrder.status === "cancelled") {
+            const { orderHistory } = get();
+            const cancelledOrder =
+              activeOrders.find((order) => order.id === updatedId) ||
+              (activeOrder?.id === updatedId ? activeOrder : null);
+            const remainingActive = activeOrders.filter(
+              (order) => order.id !== updatedId,
+            );
             set({
-              activeOrder: mergeIncomingOrder(activeOrder, updatedOrder),
+              activeOrder:
+                activeOrder?.id === updatedId
+                  ? remainingActive[0] || null
+                  : activeOrder,
+              activeOrders: remainingActive,
+              orderHistory: cancelledOrder
+                ? [
+                    mergeIncomingOrder(cancelledOrder, updatedOrder),
+                    ...orderHistory.filter((o) => o.id !== updatedId),
+                  ]
+                : orderHistory,
             });
-          }
-          if (activeOrders.some((order) => order.id === updatedId)) {
-            set({
-              activeOrders: activeOrders.map((order) =>
-                order.id === updatedId
-                  ? mergeIncomingOrder(order, updatedOrder)
-                  : order,
-              ),
-            });
+            get().fetchRoutePlan();
+          } else {
+            if (activeOrder && activeOrder.id === updatedId) {
+              set({
+                activeOrder: mergeIncomingOrder(activeOrder, updatedOrder),
+              });
+            }
+            if (activeOrders.some((order) => order.id === updatedId)) {
+              set({
+                activeOrders: activeOrders.map((order) =>
+                  order.id === updatedId
+                    ? mergeIncomingOrder(order, updatedOrder)
+                    : order,
+                ),
+              });
+            }
           }
 
           // If the order is already in missedOrders, update it in-place so it
@@ -545,20 +575,44 @@ export const useOrderStore = create<OrderState>()(
                 get();
               const nextStatus = updatedOrder.status as OrderStatus;
 
-              if (activeOrder && activeOrder.id === updatedId) {
+              if (nextStatus === "cancelled") {
+                const { orderHistory } = get();
+                const cancelledOrder =
+                  activeOrders.find((order) => order.id === updatedId) ||
+                  (activeOrder?.id === updatedId ? activeOrder : null);
+                const remainingActive = activeOrders.filter(
+                  (order) => order.id !== updatedId,
+                );
                 set({
-                  activeOrder: mergeIncomingOrder(activeOrder, updatedOrder),
+                  activeOrder:
+                    activeOrder?.id === updatedId
+                      ? remainingActive[0] || null
+                      : activeOrder,
+                  activeOrders: remainingActive,
+                  orderHistory: cancelledOrder
+                    ? [
+                        mergeIncomingOrder(cancelledOrder, updatedOrder),
+                        ...orderHistory.filter((o) => o.id !== updatedId),
+                      ]
+                    : orderHistory,
                 });
-              }
+                get().fetchRoutePlan();
+              } else {
+                if (activeOrder && activeOrder.id === updatedId) {
+                  set({
+                    activeOrder: mergeIncomingOrder(activeOrder, updatedOrder),
+                  });
+                }
 
-              if (activeOrders.some((order) => order.id === updatedId)) {
-                set({
-                  activeOrders: activeOrders.map((order) =>
-                    order.id === updatedId
-                      ? mergeIncomingOrder(order, updatedOrder)
-                      : order,
-                  ),
-                });
+                if (activeOrders.some((order) => order.id === updatedId)) {
+                  set({
+                    activeOrders: activeOrders.map((order) =>
+                      order.id === updatedId
+                        ? mergeIncomingOrder(order, updatedOrder)
+                        : order,
+                    ),
+                  });
+                }
               }
 
               if (pendingOrder && pendingOrder.id === updatedId) {
