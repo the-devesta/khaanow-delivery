@@ -70,11 +70,19 @@ module.exports = {
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     autolinking: {
+      // @expo/ui excluded here previously, but expo-router's own internals
+      // (route-tree loading, native tabs support) reference ExpoUI's native
+      // module regardless of whether the app uses it directly - excluding it
+      // from autolinking meant the JS bridge call had nothing to resolve to,
+      // crashing the entire app on startup (FATAL EXCEPTION: Cannot find
+      // native module 'ExpoUI'). The restaurant app doesn't exclude it and
+      // builds/runs fine, so only the two genuinely iOS-only, unused
+      // packages stay excluded here.
       ios: {
-        exclude: ["@expo/ui", "expo-glass-effect", "expo-symbols"],
+        exclude: ["expo-glass-effect", "expo-symbols"],
       },
       android: {
-        exclude: ["@expo/ui", "expo-glass-effect", "expo-symbols"],
+        exclude: ["expo-glass-effect", "expo-symbols"],
       },
     },
     extra: {

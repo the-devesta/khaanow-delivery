@@ -6,14 +6,12 @@
     "autolinking": {
       "ios": {
         "exclude": [
-          "@expo/ui",
           "expo-glass-effect",
           "expo-symbols"
         ]
       },
       "android": {
         "exclude": [
-          "@expo/ui",
           "expo-glass-effect",
           "expo-symbols"
         ]
