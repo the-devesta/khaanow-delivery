@@ -18,7 +18,15 @@ const plugins = [
   ],
   "expo-font",
   "expo-image",
-  ["expo-location", {}],
+  [
+    "expo-location",
+    {
+      locationAlwaysAndWhenInUsePermission:
+        "Allow KhaaoNow Delivery to use your location in the background so nearby orders can find you even when the app isn't open.",
+      isAndroidBackgroundLocationEnabled: true,
+      isAndroidForegroundServiceEnabled: true,
+    },
+  ],
   [
     "expo-notifications",
     {
@@ -93,6 +101,9 @@ module.exports = {
         LSApplicationQueriesSchemes: ["comgooglemaps"],
         NSLocationWhenInUseUsageDescription:
           "Allow KhaaoNow Delivery to use your location to navigate to pickup and drop-off points.",
+        NSLocationAlwaysAndWhenInUseUsageDescription:
+          "Allow KhaaoNow Delivery to use your location in the background so nearby orders can find you even when the app isn't open.",
+        UIBackgroundModes: ["location"],
         NSCameraUsageDescription:
           "Allow KhaaoNow Delivery to access your camera to upload delivery photos.",
         NSPhotoLibraryUsageDescription:

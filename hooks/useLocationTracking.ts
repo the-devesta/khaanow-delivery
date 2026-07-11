@@ -1,5 +1,6 @@
 import { useOrderStore } from "@/store/orders";
 import { usePartnerStore } from "@/store/partner";
+import { BACKGROUND_LOCATION_TASK } from "@/tasks/backgroundLocationTask";
 import * as Location from "expo-location";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, AppStateStatus } from "react-native";
@@ -61,6 +62,16 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
         error: null,
       }));
 
+      // Background permission is separate from foreground and can be denied
+      // independently (or unsupported on some OS versions) - don't block
+      // foreground tracking on it, but it's required for the background
+      // task to actually receive updates while the app isn't focused.
+      try {
+        await Location.requestBackgroundPermissionsAsync();
+      } catch (error) {
+        console.warn("Background location permission request failed:", error);
+      }
+
       return true;
     } catch (error) {
       console.error("Error requesting location permissions:", error);
@@ -69,6 +80,52 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
         error: "Failed to request location permissions",
       }));
       return false;
+    }
+  }, []);
+
+  // Keeps location reporting alive via the OS (foreground service on
+  // Android, background location mode on iOS) even when the app is
+  // backgrounded or the screen is locked - watchPositionAsync/setInterval
+  // below get throttled or fully paused in that state, which previously let
+  // "online" riders silently go stale and drop out of dispatch eligibility.
+  const startBackgroundTracking = useCallback(async () => {
+    try {
+      const { status: backgroundStatus } =
+        await Location.getBackgroundPermissionsAsync();
+      if (backgroundStatus !== "granted") return;
+
+      const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(
+        BACKGROUND_LOCATION_TASK,
+      );
+      if (alreadyStarted) return;
+
+      await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+        accuracy: Location.Accuracy.High,
+        timeInterval: updateInterval,
+        distanceInterval: distanceThreshold,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: "KhaaoNow Delivery",
+          notificationBody: "Tracking your location while you're online",
+          notificationColor: "#F59E0B",
+        },
+        pausesUpdatesAutomatically: false,
+      });
+    } catch (error) {
+      console.error("Failed to start background location tracking:", error);
+    }
+  }, [updateInterval, distanceThreshold]);
+
+  const stopBackgroundTracking = useCallback(async () => {
+    try {
+      const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(
+        BACKGROUND_LOCATION_TASK,
+      );
+      if (alreadyStarted) {
+        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+      }
+    } catch (error) {
+      console.error("Failed to stop background location tracking:", error);
     }
   }, []);
 
@@ -171,10 +228,15 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
         }
       }
     }, updateInterval);
+
+    // OS-level background task - keeps reporting when the app is
+    // backgrounded/locked, which the watch/interval above cannot do.
+    await startBackgroundTracking();
   }, [
     requestPermissions,
     getCurrentLocation,
     updateBackendLocation,
+    startBackgroundTracking,
     distanceThreshold,
     updateInterval,
     isOnline,
@@ -192,8 +254,10 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
       intervalRef.current = null;
     }
 
+    stopBackgroundTracking();
+
     setState((prev) => ({ ...prev, isTracking: false }));
-  }, []);
+  }, [stopBackgroundTracking]);
 
   // Handle app state changes
   useEffect(() => {

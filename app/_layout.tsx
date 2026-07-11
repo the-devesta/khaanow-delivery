@@ -11,6 +11,10 @@ import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AppStatusGate from "@/components/AppStatusGate";
 import "../global.css";
+// Registers the TaskManager task at module load time so the OS can invoke it
+// in a headless JS context (app backgrounded/killed) without this screen
+// having ever mounted.
+import "@/tasks/backgroundLocationTask";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
