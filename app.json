@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.khaaonow.delivery",
-      "versionCode": 2026071004,
+      "versionCode": 2026071006,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFD230",

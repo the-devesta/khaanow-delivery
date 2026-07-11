@@ -66,3 +66,4 @@ builds/
 # local AI/editor scratch files
 .codex*
 .codex-staging/
+firebase-service.json
