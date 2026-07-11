@@ -122,6 +122,7 @@ module.exports = {
     },
     android: {
       package: "com.khaaonow.delivery",
+      softwareKeyboardLayoutMode: "resize",
       versionCode: 2026071005,
       config: {
         googleMaps: {
