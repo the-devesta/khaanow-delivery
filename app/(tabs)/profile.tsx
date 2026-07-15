@@ -1,6 +1,7 @@
 import { ApiService } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -296,7 +297,7 @@ export default function ProfileScreen() {
 
           {/* App Version */}
           <Text className="text-xs text-[#9CA3AF] text-center mt-8 font-medium">
-            Khaaonow Delivery Partner v1.0.0
+            Khaaonow Delivery Partner v{Constants.expoConfig?.version ?? "1.0.0"}
           </Text>
         </View>
       </ScrollView>

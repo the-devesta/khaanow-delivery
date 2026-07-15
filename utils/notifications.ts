@@ -123,10 +123,16 @@ export async function registerForPushNotificationsAsync({
         typeof (Notifications as any).addPushTokenListener === "function"
       ) {
         pushTokenListenerConfigured = true;
-        (Notifications as any).addPushTokenListener((nextToken: { data?: string }) => {
-          if (nextToken.data) {
-            void registerPushTokenWithBackend(nextToken.data);
-          }
+        (Notifications as any).addPushTokenListener(() => {
+          // The listener payload is the NATIVE FCM/APNs token, not an Expo
+          // token — registering it raw made the backend reject it with
+          // "Invalid Expo push token format" on every refresh (log flood).
+          // Re-fetch the Expo token and register that instead.
+          void Notifications.getExpoPushTokenAsync({ projectId })
+            .then((next: { data?: string }) => {
+              if (next?.data) void registerPushTokenWithBackend(next.data);
+            })
+            .catch(() => {});
         });
       }
     } catch (e) {

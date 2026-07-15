@@ -45,6 +45,20 @@ export default function OrderRequestModal({
     initialTimeLeft !== undefined ? initialTimeLeft : timeoutSeconds,
   );
 
+  // Swipe release can fire more than once (finger jitter, re-render mid-anim),
+  // and each onAccept() hits the accept API + navigates — double-firing looked
+  // to the driver like "it accepted before I confirmed". Latch acceptance so
+  // onAccept runs exactly once per shown order; reset when a new order appears.
+  const acceptLatchedRef = useRef(false);
+  useEffect(() => {
+    acceptLatchedRef.current = false;
+  }, [order?.id]);
+  const acceptOnce = () => {
+    if (acceptLatchedRef.current) return;
+    acceptLatchedRef.current = true;
+    onAccept();
+  };
+
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -217,7 +231,7 @@ export default function OrderRequestModal({
             useNativeDriver: false,
           }).start(() => {
             stopRingtone();
-            onAccept();
+            acceptOnce();
             swipeX.setValue(0);
           });
         } else {
@@ -245,7 +259,7 @@ export default function OrderRequestModal({
   if (!order) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="none">
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)" }}>
         <Animated.View
           style={{

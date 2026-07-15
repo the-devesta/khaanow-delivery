@@ -67,3 +67,8 @@ builds/
 .codex*
 .codex-staging/
 firebase-service.json
+
+# local build artifacts and credential exports
+release/
+*.ipa
+iOS Credentials*/

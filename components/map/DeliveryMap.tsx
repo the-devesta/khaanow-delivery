@@ -349,11 +349,15 @@ export default function DeliveryMap({
   void navigationMode;
 
   const mapRef = useRef<MapView>(null);
-  const driverMarkerRef = useRef<InstanceType<typeof Marker>>(null);
-  const initialDriverCoordRef = useRef<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
+  // Track marker view changes until the icons paint (so Android doesn't snapshot
+  // an empty bubble), then freeze for performance. The driver marker still moves
+  // via the JS-driven interpolation below — freezing only stops redrawing its content.
+  const [trackMarkerChanges, setTrackMarkerChanges] = useState(true);
+  useEffect(() => {
+    setTrackMarkerChanges(true);
+    const t = setTimeout(() => setTrackMarkerChanges(false), 1500);
+    return () => clearTimeout(t);
+  }, []);
   const isFirstFit = useRef(true);
   const onRouteLoadedRef = useRef(onRouteLoaded);
   const lastRouteSignatureRef = useRef<string>("");
@@ -386,31 +390,63 @@ export default function DeliveryMap({
       ? (driverLocation as any).heading
       : 0;
 
-  // Animate the driver marker smoothly instead of letting it snap between
-  // GPS pings. The Marker's declarative `coordinate` prop is only used for
-  // the very first position (captured once into a ref); every update after
-  // that moves the marker imperatively so it doesn't fight the animation.
+  // Smoothly glide the driver marker between GPS pings via a JS-driven
+  // requestAnimationFrame interpolation, rendered through the Marker's
+  // declarative `coordinate` prop — NOT the native `animateMarkerToCoordinate`
+  // imperative call, which has shaky cross-platform support and doesn't
+  // survive re-renders/remounts cleanly.
+  const [animatedDriverCoord, setAnimatedDriverCoord] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const animatedDriverCoordRef = useRef<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const driverAnimFrameRef = useRef<number | null>(null);
   useEffect(() => {
     if (!validDriverLocation) {
-      initialDriverCoordRef.current = null;
+      if (driverAnimFrameRef.current != null) {
+        cancelAnimationFrame(driverAnimFrameRef.current);
+        driverAnimFrameRef.current = null;
+      }
+      animatedDriverCoordRef.current = null;
+      setAnimatedDriverCoord(null);
       return;
     }
-    if (!initialDriverCoordRef.current) {
-      initialDriverCoordRef.current = {
-        latitude: validDriverLocation.latitude,
-        longitude: validDriverLocation.longitude,
+
+    const target = {
+      latitude: validDriverLocation.latitude,
+      longitude: validDriverLocation.longitude,
+    };
+    const from = animatedDriverCoordRef.current ?? target;
+
+    if (driverAnimFrameRef.current != null) {
+      cancelAnimationFrame(driverAnimFrameRef.current);
+    }
+
+    const DURATION_MS = 1000;
+    const startTime = Date.now();
+    const tick = () => {
+      const t = Math.min(1, (Date.now() - startTime) / DURATION_MS);
+      const next = {
+        latitude: from.latitude + (target.latitude - from.latitude) * t,
+        longitude: from.longitude + (target.longitude - from.longitude) * t,
       };
-      return;
-    }
-    driverMarkerRef.current?.animateMarkerToCoordinate(
-      {
-        latitude: validDriverLocation.latitude,
-        longitude: validDriverLocation.longitude,
-      },
-      1000,
-    );
+      animatedDriverCoordRef.current = next;
+      setAnimatedDriverCoord(next);
+      driverAnimFrameRef.current = t < 1 ? requestAnimationFrame(tick) : null;
+    };
+    driverAnimFrameRef.current = requestAnimationFrame(tick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validDriverLocation?.latitude, validDriverLocation?.longitude]);
+  useEffect(() => {
+    return () => {
+      if (driverAnimFrameRef.current != null) {
+        cancelAnimationFrame(driverAnimFrameRef.current);
+      }
+    };
+  }, []);
 
   const routeOrigin =
     activePhase === "dropoff"
@@ -599,7 +635,7 @@ export default function DeliveryMap({
         )}
 
         {validPickupLocation && (
-          <Marker coordinate={validPickupLocation} anchor={{ x: 0.5, y: 0.5 }}>
+          <Marker coordinate={validPickupLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={trackMarkerChanges}>
             <View style={[styles.markerBubble, styles.pickupBubble]}>
               <MaterialCommunityIcons name="store" size={20} color="#FF6A00" />
             </View>
@@ -607,7 +643,7 @@ export default function DeliveryMap({
         )}
 
         {validDropLocation && (
-          <Marker coordinate={validDropLocation} anchor={{ x: 0.5, y: 0.5 }}>
+          <Marker coordinate={validDropLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={trackMarkerChanges}>
             <View style={[styles.markerBubble, styles.dropBubble]}>
               <Ionicons name="person" size={18} color="#fff" />
             </View>
@@ -616,10 +652,10 @@ export default function DeliveryMap({
 
         {validDriverLocation && (
           <Marker
-            ref={driverMarkerRef}
-            coordinate={initialDriverCoordRef.current ?? validDriverLocation}
+            coordinate={animatedDriverCoord ?? validDriverLocation}
             anchor={{ x: 0.5, y: 0.5 }}
             flat={Platform.OS === "android"}
+            tracksViewChanges={trackMarkerChanges}
             rotation={driverHeading}>
             <View style={[styles.markerBubble, styles.driverBubble]}>
               <MaterialCommunityIcons name="motorbike" size={18} color="#fff" />

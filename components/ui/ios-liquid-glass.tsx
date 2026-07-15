@@ -95,7 +95,12 @@ export function IOSGlassSurface({
           borderRadius: shape === "capsule" ? 999 : cornerRadius,
           borderWidth: IS_IOS ? 1 : 0,
           borderColor: IS_IOS ? fallbackBorderColor : "transparent",
-          backgroundColor: IS_IOS ? fallbackBackgroundColor : "transparent",
+          // Android has no glass/blur; it must still honor the caller's
+          // fallbackBackgroundColor (e.g. the accept sheet passes "#ffffff").
+          // Previously this was forced to "transparent" on Android, so bottom
+          // sheets rendered with no white backing — content floated on the dark
+          // scrim and looked broken/"not blurred".
+          backgroundColor: fallbackBackgroundColor,
         },
         style,
       ]}>

@@ -190,7 +190,11 @@ interface OrderState {
   fetchAssignedOrders: () => Promise<void>;
   fetchRoutePlan: () => Promise<void>;
   fetchOrderHistory: (page?: number) => Promise<void>;
-  updateLocation: (latitude: number, longitude: number) => Promise<void>;
+  updateLocation: (
+    latitude: number,
+    longitude: number,
+    metadata?: { heading?: number | null; accuracy?: number | null },
+  ) => Promise<void>;
   dismissMissedOrder: (orderId: string) => void;
   acceptMissedOrder: (orderId: string) => Promise<void>;
   pruneMissedOrders: () => void;
@@ -307,6 +311,13 @@ function mergeIncomingOrder(existing: Order, incomingRaw: any): Order {
 }
 
 const MISSED_ORDER_TTL_MS = 15 * 60 * 1000; // 15 minutes accept window (controls Accept button)
+// How recently the order must have been broadcast for it to pop the ring modal
+// (vs. sitting quietly in the "missed but still available" list). The old 90s
+// window meant that after a cold start + push delay + the rider opening a
+// closed app, a perfectly valid order silently landed in the missed list with
+// no ring — the "sometimes it rings, sometimes it doesn't" flakiness. 5 min
+// covers those delays while still not ringing for genuinely stale broadcasts.
+const RING_FRESHNESS_MS = 5 * 60 * 1000;
 /** How long missed-order cards stay visible in "Pending Requests" before auto-pruning. */
 const MISSED_ORDER_DISPLAY_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 let deliveryRealtimeCleanup: (() => void) | null = null;
@@ -538,7 +549,7 @@ export const useOrderStore = create<OrderState>()(
 
               const isFresh =
                 typeof updatedAt === "number" &&
-                Date.now() - updatedAt < 90 * 1000;
+                Date.now() - updatedAt < RING_FRESHNESS_MS;
 
               if (!isTracked && isFresh) {
                 set({
@@ -1105,8 +1116,23 @@ export const useOrderStore = create<OrderState>()(
 
             // Add orders the partner hasn't seen yet to missedOrders so they
             // appear in "Pending Requests" and can be accepted.
-            const unseenMissed: MissedOrder[] = orders
-              .filter((o) => !trackedIds.has(o.id))
+            const unseen = orders.filter((o) => !trackedIds.has(o.id));
+
+            // Reliable wake path that does NOT depend on the Firebase push
+            // timing: if the rider has nothing pending/active right now and a
+            // brand-new order (broadcast within the ring window) just showed
+            // up in the authoritative API list, pop the ring for it. This is
+            // what makes "closed the app, reopened, order is right there and
+            // ringing" work every time instead of sometimes.
+            const now = Date.now();
+            const ringCandidate = !pendingOrder && !activeOrder
+              ? unseen.find(
+                  (o) => now - o.createdAt.getTime() < RING_FRESHNESS_MS,
+                )
+              : undefined;
+
+            const unseenMissed: MissedOrder[] = unseen
+              .filter((o) => o.id !== ringCandidate?.id)
               .map((o) => ({
                 order: o,
                 missedAt: o.createdAt,
@@ -1121,6 +1147,13 @@ export const useOrderStore = create<OrderState>()(
             set({
               availableOrders: orders,
               missedOrders: [...unseenMissed, ...updatedMissed],
+              ...(ringCandidate
+                ? {
+                    incomingOrder: ringCandidate,
+                    pendingOrder: ringCandidate,
+                    pendingOrderReceivedAt: Date.now(),
+                  }
+                : {}),
             });
           }
         } catch (error) {
@@ -1273,11 +1306,15 @@ export const useOrderStore = create<OrderState>()(
         }
       },
 
-      updateLocation: async (latitude: number, longitude: number) => {
+      updateLocation: async (
+        latitude: number,
+        longitude: number,
+        metadata?: { heading?: number | null; accuracy?: number | null },
+      ) => {
         try {
           const { activeOrder } = get();
 
-          await ApiService.updateLocation(latitude, longitude);
+          await ApiService.updateLocation(latitude, longitude, metadata);
           set({ driverLocation: { latitude, longitude } });
 
           if (activeOrder) {
@@ -1285,7 +1322,7 @@ export const useOrderStore = create<OrderState>()(
             if (partnerId) {
               await updateDriverLocationInFirebase(
                 partnerId,
-                { latitude, longitude },
+                { latitude, longitude, heading: metadata?.heading },
                 activeOrder.id,
               );
             }

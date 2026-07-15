@@ -25,13 +25,13 @@ export default function SupportScreen() {
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   };
 
-  const handleWhatsApp = () => {
+  const handleWhatsApp = async () => {
     const text = encodeURIComponent(
       "Hi KhaaoNow Support,\n\nI need help with my delivery partner account.\n\nName:\nIssue:\n",
     );
-    Linking.openURL(
-      `https://api.whatsapp.com/send?phone=${SUPPORT_WHATSAPP_PHONE}&text=${text}`,
-    );
+    const appUrl = `whatsapp://send?phone=${SUPPORT_WHATSAPP_PHONE}&text=${text}`;
+    const webUrl = `https://api.whatsapp.com/send?phone=${SUPPORT_WHATSAPP_PHONE}&text=${text}`;
+    await Linking.openURL((await Linking.canOpenURL(appUrl)) ? appUrl : webUrl);
   };
 
   return (

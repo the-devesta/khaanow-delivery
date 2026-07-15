@@ -1,7 +1,7 @@
 {
   "name": "khaaonow-delivery",
   "main": "expo-router/entry",
-  "version": "1.0.4",
+  "version": "1.0.7",
   "expo": {
     "autolinking": {
       "ios": {
@@ -19,7 +19,7 @@
     }
   },
   "scripts": {
-    "postinstall": "node scripts/patch-expo-router-glass.js",
+    "postinstall": "node scripts/patch-expo-router-glass.js && node scripts/prebuild-expo-modules-jsi.js",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",

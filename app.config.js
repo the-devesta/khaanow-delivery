@@ -57,13 +57,14 @@ const plugins = [
     },
   ],
   "./plugins/withPodfileFix.js",
+  "./plugins/withAndroidGradleMemory.js",
 ];
 
 module.exports = {
   expo: {
     name: "KhaaoNow Delivery",
     slug: "khaaonow-delivery",
-    version: "1.0.4",
+    version: "1.0.7",
     orientation: "portrait",
     icon: "./assets/images/DeliveryKhaaoNow.png",
     scheme: "khaaonowdelivery",
@@ -94,7 +95,7 @@ module.exports = {
       supportsTablet: false,
       requireFullScreen: true,
       bundleIdentifier: "com.khaaonow.delivery",
-      buildNumber: "2026071005",
+      buildNumber: "2026071504",
       config: {
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
       },
@@ -123,7 +124,7 @@ module.exports = {
     android: {
       package: "com.khaaonow.delivery",
       softwareKeyboardLayoutMode: "resize",
-      versionCode: 2026071005,
+      versionCode: 2026071504,
       config: {
         googleMaps: {
           apiKey: GOOGLE_MAPS_API_KEY,

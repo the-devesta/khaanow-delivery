@@ -21,14 +21,30 @@ interface LocationTrackingState {
   permissionStatus: "granted" | "denied" | "undetermined";
 }
 
+// High-frequency profile while carrying an active order — this is what makes
+// the rider move smoothly on customer/restaurant maps instead of jumping
+// every 30s. Idle riders stay on the caller-provided (slow) profile.
+const ACTIVE_DELIVERY_UPDATE_INTERVAL = 5000; // 5 seconds
+const ACTIVE_DELIVERY_DISTANCE_THRESHOLD = 10; // 10 meters
+
 export function useLocationTracking(options: LocationTrackingOptions = {}) {
   const {
-    updateInterval = 30000, // 30 seconds default
-    distanceThreshold = 50, // 50 meters
+    updateInterval: idleUpdateInterval = 30000, // 30 seconds default
+    distanceThreshold: idleDistanceThreshold = 50, // 50 meters
   } = options;
 
   const { isOnline } = usePartnerStore();
-  const { updateLocation } = useOrderStore();
+  const { updateLocation, activeOrders, activeOrder } = useOrderStore();
+
+  const hasActiveDelivery = Boolean(
+    activeOrder || (activeOrders && activeOrders.length > 0),
+  );
+  const updateInterval = hasActiveDelivery
+    ? ACTIVE_DELIVERY_UPDATE_INTERVAL
+    : idleUpdateInterval;
+  const distanceThreshold = hasActiveDelivery
+    ? ACTIVE_DELIVERY_DISTANCE_THRESHOLD
+    : idleDistanceThreshold;
 
   const [state, setState] = useState<LocationTrackingState>({
     isTracking: false,
@@ -94,10 +110,14 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
         await Location.getBackgroundPermissionsAsync();
       if (backgroundStatus !== "granted") return;
 
+      // Restart if already running so a cadence change (idle <-> active
+      // delivery) actually takes effect on the OS-level task.
       const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(
         BACKGROUND_LOCATION_TASK,
       );
-      if (alreadyStarted) return;
+      if (alreadyStarted) {
+        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+      }
 
       await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
         accuracy: Location.Accuracy.High,
@@ -155,10 +175,14 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
 
   // Send location to backend
   const updateBackendLocation = useCallback(
-    async (latitude: number, longitude: number) => {
+    async (
+      latitude: number,
+      longitude: number,
+      metadata?: { heading?: number | null; accuracy?: number | null },
+    ) => {
       try {
         if (isOnline) {
-          await updateLocation(latitude, longitude);
+          await updateLocation(latitude, longitude, metadata);
           console.log("📍 Location updated:", { latitude, longitude });
         }
       } catch (error) {
@@ -191,10 +215,14 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
       );
     }
 
-    // Set up continuous location watching
+    // Set up continuous location watching. While carrying an order, use
+    // BestForNavigation for a tight, smooth GPS track the customer sees move
+    // in real time; fall back to High when idle to save battery.
     locationWatchRef.current = await Location.watchPositionAsync(
       {
-        accuracy: Location.Accuracy.High,
+        accuracy: hasActiveDelivery
+          ? Location.Accuracy.BestForNavigation
+          : Location.Accuracy.High,
         distanceInterval: distanceThreshold,
         timeInterval: updateInterval,
       },
@@ -214,6 +242,10 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
           await updateBackendLocation(
             newLocation.latitude,
             newLocation.longitude,
+            {
+              heading: location.coords.heading,
+              accuracy: location.coords.accuracy,
+            },
           );
         }
       },
@@ -239,6 +271,7 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
     startBackgroundTracking,
     distanceThreshold,
     updateInterval,
+    hasActiveDelivery,
     isOnline,
   ]);
 
@@ -290,6 +323,74 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
       stopTracking();
     }
   }, [isOnline, state.isTracking, startTracking, stopTracking]);
+
+  // Restart the watchers when the cadence profile flips (idle <-> active
+  // delivery) so the higher frequency actually takes effect mid-session.
+  const cadenceRef = useRef({ updateInterval, distanceThreshold });
+  useEffect(() => {
+    const previous = cadenceRef.current;
+    cadenceRef.current = { updateInterval, distanceThreshold };
+    if (
+      previous.updateInterval === updateInterval &&
+      previous.distanceThreshold === distanceThreshold
+    ) {
+      return;
+    }
+    if (!state.isTracking || !isOnline) return;
+
+    if (locationWatchRef.current) {
+      locationWatchRef.current.remove();
+      locationWatchRef.current = null;
+    }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    void startTracking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updateInterval, distanceThreshold]);
+
+  // Health-check: some Android OEMs (Xiaomi/Vivo/Oppo/OnePlus battery
+  // managers) silently kill the background location foreground-service
+  // without the app being notified — the rider's app still shows "online"
+  // but lastLocation on the backend goes stale, silently dropping them out
+  // of dispatch eligibility for every new order. Periodically verify the
+  // OS task is still registered while online, and force an immediate ping +
+  // restart it if it was killed.
+  useEffect(() => {
+    if (!isOnline || !state.isTracking) return;
+
+    const HEALTH_CHECK_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+    const healthCheck = setInterval(async () => {
+      try {
+        const stillRunning = await Location.hasStartedLocationUpdatesAsync(
+          BACKGROUND_LOCATION_TASK,
+        );
+        if (!stillRunning) {
+          console.warn(
+            "⚠️ Background location task was killed by the OS — restarting.",
+          );
+          await startBackgroundTracking();
+        }
+        // Force a fresh ping regardless, as cheap insurance against
+        // watchPositionAsync silently stalling without erroring.
+        const location = await getCurrentLocation();
+        if (location) {
+          await updateBackendLocation(location.latitude, location.longitude);
+        }
+      } catch (error) {
+        console.error("Location health-check failed:", error);
+      }
+    }, HEALTH_CHECK_INTERVAL_MS);
+
+    return () => clearInterval(healthCheck);
+  }, [
+    isOnline,
+    state.isTracking,
+    startBackgroundTracking,
+    getCurrentLocation,
+    updateBackendLocation,
+  ]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -184,9 +184,23 @@ platforms_to_build=()
   console.log("Patched ExpoModulesJSI build script for local Xcode derived-data fallback.");
 }
 
+// Only pre-run the build here when Pods are already installed (iterative
+// local dev, after a prior `pod install`). In a fresh EAS build sandbox
+// (postinstall runs before `expo prebuild`/`pod install` even happen),
+// there's nothing to build yet - the patched script above is what matters:
+// Xcode's own "[CP-User] Build ExpoModulesJSI xcframework" script phase
+// invokes build-xcframework.sh itself later, with its own $BUILD_ROOT/
+// $SYMROOT already set correctly, and the patch's fallback lookup kicks in
+// then.
+const podsRoot = path.join(root, "ios", "Pods");
+if (!fs.existsSync(podsRoot)) {
+  console.log("ios/Pods not installed yet, skipping eager xcframework prebuild (patch already applied).");
+  process.exit(0);
+}
+
 const env = {
   ...process.env,
-  PODS_ROOT: path.join(root, "ios", "Pods"),
+  PODS_ROOT: podsRoot,
   REACT_NATIVE_PATH: path.join(root, "node_modules", "react-native"),
 };
 
