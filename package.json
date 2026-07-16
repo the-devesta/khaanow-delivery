@@ -1,7 +1,7 @@
 {
   "name": "khaaonow-delivery",
   "main": "expo-router/entry",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "expo": {
     "autolinking": {
       "ios": {

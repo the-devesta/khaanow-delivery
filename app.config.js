@@ -64,7 +64,7 @@ module.exports = {
   expo: {
     name: "KhaaoNow Delivery",
     slug: "khaaonow-delivery",
-    version: "1.0.7",
+    version: "1.0.9",
     orientation: "portrait",
     icon: "./assets/images/DeliveryKhaaoNow.png",
     scheme: "khaaonowdelivery",
@@ -95,7 +95,7 @@ module.exports = {
       supportsTablet: false,
       requireFullScreen: true,
       bundleIdentifier: "com.khaaonow.delivery",
-      buildNumber: "2026071504",
+      buildNumber: "2026071605",
       config: {
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
       },
@@ -124,7 +124,7 @@ module.exports = {
     android: {
       package: "com.khaaonow.delivery",
       softwareKeyboardLayoutMode: "resize",
-      versionCode: 2026071504,
+      versionCode: 2026071604,
       config: {
         googleMaps: {
           apiKey: GOOGLE_MAPS_API_KEY,

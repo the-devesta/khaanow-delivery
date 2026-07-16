@@ -1,7 +1,7 @@
 import { Location } from "@/store/orders";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Image, Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import MapView, {
   Marker,
   Polyline,
@@ -9,6 +9,10 @@ import MapView, {
 } from "react-native-maps";
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const RESTAURANT_AVATAR_URL =
+  "https://firebasestorage.googleapis.com/v0/b/khaaonow-91e55.firebasestorage.app/o/restaurant.jpg?alt=media&token=e7ec754a-0790-4335-88de-e850bd66c1b7";
+const USER_AVATAR_URL =
+  "https://firebasestorage.googleapis.com/v0/b/khaaonow-91e55.firebasestorage.app/o/user1.jpg?alt=media&token=2b563345-cacf-4eaa-a65c-2fd9d129e254";
 
 function decodePolyline(
   encoded: string,
@@ -636,16 +640,24 @@ export default function DeliveryMap({
 
         {validPickupLocation && (
           <Marker coordinate={validPickupLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={trackMarkerChanges}>
-            <View style={[styles.markerBubble, styles.pickupBubble]}>
-              <MaterialCommunityIcons name="store" size={20} color="#FF6A00" />
+            <View style={styles.restaurantAvatarMarker}>
+              <Image
+                source={{ uri: RESTAURANT_AVATAR_URL }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
             </View>
           </Marker>
         )}
 
         {validDropLocation && (
           <Marker coordinate={validDropLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={trackMarkerChanges}>
-            <View style={[styles.markerBubble, styles.dropBubble]}>
-              <Ionicons name="person" size={18} color="#fff" />
+            <View style={styles.avatarBubble}>
+              <Image
+                source={{ uri: USER_AVATAR_URL }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
             </View>
           </Marker>
         )}
@@ -722,6 +734,33 @@ const styles = StyleSheet.create({
   },
   dropBubble: {
     backgroundColor: "#111827",
+  },
+  avatarBubble: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  restaurantAvatarMarker: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: "#FED7AA",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   mapControls: {
     position: "absolute",
