@@ -10,6 +10,7 @@ type ExpoNotifications = typeof import("expo-notifications");
 let NotificationsModule: ExpoNotifications | null | undefined;
 let notificationHandlerConfigured = false;
 let pushTokenListenerConfigured = false;
+let lastPushTokenListenerHandledAt = 0;
 const PUSH_TOKEN_REGISTER_RETRIES = 3;
 
 function isAndroidExpoGo() {
@@ -128,6 +129,17 @@ export async function registerForPushNotificationsAsync({
           // token — registering it raw made the backend reject it with
           // "Invalid Expo push token format" on every refresh (log flood).
           // Re-fetch the Expo token and register that instead.
+          //
+          // Guarded with a cooldown: calling getExpoPushTokenAsync() from
+          // inside this callback can itself cause the native layer to emit
+          // another token-refresh event on some devices/OS versions, which
+          // re-fires this same listener — an unbounded self-triggering loop
+          // observed hammering production. The cooldown breaks that
+          // regardless of root cause.
+          const now = Date.now();
+          if (now - lastPushTokenListenerHandledAt < 60_000) return;
+          lastPushTokenListenerHandledAt = now;
+
           void Notifications.getExpoPushTokenAsync({ projectId })
             .then((next: { data?: string }) => {
               if (next?.data) void registerPushTokenWithBackend(next.data);
