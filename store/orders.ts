@@ -194,7 +194,7 @@ interface OrderState {
     latitude: number,
     longitude: number,
     metadata?: { heading?: number | null; accuracy?: number | null },
-  ) => Promise<void>;
+  ) => Promise<{ success: boolean }>;
   dismissMissedOrder: (orderId: string) => void;
   acceptMissedOrder: (orderId: string) => Promise<void>;
   pruneMissedOrders: () => void;
@@ -1314,7 +1314,14 @@ export const useOrderStore = create<OrderState>()(
         try {
           const { activeOrder } = get();
 
-          await ApiService.updateLocation(latitude, longitude, metadata);
+          const result = await ApiService.updateLocation(
+            latitude,
+            longitude,
+            metadata,
+          );
+          if (result?.success === false) {
+            return { success: false as const };
+          }
           set({ driverLocation: { latitude, longitude } });
 
           if (activeOrder) {
@@ -1332,8 +1339,11 @@ export const useOrderStore = create<OrderState>()(
               longitude,
             });
           }
+
+          return { success: true as const };
         } catch (error) {
           console.error("Update location error:", error);
+          return { success: false as const };
         }
       },
 

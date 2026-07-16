@@ -1,3 +1,4 @@
+import LocationTrackingBanner from "@/components/LocationTrackingBanner";
 import MissedOrderCard from "@/components/orders/MissedOrderCard";
 import OrderRequestModal from "@/components/orders/OrderRequestModal";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
@@ -119,7 +120,7 @@ export default function HomeScreen() {
   }, [fadeAnim, slideAnim]);
 
   // Location tracking
-  useLocationTracking({
+  const locationTracking = useLocationTracking({
     updateInterval: 30000,
     distanceThreshold: 50,
   });
@@ -275,6 +276,22 @@ export default function HomeScreen() {
   return (
     <View className="flex-1 bg-[#F3E0D9]">
       <StatusBar barStyle="dark-content" backgroundColor="#F3E0D9" />
+
+      <LocationTrackingBanner
+        isOnline={isOnline}
+        isTracking={locationTracking.isTracking}
+        permissionStatus={locationTracking.permissionStatus}
+        backgroundPermissionDenied={locationTracking.backgroundPermissionDenied}
+        lastSuccessfulUpdateAt={locationTracking.lastSuccessfulUpdateAt}
+        onRetry={() => {
+          // stopTracking() then startTracking() instead of starting on top
+          // of an already-running session — startTracking() doesn't clear
+          // its own watchers/intervals first, so calling it twice would
+          // leak an orphaned duplicate watcher.
+          locationTracking.stopTracking();
+          void locationTracking.startTracking();
+        }}
+      />
 
       {/* Background Gradient Elements for depth */}
       <View className="absolute top-0 left-0 right-0 h-96 opacity-60">

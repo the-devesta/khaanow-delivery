@@ -19,6 +19,8 @@ interface LocationTrackingState {
   } | null;
   error: string | null;
   permissionStatus: "granted" | "denied" | "undetermined";
+  backgroundPermissionDenied: boolean;
+  lastSuccessfulUpdateAt: number | null;
 }
 
 // High-frequency profile while carrying an active order — this is what makes
@@ -51,6 +53,8 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
     currentLocation: null,
     error: null,
     permissionStatus: "undetermined",
+    backgroundPermissionDenied: false,
+    lastSuccessfulUpdateAt: null,
   });
 
   const locationWatchRef = useRef<Location.LocationSubscription | null>(null);
@@ -83,9 +87,15 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
       // foreground tracking on it, but it's required for the background
       // task to actually receive updates while the app isn't focused.
       try {
-        await Location.requestBackgroundPermissionsAsync();
+        const { status: backgroundStatus } =
+          await Location.requestBackgroundPermissionsAsync();
+        setState((prev) => ({
+          ...prev,
+          backgroundPermissionDenied: backgroundStatus !== "granted",
+        }));
       } catch (error) {
         console.warn("Background location permission request failed:", error);
+        setState((prev) => ({ ...prev, backgroundPermissionDenied: true }));
       }
 
       return true;
@@ -108,6 +118,10 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
     try {
       const { status: backgroundStatus } =
         await Location.getBackgroundPermissionsAsync();
+      setState((prev) => ({
+        ...prev,
+        backgroundPermissionDenied: backgroundStatus !== "granted",
+      }));
       if (backgroundStatus !== "granted") return;
 
       // Restart if already running so a cadence change (idle <-> active
@@ -182,8 +196,16 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
     ) => {
       try {
         if (isOnline) {
-          await updateLocation(latitude, longitude, metadata);
+          const result = await updateLocation(latitude, longitude, metadata);
+          if (result?.success === false) {
+            console.error("Location update rejected by backend:", result);
+            return;
+          }
           console.log("📍 Location updated:", { latitude, longitude });
+          setState((prev) => ({
+            ...prev,
+            lastSuccessfulUpdateAt: Date.now(),
+          }));
         }
       } catch (error) {
         console.error("Failed to update location:", error);
