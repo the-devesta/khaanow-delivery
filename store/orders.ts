@@ -321,6 +321,7 @@ const RING_FRESHNESS_MS = 5 * 60 * 1000;
 /** How long missed-order cards stay visible in "Pending Requests" before auto-pruning. */
 const MISSED_ORDER_DISPLAY_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 let deliveryRealtimeCleanup: (() => void) | null = null;
+let socketFallbackHandlersRegistered = false;
 
 export const useOrderStore = create<OrderState>()(
   persist(
@@ -340,6 +341,12 @@ export const useOrderStore = create<OrderState>()(
       // ── Socket initialization ────────────────────────────────────────────────────
       initializeSocket: () => {
         socketService.connect();
+
+        if (socketFallbackHandlersRegistered) {
+          return;
+        }
+
+        socketFallbackHandlersRegistered = true;
 
         socketService.on("new-delivery-available", (order: any) => {
           console.log("🔔 New delivery available:", order._id);
