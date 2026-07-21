@@ -12,17 +12,17 @@ import { getAuth, initializeAuth } from "firebase/auth";
 // @ts-ignore
 import { getReactNativePersistence } from "firebase/auth";
 import { getStorage } from "firebase/storage";
+import ENV from "./env";
 
 // Firebase configuration
 export const firebaseConfig = {
-  apiKey: "AIzaSyAkfD1D3ErwApNq2aPouuPpfElyH-CI6Fg",
-  authDomain: "khaaonow-91e55.firebaseapp.com",
-  databaseURL:
-    "https://khaaonow-91e55-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "khaaonow-91e55",
-  storageBucket: "khaaonow-91e55.firebasestorage.app",
-  messagingSenderId: "665067279336",
-  appId: "1:665067279336:android:e9f6d045f5d2e5706b8a5d",
+  apiKey: ENV.FIREBASE_API_KEY,
+  authDomain: ENV.FIREBASE_AUTH_DOMAIN,
+  databaseURL: ENV.FIREBASE_DATABASE_URL,
+  projectId: ENV.FIREBASE_PROJECT_ID,
+  storageBucket: ENV.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: ENV.FIREBASE_MESSAGING_SENDER_ID,
+  appId: ENV.FIREBASE_APP_ID,
 };
 
 // Check if running in Expo Go

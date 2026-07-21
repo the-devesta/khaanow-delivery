@@ -16,10 +16,13 @@ const ENV = {
   // Firebase Configuration
   FIREBASE_API_KEY:
     process.env.EXPO_PUBLIC_FIREBASE_API_KEY ||
-    "AIzaSyAJQ0rWth67W_5np90W__q95fslluKg4EE",
+    "AIzaSyAkfD1D3ErwApNq2aPouuPpfElyH-CI6Fg",
   FIREBASE_AUTH_DOMAIN:
     process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ||
     "khaaonow-91e55.firebaseapp.com",
+  FIREBASE_DATABASE_URL:
+    process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL ||
+    "https://khaaonow-91e55-default-rtdb.asia-southeast1.firebasedatabase.app",
   FIREBASE_PROJECT_ID:
     process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "khaaonow-91e55",
   FIREBASE_STORAGE_BUCKET:
@@ -29,7 +32,7 @@ const ENV = {
     process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "665067279336",
   FIREBASE_APP_ID:
     process.env.EXPO_PUBLIC_FIREBASE_APP_ID ||
-    "1:665067279336:web:f21686de57ef7f586b8a5d",
+    "1:665067279336:android:e9f6d045f5d2e5706b8a5d",
 
   // App Configuration
   APP_NAME: process.env.EXPO_PUBLIC_APP_NAME || "KhaaoNow Delivery",
