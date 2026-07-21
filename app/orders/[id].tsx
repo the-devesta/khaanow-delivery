@@ -3,12 +3,11 @@ import DeliveryMap, {
   RouteInfo,
   haversineM,
 } from "@/components/map/DeliveryMap";
+import { useLocationTracking } from "@/hooks/useLocationTracking";
 import ActionFooter from "@/components/orders/ActionFooter";
 import { ApiService } from "@/services/api";
-import { updateDriverLocationInFirebase } from "@/services/driverTrackingService";
 import { subscribeToOrderPayment } from "@/services/realtime.service";
 import { socketService } from "@/services/socket";
-import { useAuthStore } from "@/store/auth";
 import { uploadImageToFirebase } from "@/services/storage";
 import { Location, useOrderStore } from "@/store/orders";
 import { openPhoneDialer } from "@/utils/phone";
@@ -219,7 +218,7 @@ export default function OrderDetailsScreen() {
     confirmReturnedToRestaurant,
   } =
     useOrderStore();
-  const partnerId = useAuthStore((state) => state.partner?.id);
+  const locationTracking = useLocationTracking();
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -234,10 +233,6 @@ export default function OrderDetailsScreen() {
   const [driverLocation, setDriverLoc] = useState<Location | null>(null);
   const [isMapCollapsed, setIsMapCollapsed] = useState(false);
   const mapHeightAnim = useRef(new Animated.Value(1)).current; // 1 = full, 0 = collapsed
-  const locationWatchRef = useRef<ExpoLocation.LocationSubscription | null>(
-    null,
-  );
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Navigation mode state
   const [isNavigating, setIsNavigating] = useState(false);
@@ -256,15 +251,6 @@ export default function OrderDetailsScreen() {
     });
     setCurrentStepIdx((current) => (current === 0 ? current : 0));
   }, []);
-
-  const getFallbackCurrentLocation = async (): Promise<Location | null> => {
-    const lastKnown = await ExpoLocation.getLastKnownPositionAsync();
-    if (!lastKnown?.coords) return null;
-    return {
-      latitude: lastKnown.coords.latitude,
-      longitude: lastKnown.coords.longitude,
-    };
-  };
 
   const matchedActiveOrder =
     activeOrders.find((order) => order.id === id) ||
@@ -326,133 +312,18 @@ export default function OrderDetailsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Start real GPS tracking when this is an active order
+  // Consume the shared GPS tracking hook instead of starting a second watcher
+  // on the active-order screen.
   useEffect(() => {
-    if (!isActiveOrder) return;
+    if (!isActiveOrder || !locationTracking.currentLocation) return;
 
-    let cancelled = false;
-
-    const startGPS = async () => {
-      try {
-        const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
-        if (status !== "granted" || cancelled) return;
-
-        let pos: ExpoLocation.LocationObject | null = null;
-        try {
-          pos = await ExpoLocation.getCurrentPositionAsync({
-            accuracy: ExpoLocation.Accuracy.High,
-          });
-        } catch (error) {
-          console.warn("[DeliveryOrder] getCurrentPositionAsync failed:", error);
-          const fallback = await getFallbackCurrentLocation();
-          if (fallback && !cancelled) {
-            setDriverLoc(fallback);
-            setDriverLocation(fallback);
-          }
-        }
-
-        if (!cancelled && pos) {
-          const loc = {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            heading: pos.coords.heading,
-          };
-          setDriverLoc(loc);
-          setDriverLocation(loc);
-          if (activeOrder) {
-            if (partnerId) {
-              updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
-            }
-            socketService.updateLocation(activeOrder.id, loc, pos.coords.heading ?? 0);
-          }
-          ApiService.updateLocation(loc.latitude, loc.longitude, {
-            accuracy: pos.coords.accuracy,
-            mocked: (pos as any).mocked ?? false,
-            heading: pos.coords.heading,
-          });
-        }
-
-        locationWatchRef.current = await ExpoLocation.watchPositionAsync(
-          {
-            accuracy: ExpoLocation.Accuracy.High,
-            distanceInterval: 15,
-            timeInterval: 5000,
-          },
-          (location) => {
-            if (cancelled) return;
-            const loc = {
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              heading: location.coords.heading,
-            };
-            setDriverLoc(loc);
-            setDriverLocation(loc);
-            if (activeOrder) {
-              if (partnerId) {
-                updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
-              }
-              socketService.updateLocation(
-                activeOrder.id,
-                loc,
-                location.coords.heading ?? 0,
-              );
-            }
-            ApiService.updateLocation(loc.latitude, loc.longitude, {
-              accuracy: location.coords.accuracy,
-              mocked: (location as any).mocked ?? false,
-              heading: location.coords.heading,
-            });
-          },
-        );
-
-        // watchPositionAsync only fires on movement — a stationary rider (or a
-        // simulator with a fixed custom location) would send exactly one ping
-        // and then go dark, so customer/restaurant maps see a stale position.
-        // Heartbeat every 15s keeps the server-side location fresh regardless.
-        heartbeatRef.current = setInterval(async () => {
-          if (cancelled) return;
-          try {
-            const beat = await ExpoLocation.getCurrentPositionAsync({
-              accuracy: ExpoLocation.Accuracy.High,
-            });
-            if (cancelled) return;
-            const loc = {
-              latitude: beat.coords.latitude,
-              longitude: beat.coords.longitude,
-              heading: beat.coords.heading,
-            };
-            setDriverLoc(loc);
-            setDriverLocation(loc);
-            if (activeOrder && partnerId) {
-              updateDriverLocationInFirebase(partnerId, loc, activeOrder.id);
-            }
-            ApiService.updateLocation(loc.latitude, loc.longitude, {
-              accuracy: beat.coords.accuracy,
-              mocked: (beat as any).mocked ?? false,
-              heading: beat.coords.heading,
-            });
-          } catch {
-            // Next heartbeat retries.
-          }
-        }, 15_000);
-      } catch (error) {
-        console.error("[DeliveryOrder] Failed to start GPS tracking:", error);
-      }
-    };
-
-    startGPS();
-
-    return () => {
-      cancelled = true;
-      locationWatchRef.current?.remove();
-      locationWatchRef.current = null;
-      if (heartbeatRef.current) {
-        clearInterval(heartbeatRef.current);
-        heartbeatRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActiveOrder]);
+    setDriverLoc(locationTracking.currentLocation);
+    setDriverLocation(locationTracking.currentLocation);
+  }, [
+    isActiveOrder,
+    locationTracking.currentLocation,
+    setDriverLocation,
+  ]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
