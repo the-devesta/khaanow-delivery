@@ -12,7 +12,6 @@ export const API_CONFIG = {
 
 // Storage Keys
 export const STORAGE_KEYS = {
-  AUTH_TOKEN: "delivery_partner_token",
   USER_ID: "userId",
   PHONE_NUMBER: "phoneNumber",
   IS_AUTHENTICATED: "isAuthenticated",

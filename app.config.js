@@ -34,6 +34,7 @@ const plugins = [
       color: "#FFD230",
     },
   ],
+  "expo-secure-store",
   "expo-status-bar",
   "expo-web-browser",
   [

@@ -1,6 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as FileSystem from "expo-file-system/legacy";
+import { getDeliveryPartnerToken } from "./api";
 
 // Resolve the backend base URL (same logic as api.ts)
 const getBaseUrl = (): string => {
@@ -31,7 +31,7 @@ export const uploadImageToFirebase = async (
 
   try {
     // Get auth token from storage
-    const token = await AsyncStorage.getItem("delivery_partner_token");
+    const token = await getDeliveryPartnerToken();
     if (!token) throw new Error("Not authenticated — no token in storage");
 
     // Determine MIME type from extension

@@ -67,7 +67,6 @@ const STORAGE_KEYS = {
   USER_ID: "userId",
   PHONE_NUMBER: "phoneNumber",
   PARTNER_DATA: "partnerData",
-  TOKEN: "delivery_partner_token",
   ONBOARDING_STATUS: "onboardingStatus",
   ONBOARDING_PROGRESS: "onboardingProgress",
   IS_APPROVED: "isApproved",

@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, { AxiosError, AxiosInstance } from "axios";
 import Constants from "expo-constants";
+import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 
 // API Configuration
 // Priority order:
@@ -40,8 +42,46 @@ const getApiUrl = () => {
 
 export const API_BASE_URL = getApiUrl();
 const TOKEN_KEY = "delivery_partner_token";
+const AUTH_SESSION_KEYS = [
+  "isAuthenticated",
+  "userId",
+  "phoneNumber",
+  "partnerData",
+  "onboardingStatus",
+  "onboardingProgress",
+  "isApproved",
+];
 
 console.log("🌐 [API] Final backend URL:", API_BASE_URL);
+
+export const storeDeliveryPartnerToken = async (token: string): Promise<void> => {
+  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await AsyncStorage.removeItem(TOKEN_KEY);
+};
+
+export const getDeliveryPartnerToken = async (): Promise<string | null> => {
+  const secureToken = await SecureStore.getItemAsync(TOKEN_KEY);
+  if (secureToken) return secureToken;
+
+  const legacyToken = await AsyncStorage.getItem(TOKEN_KEY);
+  if (!legacyToken) return null;
+
+  await SecureStore.setItemAsync(TOKEN_KEY, legacyToken);
+  await AsyncStorage.removeItem(TOKEN_KEY);
+  return legacyToken;
+};
+
+export const removeDeliveryPartnerToken = async (): Promise<void> => {
+  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await AsyncStorage.removeItem(TOKEN_KEY);
+};
+
+const clearAuthSession = async () => {
+  await Promise.all([
+    AsyncStorage.multiRemove(AUTH_SESSION_KEYS),
+    removeDeliveryPartnerToken(),
+  ]);
+};
 
 // Interfaces
 interface ApiResponse<T = any> {
@@ -136,7 +176,7 @@ class ApiClient {
     // Request Interceptor
     this.client.interceptors.request.use(
       async (config) => {
-        const token = await AsyncStorage.getItem(TOKEN_KEY);
+        const token = await getDeliveryPartnerToken();
         if (token) {
           console.log("🔑 [API] Attaching token to request:", config.url);
           config.headers.Authorization = `Bearer ${token}`;
@@ -157,6 +197,16 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
+        const status = error.response?.status;
+        const requestUrl = error.config?.url || "";
+        const isAuthEndpoint = requestUrl.includes("/auth/");
+
+        if (status === 401 && !isAuthEndpoint) {
+          console.warn("🚪 [API] Session expired; clearing auth state");
+          await clearAuthSession();
+          router.replace("/auth/login" as any);
+        }
+
         return Promise.reject(error);
       },
     );
@@ -216,7 +266,7 @@ export const ApiService = {
 
       // Store token if available
       if (response.data?.token) {
-        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
+        await storeDeliveryPartnerToken(response.data.token);
       }
 
       return response;
@@ -232,7 +282,7 @@ export const ApiService = {
         console.log("📱 [Auth] Existing account detected, treating as login");
 
         if (errorData.token) {
-          await AsyncStorage.setItem(TOKEN_KEY, errorData.token);
+          await storeDeliveryPartnerToken(errorData.token);
         }
 
         return {
@@ -246,7 +296,7 @@ export const ApiService = {
       if (error.response?.data?.success && error.response?.data?.data) {
         const data = error.response.data.data;
         if (data.token) {
-          await AsyncStorage.setItem(TOKEN_KEY, data.token);
+          await storeDeliveryPartnerToken(data.token);
         }
         return {
           success: true,
@@ -307,7 +357,7 @@ export const ApiService = {
 
       // Store token if available
       if (response.data?.token) {
-        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
+        await storeDeliveryPartnerToken(response.data.token);
       }
 
       return response;
@@ -340,7 +390,7 @@ export const ApiService = {
 
       // Update token if new one is provided
       if (response.data?.token) {
-        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
+        await storeDeliveryPartnerToken(response.data.token);
       }
 
       console.log("✅ [API] Profile completion successful:", response);
@@ -888,7 +938,7 @@ export const ApiService = {
 
       // Store token if available
       if (response.data?.token) {
-        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
+        await storeDeliveryPartnerToken(response.data.token);
       }
 
       return {
@@ -929,7 +979,7 @@ export const ApiService = {
       );
       // Clear token on successful deletion
       if (response.success) {
-        await AsyncStorage.removeItem(TOKEN_KEY);
+        await removeDeliveryPartnerToken();
       }
       return response;
     } catch (error: any) {
@@ -948,28 +998,28 @@ export const ApiService = {
    * Store authentication token
    */
   async storeToken(token: string): Promise<void> {
-    await AsyncStorage.setItem(TOKEN_KEY, token);
+    await storeDeliveryPartnerToken(token);
   },
 
   /**
    * Get stored token
    */
   async getToken(): Promise<string | null> {
-    return await AsyncStorage.getItem(TOKEN_KEY);
+    return await getDeliveryPartnerToken();
   },
 
   /**
    * Remove stored token
    */
   async removeToken(): Promise<void> {
-    await AsyncStorage.removeItem(TOKEN_KEY);
+    await removeDeliveryPartnerToken();
   },
 
   /**
    * Check if user is authenticated
    */
   async isAuthenticated(): Promise<boolean> {
-    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    const token = await getDeliveryPartnerToken();
     return !!token;
   },
 
@@ -1040,7 +1090,7 @@ export const ApiService = {
 
       // Store token if available
       if (response.data?.token) {
-        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
+        await storeDeliveryPartnerToken(response.data.token);
       }
 
       return response;
