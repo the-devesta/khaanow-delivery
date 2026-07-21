@@ -5,6 +5,12 @@
 
 import { ApiService } from "./api";
 
+interface PaymentApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
 export type PaymentMethod =
   | "prepaid"
   | "cod"
@@ -31,7 +37,7 @@ export async function sendCodOtp(
   orderId: string,
   method: "app" | "whatsapp" = "app",
 ): Promise<{ expiresAt: string }> {
-  const res = await ApiService.post(
+  const res = await ApiService.post<PaymentApiResponse<{ expiresAt: string }>>(
     `/delivery-partners/orders/${orderId}/send-cod-otp`,
     { method },
   );
@@ -44,7 +50,9 @@ export async function verifyCodOtp(
   orderId: string,
   otp: string,
 ): Promise<{ paymentStatus: string }> {
-  const res = await ApiService.post(
+  const res = await ApiService.post<
+    PaymentApiResponse<{ paymentStatus: string }>
+  >(
     `/delivery-partners/orders/${orderId}/verify-cod-otp`,
     { otp },
   );
@@ -56,7 +64,7 @@ export async function verifyCodOtp(
 export async function generatePaymentLink(
   orderId: string,
 ): Promise<PaymentLinkResult> {
-  const res = await ApiService.post(
+  const res = await ApiService.post<PaymentApiResponse<PaymentLinkResult>>(
     `/delivery-partners/orders/${orderId}/generate-payment-link`,
   );
   if (!res.success)
@@ -68,7 +76,7 @@ export async function generatePaymentLink(
 export async function generatePaymentQR(
   orderId: string,
 ): Promise<QRCodeResult> {
-  const res = await ApiService.post(
+  const res = await ApiService.post<PaymentApiResponse<QRCodeResult>>(
     `/delivery-partners/orders/${orderId}/generate-qr`,
   );
   if (!res.success)
@@ -80,7 +88,7 @@ export async function generatePaymentQR(
 export async function checkPaymentStatus(
   orderId: string,
 ): Promise<PaymentStatusResult> {
-  const res = await ApiService.get(
+  const res = await ApiService.get<PaymentApiResponse<PaymentStatusResult>>(
     `/delivery-partners/orders/${orderId}/payment-status`,
   );
   if (!res.success)

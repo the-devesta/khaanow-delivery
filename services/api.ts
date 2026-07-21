@@ -3,6 +3,7 @@ import axios, { AxiosError, AxiosInstance } from "axios";
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { parseApiError } from "@/utils/errorHandler";
 
 // API Configuration
 // Priority order:
@@ -84,7 +85,7 @@ const clearAuthSession = async () => {
 };
 
 // Interfaces
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
@@ -160,6 +161,20 @@ interface DeliveryPartner {
   upiId?: string;
 }
 
+interface GoogleLoginApiResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    token?: string;
+    onboardingProgress?: number;
+    partner?: Partial<DeliveryPartner> & {
+      id?: string;
+      _id?: string;
+      onboardingStatus?: string;
+    };
+  };
+}
+
 // Axios Instance
 class ApiClient {
   private client: AxiosInstance;
@@ -212,27 +227,27 @@ class ApiClient {
     );
   }
 
-  async get<T = any>(url: string, config?: any): Promise<T> {
+  async get<T = unknown>(url: string, config?: any): Promise<T> {
     const response = await this.client.get<T>(url, config);
     return response.data;
   }
 
-  async post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+  async post<T = unknown>(url: string, data?: any, config?: any): Promise<T> {
     const response = await this.client.post<T>(url, data, config);
     return response.data;
   }
 
-  async put<T = any>(url: string, data?: any, config?: any): Promise<T> {
+  async put<T = unknown>(url: string, data?: any, config?: any): Promise<T> {
     const response = await this.client.put<T>(url, data, config);
     return response.data;
   }
 
-  async patch<T = any>(url: string, data?: any, config?: any): Promise<T> {
+  async patch<T = unknown>(url: string, data?: any, config?: any): Promise<T> {
     const response = await this.client.patch<T>(url, data, config);
     return response.data;
   }
 
-  async delete<T = any>(url: string, config?: any): Promise<T> {
+  async delete<T = unknown>(url: string, config?: any): Promise<T> {
     const response = await this.client.delete<T>(url, config);
     return response.data;
   }
@@ -240,11 +255,10 @@ class ApiClient {
 
 export const apiClient = new ApiClient();
 
-const getApiErrorMessage = (error: any, fallback: string) =>
-  error.response?.data?.message ||
-  error.response?.data?.error ||
-  error.message ||
-  fallback;
+const getApiErrorMessage = (error: any, fallback: string) => {
+  const parsed = parseApiError(error);
+  return parsed.message || fallback;
+};
 
 // API Service
 export const ApiService = {
@@ -307,8 +321,7 @@ export const ApiService = {
 
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to verify phone token",
+        message: getApiErrorMessage(error, "Failed to verify phone token"),
       };
     }
   },
@@ -334,7 +347,7 @@ export const ApiService = {
       console.error("Send OTP error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to send OTP",
+        message: getApiErrorMessage(error, "Failed to send OTP"),
       };
     }
   },
@@ -365,7 +378,7 @@ export const ApiService = {
       console.error("Verify OTP error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to verify OTP",
+        message: getApiErrorMessage(error, "Failed to verify OTP"),
       };
     }
   },
@@ -383,7 +396,9 @@ export const ApiService = {
         "📤 [API] Completing profile with data:",
         JSON.stringify(data, null, 2),
       );
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<
+        ApiResponse<{ partner: DeliveryPartner; token: string }>
+      >(
         "/delivery-partners/profile/complete",
         data,
       );
@@ -401,7 +416,7 @@ export const ApiService = {
       console.error("❌ [API] Error Status:", error.response?.status);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to complete profile",
+        message: getApiErrorMessage(error, "Failed to complete profile"),
       };
     }
   },
@@ -413,7 +428,9 @@ export const ApiService = {
     data: DocumentsData,
   ): Promise<ApiResponse<{ partner: DeliveryPartner }>> {
     try {
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<
+        ApiResponse<{ partner: DeliveryPartner }>
+      >(
         "/delivery-partners/documents/upload",
         data,
       );
@@ -422,7 +439,7 @@ export const ApiService = {
       console.error("Upload documents error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to upload documents",
+        message: getApiErrorMessage(error, "Failed to upload documents"),
       };
     }
   },
@@ -434,7 +451,9 @@ export const ApiService = {
     data: BankDetailsData,
   ): Promise<ApiResponse<{ partner: DeliveryPartner }>> {
     try {
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<
+        ApiResponse<{ partner: DeliveryPartner }>
+      >(
         "/delivery-partners/bank-details",
         data,
       );
@@ -443,7 +462,7 @@ export const ApiService = {
       console.error("Add bank details error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to add bank details",
+        message: getApiErrorMessage(error, "Failed to add bank details"),
       };
     }
   },
@@ -484,8 +503,7 @@ export const ApiService = {
       console.error("Submit registration error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to submit registration",
+        message: getApiErrorMessage(error, "Failed to submit registration"),
       };
     }
   },
@@ -497,7 +515,7 @@ export const ApiService = {
    */
   async getProfile(): Promise<ApiResponse<DeliveryPartner>> {
     try {
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<DeliveryPartner>>(
         "/delivery-partners/profile",
       );
       return response;
@@ -505,7 +523,7 @@ export const ApiService = {
       console.error("Get profile error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to get profile",
+        message: getApiErrorMessage(error, "Failed to get profile"),
       };
     }
   },
@@ -515,7 +533,7 @@ export const ApiService = {
    */
   async updateProfile(data: any): Promise<ApiResponse<DeliveryPartner>> {
     try {
-      const response = await apiClient.put<ApiResponse>(
+      const response = await apiClient.put<ApiResponse<DeliveryPartner>>(
         "/delivery-partners/profile",
         data,
       );
@@ -524,7 +542,7 @@ export const ApiService = {
       console.error("Update profile error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to update profile",
+        message: getApiErrorMessage(error, "Failed to update profile"),
       };
     }
   },
@@ -540,9 +558,9 @@ export const ApiService = {
       mocked?: boolean | null;
       heading?: number | null;
     },
-  ): Promise<ApiResponse> {
+  ): Promise<ApiResponse<void>> {
     try {
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<ApiResponse<void>>(
         "/delivery-partners/location",
         { latitude, longitude, ...metadata },
       );
@@ -551,7 +569,7 @@ export const ApiService = {
       console.error("Update location error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to update location",
+        message: getApiErrorMessage(error, "Failed to update location"),
       };
     }
   },
@@ -563,7 +581,7 @@ export const ApiService = {
     isOnline: boolean,
   ): Promise<ApiResponse<{ isActive: boolean }>> {
     try {
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<ApiResponse<{ isActive: boolean }>>(
         "/delivery-partners/toggle-status",
         { isActive: isOnline },
       );
@@ -572,7 +590,7 @@ export const ApiService = {
       console.error("Toggle status error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to toggle status",
+        message: getApiErrorMessage(error, "Failed to toggle status"),
       };
     }
   },
@@ -584,7 +602,7 @@ export const ApiService = {
    */
   async getAvailableOrders(): Promise<ApiResponse<any[]>> {
     try {
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<any[]>>(
         "/delivery-partners/orders/available",
       );
       return response;
@@ -592,8 +610,7 @@ export const ApiService = {
       console.error("Get available orders error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to get available orders",
+        message: getApiErrorMessage(error, "Failed to get available orders"),
         data: [],
       };
     }
@@ -604,7 +621,7 @@ export const ApiService = {
    */
   async getAssignedOrders(): Promise<ApiResponse<any[]>> {
     try {
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<any[]>>(
         "/delivery-partners/orders/assigned",
       );
       return response;
@@ -612,8 +629,7 @@ export const ApiService = {
       console.error("Get assigned orders error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to get assigned orders",
+        message: getApiErrorMessage(error, "Failed to get assigned orders"),
         data: [],
       };
     }
@@ -626,7 +642,7 @@ export const ApiService = {
       const query = location
         ? `?latitude=${location.latitude}&longitude=${location.longitude}`
         : "";
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<any>>(
         `/delivery-partners/orders/route-plan${query}`,
       );
       return response;
@@ -634,8 +650,7 @@ export const ApiService = {
       console.error("Get delivery route plan error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to get delivery route plan",
+        message: getApiErrorMessage(error, "Failed to get delivery route plan"),
         data: null,
       };
     }
@@ -646,7 +661,7 @@ export const ApiService = {
    */
   async getOrderById(orderId: string): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<any>>(
         `/delivery-partners/orders/${orderId}`,
       );
       return response;
@@ -654,7 +669,7 @@ export const ApiService = {
       console.error("Get order error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to get order details",
+        message: getApiErrorMessage(error, "Failed to get order details"),
       };
     }
   },
@@ -662,9 +677,9 @@ export const ApiService = {
   /**
    * Accept an order
    */
-  async acceptOrder(orderId: string): Promise<ApiResponse> {
+  async acceptOrder(orderId: string): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<ApiResponse<any>>(
         `/delivery-partners/orders/${orderId}/accept`,
       );
       return response;
@@ -672,7 +687,7 @@ export const ApiService = {
       console.error("Accept order error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to accept order",
+        message: getApiErrorMessage(error, "Failed to accept order"),
       };
     }
   },
@@ -680,9 +695,9 @@ export const ApiService = {
   /**
    * Reject/skip an order
    */
-  async rejectOrder(orderId: string): Promise<ApiResponse> {
+  async rejectOrder(orderId: string): Promise<ApiResponse<void>> {
     try {
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<ApiResponse<void>>(
         `/delivery-partners/orders/${orderId}/reject`,
       );
       return response;
@@ -690,7 +705,7 @@ export const ApiService = {
       console.error("Reject order error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to reject order",
+        message: getApiErrorMessage(error, "Failed to reject order"),
       };
     }
   },
@@ -700,7 +715,7 @@ export const ApiService = {
    */
   async getActiveOrder(): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<any>>(
         "/delivery-partners/orders/active",
       );
       return response;
@@ -708,7 +723,7 @@ export const ApiService = {
       console.error("Get active order error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to get active order",
+        message: getApiErrorMessage(error, "Failed to get active order"),
         data: null,
       };
     }
@@ -724,9 +739,9 @@ export const ApiService = {
       currentLocation?: { latitude: number; longitude: number };
       proofPhotoUrl?: string;
     },
-  ): Promise<ApiResponse> {
+  ): Promise<ApiResponse<void>> {
     try {
-      const response = await apiClient.patch<ApiResponse>(
+      const response = await apiClient.patch<ApiResponse<void>>(
         `/delivery-partners/orders/${orderId}/status`,
         { status, ...metadata },
       );
@@ -735,8 +750,7 @@ export const ApiService = {
       console.error("Update order status error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to update order status",
+        message: getApiErrorMessage(error, "Failed to update order status"),
       };
     }
   },
@@ -744,10 +758,10 @@ export const ApiService = {
   async reportDeliveryDelay(
     orderId: string,
     reason: string,
-  ): Promise<ApiResponse> {
+  ): Promise<ApiResponse<void>> {
     try {
       const updatedEta = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<ApiResponse<void>>(
         `/delivery-partners/orders/${orderId}/report-delay`,
         {
           reason,
@@ -770,9 +784,9 @@ export const ApiService = {
   async requestOrderReassignment(
     orderId: string,
     reason: string,
-  ): Promise<ApiResponse> {
+  ): Promise<ApiResponse<void>> {
     try {
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<ApiResponse<void>>(
         `/delivery-partners/orders/${orderId}/request-reassignment`,
         {
           reason,
@@ -791,9 +805,9 @@ export const ApiService = {
     }
   },
 
-  async confirmReturnedToRestaurant(orderId: string): Promise<ApiResponse> {
+  async confirmReturnedToRestaurant(orderId: string): Promise<ApiResponse<void>> {
     try {
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<ApiResponse<void>>(
         `/delivery-partners/orders/${orderId}/confirm-returned`,
       );
       return response;
@@ -814,7 +828,7 @@ export const ApiService = {
     limit: number = 20,
   ): Promise<ApiResponse<any[]>> {
     try {
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<any[]>>(
         `/delivery-partners/orders/history?page=${page}&limit=${limit}`,
       );
       return response;
@@ -822,7 +836,7 @@ export const ApiService = {
       console.error("Get order history error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to get order history",
+        message: getApiErrorMessage(error, "Failed to get order history"),
         data: [],
       };
     }
@@ -837,7 +851,7 @@ export const ApiService = {
     period: "today" | "week" | "month" = "today",
   ): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<any>>(
         `/delivery-partners/earnings?period=${period}`,
       );
       return response;
@@ -845,7 +859,7 @@ export const ApiService = {
       console.error("Get earnings error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to get earnings",
+        message: getApiErrorMessage(error, "Failed to get earnings"),
         data: {
           today: 0,
           week: 0,
@@ -857,7 +871,7 @@ export const ApiService = {
 
   async requestPayoutWithdrawal(amount: number): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<ApiResponse<any>>(
         "/delivery-partners/payout/request",
         { amount },
       );
@@ -866,8 +880,7 @@ export const ApiService = {
       console.error("Request payout withdrawal error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to request withdrawal",
+        message: getApiErrorMessage(error, "Failed to request withdrawal"),
       };
     }
   },
@@ -877,7 +890,7 @@ export const ApiService = {
    */
   async getDashboardData(): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<any>>(
         "/delivery-partners/dashboard",
       );
       return response;
@@ -885,8 +898,7 @@ export const ApiService = {
       console.error("Get dashboard data error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to get dashboard data",
+        message: getApiErrorMessage(error, "Failed to get dashboard data"),
         data: {
           earnings: { today: 0, week: 0, month: 0 },
           stats: { deliveriesToday: 0, shiftsCompleted: 0, activeOrders: 0 },
@@ -904,7 +916,7 @@ export const ApiService = {
     limit: number = 20,
   ): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get<ApiResponse>(
+      const response = await apiClient.get<ApiResponse<any>>(
         `/notifications/user?page=${page}&limit=${limit}`,
       );
       return response;
@@ -912,7 +924,7 @@ export const ApiService = {
       console.error("Get notifications error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || "Failed to get notifications",
+        message: getApiErrorMessage(error, "Failed to get notifications"),
         data: [],
       };
     }
@@ -931,7 +943,7 @@ export const ApiService = {
     picture?: string;
   }): Promise<LoginResponse> {
     try {
-      const response = await apiClient.post<any>(
+      const response = await apiClient.post<GoogleLoginApiResponse>(
         "/delivery-partners/auth/google",
         googleData,
       );
@@ -947,12 +959,14 @@ export const ApiService = {
         data: {
           phone: response.data?.partner?.phone || "",
           deliveryPartnerId:
-            response.data?.partner?.id || response.data?.partner?._id,
-          token: response.data?.token,
-          onboardingStatus: response.data?.partner?.onboardingStatus,
+            response.data?.partner?.id || response.data?.partner?._id || "",
+          token: response.data?.token || "",
+          onboardingStatus:
+            response.data?.partner?.onboardingStatus || "phone_verified",
           onboardingProgress:
             response.data?.onboardingProgress ||
-            response.data?.partner?.onboardingProgress,
+            response.data?.partner?.onboardingProgress ||
+            0,
           profileComplete:
             response.data?.partner?.onboardingStatus === "completed",
         },
@@ -961,8 +975,7 @@ export const ApiService = {
       console.error("Google login error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to authenticate with Google",
+        message: getApiErrorMessage(error, "Failed to authenticate with Google"),
       };
     }
   },
@@ -972,9 +985,9 @@ export const ApiService = {
   /**
    * Delete the current delivery partner account permanently
    */
-  async deleteAccount(): Promise<ApiResponse> {
+  async deleteAccount(): Promise<ApiResponse<void>> {
     try {
-      const response = await apiClient.delete<ApiResponse>(
+      const response = await apiClient.delete<ApiResponse<void>>(
         "/delivery-partners/account",
       );
       // Clear token on successful deletion
@@ -986,8 +999,7 @@ export const ApiService = {
       console.error("Delete account error:", error);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Failed to delete account",
+        message: getApiErrorMessage(error, "Failed to delete account"),
       };
     }
   },
@@ -1049,7 +1061,9 @@ export const ApiService = {
       // Ensure + prefix
       const formattedPhone = `+${phone}`;
 
-      const response = await apiClient.post<ApiResponse>(
+      const response = await apiClient.post<
+        ApiResponse<{ phone: string; expiresIn: number; otp?: string }>
+      >(
         "/delivery-partners/auth/send-otp",
         { phone: formattedPhone },
       );
@@ -1102,11 +1116,11 @@ export const ApiService = {
 
   // ==================== RAW HTTP HELPERS (for service modules) ====================
 
-  async get<T = any>(url: string, config?: any): Promise<T> {
+  async get<T = unknown>(url: string, config?: any): Promise<T> {
     return apiClient.get<T>(url, config);
   },
 
-  async post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+  async post<T = unknown>(url: string, data?: any, config?: any): Promise<T> {
     return apiClient.post<T>(url, data, config);
   },
 };
