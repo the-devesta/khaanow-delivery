@@ -13,6 +13,18 @@ export interface PublicAppStatus {
       ios: string;
       android: string;
     };
+    platforms?: {
+      ios?: {
+        minVersion: string;
+        latestVersion: string;
+        updateUrl: string;
+      };
+      android?: {
+        minVersion: string;
+        latestVersion: string;
+        updateUrl: string;
+      };
+    };
   };
 }
 
@@ -29,6 +41,18 @@ const DEFAULT_PUBLIC_APP_STATUS: PublicAppStatus = {
     updateUrls: {
       ios: "",
       android: "",
+    },
+    platforms: {
+      ios: {
+        minVersion: "0.0.0",
+        latestVersion: "0.0.0",
+        updateUrl: "",
+      },
+      android: {
+        minVersion: "0.0.0",
+        latestVersion: "0.0.0",
+        updateUrl: "",
+      },
     },
   },
 };

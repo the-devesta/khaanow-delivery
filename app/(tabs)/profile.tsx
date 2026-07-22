@@ -8,12 +8,15 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  Linking,
+  Platform,
   RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import SettingsService from "@/services/settings.service";
 
 interface ProfileData {
   id: string;
@@ -30,12 +33,31 @@ interface ProfileData {
   onboardingStatus: string;
 }
 
+const compareVersions = (current: string, target: string): number => {
+  const currentParts = current.split(".").map((part) => Number(part) || 0);
+  const targetParts = target.split(".").map((part) => Number(part) || 0);
+  const length = Math.max(currentParts.length, targetParts.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const currentPart = currentParts[index] ?? 0;
+    const targetPart = targetParts[index] ?? 0;
+    if (currentPart > targetPart) return 1;
+    if (currentPart < targetPart) return -1;
+  }
+
+  return 0;
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { logout, phoneNumber } = useAuthStore();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [appUpdate, setAppUpdate] = useState<{
+    latestVersion: string;
+    updateUrl?: string;
+  } | null>(null);
 
   // Animation values
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -61,6 +83,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     fetchProfile();
+    loadAppUpdate();
   }, []);
 
   const handleRefresh = () => {
@@ -73,6 +96,33 @@ export default function ProfileScreen() {
     router.replace("/auth/login");
   };
 
+  const loadAppUpdate = async () => {
+    const status = await SettingsService.getPublicAppStatus();
+    const platform = Platform.OS === "ios" ? "ios" : "android";
+    const platformTarget = status.deliveryApp.platforms?.[platform];
+    const latestVersion =
+      platformTarget?.latestVersion || status.deliveryApp.latestVersion;
+    const updateUrl =
+      platformTarget?.updateUrl ||
+      (platform === "ios"
+        ? status.deliveryApp.updateUrls.ios
+        : status.deliveryApp.updateUrls.android) ||
+      undefined;
+    const currentVersion = Constants.expoConfig?.version ?? "0.0.0";
+
+    setAppUpdate(
+      compareVersions(currentVersion, latestVersion) < 0
+        ? { latestVersion, updateUrl }
+        : null,
+    );
+  };
+
+  const openAppUpdate = async () => {
+    if (appUpdate?.updateUrl) {
+      await Linking.openURL(appUpdate.updateUrl);
+    }
+  };
+
   const getInitials = (name?: string) => {
     if (!name) return "DP";
     const parts = name.split(" ");
@@ -82,6 +132,20 @@ export default function ProfileScreen() {
   };
 
   const menuItems = [
+    ...(appUpdate
+      ? [
+          {
+            id: "app-update",
+            title: "App update available",
+            icon: "sync-outline",
+            route: "",
+            onPress: openAppUpdate,
+            color: "#F97316",
+            bg: "#FFF7ED",
+            subtitle: `v${appUpdate.latestVersion}`,
+          },
+        ]
+      : []),
     {
       id: 1,
       title: "Edit Profile",
@@ -258,7 +322,9 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 key={item.id}
                 activeOpacity={0.7}
-                onPress={() => item.route && router.push(item.route as any)}
+                onPress={() =>
+                  item.onPress ? item.onPress() : item.route && router.push(item.route as any)
+                }
                 className="flex-row items-center justify-between bg-white rounded-[24px] p-4 "
               >
                 <View className="flex-row items-center flex-1">
@@ -275,6 +341,11 @@ export default function ProfileScreen() {
                   <Text className="text-base font-bold text-[#1A1A1A]">
                     {item.title}
                   </Text>
+                  {"subtitle" in item && item.subtitle ? (
+                    <Text className="text-xs font-semibold text-[#F97316] mt-0.5">
+                      {item.subtitle}
+                    </Text>
+                  ) : null}
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
               </TouchableOpacity>

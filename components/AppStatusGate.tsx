@@ -24,6 +24,12 @@ type SoftUpdateInfo = {
   updateUrl?: string;
 };
 
+type PlatformUpdateTarget = {
+  minVersion: string;
+  latestVersion: string;
+  updateUrl?: string;
+};
+
 const DISMISSED_SOFT_UPDATE_KEY = "dismissed_soft_update_version";
 
 // No SafeAreaProvider is mounted at the app root, so use a fixed top offset.
@@ -47,13 +53,20 @@ const compareVersions = (current: string, minimum: string): number => {
 
 const getCurrentVersion = () => Constants.expoConfig?.version ?? "0.0.0";
 
-const getUpdateUrl = (status: PublicAppStatus): string | undefined => {
-  const platformUrl =
-    Platform.OS === "ios"
-      ? status.deliveryApp.updateUrls.ios
-      : status.deliveryApp.updateUrls.android;
+const getPlatformUpdateTarget = (status: PublicAppStatus): PlatformUpdateTarget => {
+  const platform = Platform.OS === "ios" ? "ios" : "android";
+  const platformTarget = status.deliveryApp.platforms?.[platform];
 
-  return platformUrl || undefined;
+  return {
+    minVersion: platformTarget?.minVersion || status.deliveryApp.minVersion,
+    latestVersion: platformTarget?.latestVersion || status.deliveryApp.latestVersion,
+    updateUrl:
+      platformTarget?.updateUrl ||
+      (platform === "ios"
+        ? status.deliveryApp.updateUrls.ios
+        : status.deliveryApp.updateUrls.android) ||
+      undefined,
+  };
 };
 
 // Gate check runs once at cold launch only (not re-checked mid-navigation),
@@ -78,29 +91,28 @@ export default function AppStatusGate({ children }: { children: ReactNode }) {
       }
 
       const currentVersion = getCurrentVersion();
-      const mustUpdate =
-        compareVersions(currentVersion, status.deliveryApp.minVersion) < 0;
+      const updateTarget = getPlatformUpdateTarget(status);
+      const mustUpdate = compareVersions(currentVersion, updateTarget.minVersion) < 0;
 
       if (mustUpdate) {
         setGateState({
           type: "force-update",
           message: status.deliveryApp.forceUpdateMessage,
-          updateUrl: getUpdateUrl(status),
+          updateUrl: updateTarget.updateUrl,
         });
         return;
       }
 
       setGateState({ type: "ready" });
 
-      const latestVersion = status.deliveryApp.latestVersion;
-      const hasNewerVersion =
-        compareVersions(currentVersion, latestVersion) < 0;
+      const latestVersion = updateTarget.latestVersion;
+      const hasNewerVersion = compareVersions(currentVersion, latestVersion) < 0;
       if (hasNewerVersion) {
         const dismissedVersion = await AsyncStorage.getItem(
           DISMISSED_SOFT_UPDATE_KEY,
         );
         if (dismissedVersion !== latestVersion) {
-          setSoftUpdate({ latestVersion, updateUrl: getUpdateUrl(status) });
+          setSoftUpdate({ latestVersion, updateUrl: updateTarget.updateUrl });
         }
       }
     } catch {
