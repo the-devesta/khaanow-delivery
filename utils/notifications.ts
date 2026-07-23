@@ -2,6 +2,7 @@ import axios from "axios";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../services/api";
 import { useAuthStore } from "../store/auth";
 
@@ -12,6 +13,37 @@ let notificationHandlerConfigured = false;
 let pushTokenListenerConfigured = false;
 let lastPushTokenListenerHandledAt = 0;
 const PUSH_TOKEN_REGISTER_RETRIES = 3;
+const PUSH_TOKEN_CACHE_KEY = "delivery_push_token:last_backend_registration";
+const PUSH_TOKEN_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function maskPushToken(token?: string | null) {
+  if (!token) return "PushToken[…]";
+  const match = token.match(/^(Expo(?:nent)?PushToken\[)(.*)(\])$/);
+  const inner = match?.[2] ?? token;
+  return `${match?.[1] ?? "PushToken["}…${inner.slice(-6)}${match?.[3] ?? "]"}`;
+}
+
+async function shouldSkipBackendTokenRegistration(token: string) {
+  try {
+    const raw = await AsyncStorage.getItem(PUSH_TOKEN_CACHE_KEY);
+    if (!raw) return false;
+    const cached = JSON.parse(raw) as { token?: string; registeredAt?: number };
+    return (
+      cached.token === token &&
+      typeof cached.registeredAt === "number" &&
+      Date.now() - cached.registeredAt < PUSH_TOKEN_CACHE_TTL_MS
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function rememberBackendTokenRegistration(token: string) {
+  await AsyncStorage.setItem(
+    PUSH_TOKEN_CACHE_KEY,
+    JSON.stringify({ token, registeredAt: Date.now() }),
+  );
+}
 
 function isAndroidExpoGo() {
   return Platform.OS === "android" && Constants.appOwnership === "expo";
@@ -117,7 +149,7 @@ export async function registerForPushNotificationsAsync({
           projectId,
         })
       ).data;
-      console.log("📱 Expo Push Token:", token);
+      console.log("📱 Expo Push Token:", maskPushToken(token));
 
       if (
         !pushTokenListenerConfigured &&
@@ -161,9 +193,20 @@ export async function registerForPushNotificationsAsync({
  * Register the push token with the backend
  */
 export async function registerPushTokenWithBackend(token: string) {
-  const API_URL =
-    API_BASE_URL ||
-    "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api";
+  const API_URL = API_BASE_URL;
+  if (!API_URL) {
+    console.warn(
+      "⚠️ API_BASE_URL is missing; skipping push token registration instead of using a production fallback.",
+    );
+    return;
+  }
+
+  if (await shouldSkipBackendTokenRegistration(token)) {
+    console.log("📱 Push token registration skipped; unchanged recently", {
+      token: maskPushToken(token),
+    });
+    return { success: true, skipped: true };
+  }
 
   for (let attempt = 1; attempt <= PUSH_TOKEN_REGISTER_RETRIES; attempt += 1) {
     try {
@@ -176,7 +219,7 @@ export async function registerPushTokenWithBackend(token: string) {
 
       console.log("📤 Registering push token with backend...", {
         attempt,
-        token,
+        token: maskPushToken(token),
       });
 
       const response = await axios.post(
@@ -190,6 +233,7 @@ export async function registerPushTokenWithBackend(token: string) {
         },
       );
 
+      await rememberBackendTokenRegistration(token);
       console.log("✅ Push token registered successfully:", response.data);
       return response.data;
     } catch (error: any) {

@@ -7,8 +7,9 @@ import MapView, {
   Polyline,
   PROVIDER_GOOGLE,
 } from "react-native-maps";
+import ENV from "@/config/env";
 
-const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const GOOGLE_MAPS_API_KEY = ENV.GOOGLE_MAPS_API_KEY;
 const RESTAURANT_AVATAR_URL =
   "https://firebasestorage.googleapis.com/v0/b/khaaonow-91e55.firebasestorage.app/o/restaurant.jpg?alt=media&token=e7ec754a-0790-4335-88de-e850bd66c1b7";
 const USER_AVATAR_URL =
@@ -87,6 +88,18 @@ type RouteFetchResult = {
   etaMin: number;
   distKm: number;
 };
+type RouteEndpoint = {
+  origin: Location;
+  destination: Location;
+};
+type CachedRoute = RouteEndpoint & {
+  route: RouteFetchResult;
+  requestedAtMs: number;
+};
+
+const ROUTE_REFRESH_MIN_INTERVAL_MS = 120_000;
+const ROUTE_REFRESH_MIN_MOVEMENT_M = 300;
+const ROUTE_DUPLICATE_TOLERANCE_M = 20;
 
 function isValidCoord(loc: Location | null | undefined): loc is Location {
   if (!loc) return false;
@@ -122,41 +135,17 @@ function getDistanceM(origin?: Location | null, destination?: Location | null) {
   return haversineM(origin, destination);
 }
 
-async function fetchDistanceMatrixMetrics(
-  origin: Location,
-  destination: Location,
-): Promise<{ etaMin: number; distKm: number } | null> {
-  if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.includes("YOUR_")) {
-    return null;
-  }
+function areCoordsWithinMeters(
+  first?: Location | null,
+  second?: Location | null,
+  toleranceM = ROUTE_DUPLICATE_TOLERANCE_M,
+) {
+  return getDistanceM(first, second) <= toleranceM;
+}
 
-  try {
-    const url =
-      `https://maps.googleapis.com/maps/api/distancematrix/json` +
-      `?origins=${origin.latitude},${origin.longitude}` +
-      `&destinations=${destination.latitude},${destination.longitude}` +
-      `&mode=driving` +
-      `&departure_time=now` +
-      `&key=${GOOGLE_MAPS_API_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const element = data.rows?.[0]?.elements?.[0];
-    if (data.status !== "OK" || element?.status !== "OK") return null;
-
-    const durationSeconds =
-      element.duration_in_traffic?.value ?? element.duration?.value;
-    const distanceMetres = element.distance?.value;
-    if (typeof durationSeconds !== "number" || typeof distanceMetres !== "number") {
-      return null;
-    }
-
-    return {
-      etaMin: Math.max(1, Math.ceil(durationSeconds / 60)),
-      distKm: Math.round(distanceMetres / 100) / 10,
-    };
-  } catch (error) {
-    console.log("[DeliveryMap] Distance Matrix error:", error);
-    return null;
+function debugRouteLog(message: string, details?: Record<string, unknown>) {
+  if (__DEV__) {
+    console.log(`[DeliveryMap] ${message}`, details ?? "");
   }
 }
 
@@ -169,7 +158,7 @@ function parseGoogleDurationSeconds(duration?: string): number | null {
 async function fetchGoogleRoutesApiRoute(
   origin: Location,
   destination: Location,
-  travelMode: "TWO_WHEELER" | "DRIVE",
+  signal?: AbortSignal,
 ): Promise<RouteFetchResult | null> {
   if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.includes("YOUR_")) {
     return null;
@@ -186,6 +175,7 @@ async function fetchGoogleRoutesApiRoute(
           "X-Goog-FieldMask":
             "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline",
         },
+        signal,
         body: JSON.stringify({
           origin: {
             location: {
@@ -203,7 +193,7 @@ async function fetchGoogleRoutesApiRoute(
               },
             },
           },
-          travelMode,
+          travelMode: "TWO_WHEELER",
           routingPreference: "TRAFFIC_AWARE",
           computeAlternativeRoutes: false,
           polylineQuality: "HIGH_QUALITY",
@@ -218,7 +208,7 @@ async function fetchGoogleRoutesApiRoute(
     const encodedPolyline = route?.polyline?.encodedPolyline;
     if (!res.ok || !encodedPolyline) {
       console.log(
-        `[DeliveryMap] Routes API ${travelMode} failed:`,
+        "[DeliveryMap] Routes API TWO_WHEELER failed:",
         data.error?.message ?? data.status ?? res.status,
       );
       return null;
@@ -240,7 +230,8 @@ async function fetchGoogleRoutesApiRoute(
           : fallbackMetrics.distKm,
     };
   } catch (error) {
-    console.log(`[DeliveryMap] Routes API ${travelMode} error:`, error);
+    if ((error as any)?.name === "AbortError") return null;
+    console.log("[DeliveryMap] Routes API TWO_WHEELER error:", error);
     return null;
   }
 }
@@ -248,68 +239,22 @@ async function fetchGoogleRoutesApiRoute(
 async function fetchRoadRoute(
   origin: Location,
   destination: Location,
+  signal?: AbortSignal,
 ): Promise<RouteFetchResult> {
   const fallbackMetrics = getStraightLineMetrics(origin, destination);
 
   if (GOOGLE_MAPS_API_KEY && !GOOGLE_MAPS_API_KEY.includes("YOUR_")) {
-    const twoWheelerRoute = await fetchGoogleRoutesApiRoute(
-      origin,
-      destination,
-      "TWO_WHEELER",
-    );
+    const twoWheelerRoute = await fetchGoogleRoutesApiRoute(origin, destination, signal);
     if (twoWheelerRoute) return twoWheelerRoute;
-
-    const driveRoute = await fetchGoogleRoutesApiRoute(
-      origin,
-      destination,
-      "DRIVE",
-    );
-    if (driveRoute) return driveRoute;
   } else {
     console.log(
-      "[DeliveryMap] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY not set. Falling back to OSRM route.",
+      "[DeliveryMap] platform Google Maps key not set. Falling back to OSRM route.",
     );
   }
 
-  if (GOOGLE_MAPS_API_KEY && !GOOGLE_MAPS_API_KEY.includes("YOUR_")) {
-    try {
-      const gUrl =
-        `https://maps.googleapis.com/maps/api/directions/json` +
-        `?origin=${origin.latitude},${origin.longitude}` +
-        `&destination=${destination.latitude},${destination.longitude}` +
-        `&mode=driving` +
-        `&key=${GOOGLE_MAPS_API_KEY}`;
-      const gRes = await fetch(gUrl);
-      const gData = await gRes.json();
-      if (
-        gData.status === "OK" &&
-        gData.routes?.[0]?.overview_polyline?.points
-      ) {
-        const route = gData.routes[0];
-        const leg = route.legs?.[0];
-        const matrixMetrics = await fetchDistanceMatrixMetrics(
-          origin,
-          destination,
-        );
-        return {
-          coordinates: decodePolyline(route.overview_polyline.points),
-          etaMin:
-            matrixMetrics?.etaMin ??
-            (leg?.duration?.value
-              ? Math.max(1, Math.ceil(leg.duration.value / 60))
-              : fallbackMetrics.etaMin),
-          distKm:
-            matrixMetrics?.distKm ??
-            (leg?.distance?.value
-              ? Math.round(leg.distance.value / 100) / 10
-              : fallbackMetrics.distKm),
-        };
-      }
-      console.log("[DeliveryMap] Google Directions status:", gData.status);
-    } catch (error) {
-      console.log("[DeliveryMap] Google Directions error:", error);
-    }
-  }
+  // Billing guard: do not chain multiple paid Google fallbacks for a single
+  // refresh. If TWO_WHEELER Routes fails, use OSRM/straight-line fallback
+  // instead of paid DRIVE, Directions, and Distance Matrix calls.
 
   try {
     const osrmUrl =
@@ -317,7 +262,7 @@ async function fetchRoadRoute(
       `${origin.longitude},${origin.latitude};` +
       `${destination.longitude},${destination.latitude}` +
       `?overview=full&geometries=polyline`;
-    const osrmRes = await fetch(osrmUrl);
+    const osrmRes = await fetch(osrmUrl, { signal });
     const osrmData = await osrmRes.json();
     if (osrmData.code === "Ok" && osrmData.routes?.[0]?.geometry) {
       const route = osrmData.routes[0];
@@ -332,6 +277,12 @@ async function fetchRoadRoute(
       };
     }
   } catch (error) {
+    if ((error as any)?.name === "AbortError") {
+      return {
+        coordinates: [origin, destination],
+        ...fallbackMetrics,
+      };
+    }
     console.log("[DeliveryMap] OSRM error:", error);
   }
 
@@ -365,6 +316,13 @@ export default function DeliveryMap({
   const isFirstFit = useRef(true);
   const onRouteLoadedRef = useRef(onRouteLoaded);
   const lastRouteSignatureRef = useRef<string>("");
+  const routeRequestInFlightRef = useRef(false);
+  const routeAbortControllerRef = useRef<AbortController | null>(null);
+  const routeRequestIdRef = useRef(0);
+  const lastRouteRequestRef = useRef<
+    (RouteEndpoint & { requestedAtMs: number }) | null
+  >(null);
+  const lastSuccessfulRouteRef = useRef<CachedRoute | null>(null);
   const [mapType, setMapType] = useState<MapKind>("standard");
   const [routeCoords, setRouteCoords] = useState<
     { latitude: number; longitude: number }[]
@@ -373,6 +331,15 @@ export default function DeliveryMap({
   useEffect(() => {
     onRouteLoadedRef.current = onRouteLoaded;
   }, [onRouteLoaded]);
+
+  useEffect(() => {
+    return () => {
+      routeRequestIdRef.current += 1;
+      routeAbortControllerRef.current?.abort();
+      routeAbortControllerRef.current = null;
+      routeRequestInFlightRef.current = false;
+    };
+  }, []);
 
   const getInitialCenter = (): { latitude: number; longitude: number } => {
     if (isValidCoord(pickupLocation)) return pickupLocation;
@@ -485,30 +452,122 @@ export default function DeliveryMap({
 
   useEffect(() => {
     if (!canDrawRoute) {
+      routeRequestIdRef.current += 1;
+      routeAbortControllerRef.current?.abort();
+      routeAbortControllerRef.current = null;
+      routeRequestInFlightRef.current = false;
+      lastRouteRequestRef.current = null;
+      lastSuccessfulRouteRef.current = null;
       lastRouteSignatureRef.current = "";
       setRouteCoords([]);
       return;
     }
     if (areSameCoord(routeOrigin, routeDestination)) {
+      routeRequestIdRef.current += 1;
+      routeAbortControllerRef.current?.abort();
+      routeAbortControllerRef.current = null;
+      routeRequestInFlightRef.current = false;
       lastRouteSignatureRef.current = "";
       setRouteCoords([]);
       return;
     }
 
-    const fallbackCoords = [routeOrigin!, routeDestination!];
-    const fallback = getStraightLineMetrics(routeOrigin!, routeDestination!);
-    updateRouteState(fallbackCoords, {
-      steps: [],
-      etaMin: fallback.etaMin,
-      distKm: fallback.distKm,
-    });
-    let cancelled = false;
+    const origin = routeOrigin!;
+    const destination = routeDestination!;
+    const fallbackCoords = [origin, destination];
+    const fallback = getStraightLineMetrics(origin, destination);
+    const now = Date.now();
+    const lastRequest = lastRouteRequestRef.current;
+    const lastSuccess = lastSuccessfulRouteRef.current;
+    const secondsSinceLastSuccess = lastSuccess
+      ? Math.round((now - lastSuccess.requestedAtMs) / 1000)
+      : Infinity;
+    const movedMeters = lastSuccess
+      ? Math.round(getDistanceM(lastSuccess.origin, origin))
+      : Infinity;
+    const destinationChanged =
+      !lastSuccess ||
+      !areCoordsWithinMeters(lastSuccess.destination, destination);
+    const duplicateRequest =
+      !!lastRequest &&
+      areCoordsWithinMeters(lastRequest.origin, origin) &&
+      areCoordsWithinMeters(lastRequest.destination, destination);
 
-    fetchRoadRoute(routeOrigin!, routeDestination!)
+    if (!lastSuccess) {
+      updateRouteState(fallbackCoords, {
+        steps: [],
+        etaMin: fallback.etaMin,
+        distKm: fallback.distKm,
+      });
+    }
+
+    if (duplicateRequest) {
+      debugRouteLog("Skipped route refresh: duplicate origin/destination", {
+        toleranceM: ROUTE_DUPLICATE_TOLERANCE_M,
+      });
+      return;
+    }
+
+    if (routeRequestInFlightRef.current) {
+      debugRouteLog("Skipped route refresh: request already running");
+      return;
+    }
+
+    if (!destinationChanged && secondsSinceLastSuccess < 120) {
+      debugRouteLog("Skipped route refresh: too soon", {
+        secondsSinceLastSuccess,
+        requiredSeconds: ROUTE_REFRESH_MIN_INTERVAL_MS / 1000,
+        movedMeters,
+      });
+      return;
+    }
+
+    if (!destinationChanged && movedMeters < ROUTE_REFRESH_MIN_MOVEMENT_M) {
+      debugRouteLog("Skipped route refresh: movement too small", {
+        secondsSinceLastSuccess,
+        movedMeters,
+        requiredMeters: ROUTE_REFRESH_MIN_MOVEMENT_M,
+      });
+      return;
+    }
+
+    const requestId = routeRequestIdRef.current + 1;
+    routeRequestIdRef.current = requestId;
+    routeRequestInFlightRef.current = true;
+    lastRouteRequestRef.current = {
+      origin,
+      destination,
+      requestedAtMs: now,
+    };
+    const abortController = new AbortController();
+    routeAbortControllerRef.current = abortController;
+
+    debugRouteLog("Executed route refresh", {
+      reason: !lastSuccess
+        ? "initial"
+        : destinationChanged
+          ? "destination changed"
+          : "time and movement thresholds met",
+      secondsSinceLastSuccess,
+      movedMeters,
+    });
+
+    fetchRoadRoute(origin, destination, abortController.signal)
       .then((route) => {
-        if (cancelled) return;
+        if (
+          abortController.signal.aborted ||
+          routeRequestIdRef.current !== requestId
+        ) {
+          return;
+        }
         const nextCoords =
           route.coordinates.length >= 2 ? route.coordinates : fallbackCoords;
+        lastSuccessfulRouteRef.current = {
+          origin,
+          destination,
+          route,
+          requestedAtMs: Date.now(),
+        };
         updateRouteState(nextCoords, {
           steps: [],
           etaMin: route.etaMin,
@@ -516,17 +575,30 @@ export default function DeliveryMap({
         });
       })
       .catch((error) => {
-        if (cancelled) return;
+        if (
+          abortController.signal.aborted ||
+          routeRequestIdRef.current !== requestId
+        ) {
+          return;
+        }
         console.log("[DeliveryMap] Route fetch failed:", error);
-        updateRouteState(fallbackCoords, {
-          steps: [],
-          etaMin: fallback.etaMin,
-          distKm: fallback.distKm,
-        });
+        if (!lastSuccessfulRouteRef.current) {
+          updateRouteState(fallbackCoords, {
+            steps: [],
+            etaMin: fallback.etaMin,
+            distKm: fallback.distKm,
+          });
+        }
+      })
+      .finally(() => {
+        if (routeRequestIdRef.current === requestId) {
+          routeRequestInFlightRef.current = false;
+          routeAbortControllerRef.current = null;
+        }
       });
 
     return () => {
-      cancelled = true;
+      abortController.abort();
     };
   }, [
     canDrawRoute,

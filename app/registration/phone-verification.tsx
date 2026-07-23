@@ -27,7 +27,7 @@ const PhoneSchema = Yup.object().shape({
 
 export default function PhoneVerificationScreen() {
   const router = useRouter();
-  const { setAuthenticated, fetchProfile, getNavigationRoute } = useAuthStore();
+  const { setAuthenticated, fetchProfile } = useAuthStore();
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [loading, setLoading] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -111,7 +111,7 @@ export default function PhoneVerificationScreen() {
         );
 
         await fetchProfile();
-        router.replace(getNavigationRoute() as any);
+        router.replace(useAuthStore.getState().getNavigationRoute() as any);
       } else {
         Alert.alert(
           "Verification Failed",

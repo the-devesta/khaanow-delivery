@@ -8,19 +8,17 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
+        "EXPO_PUBLIC_API_URL": "https://rqcbhpv4g5pxcvqn2nn2gl5qha0wkuhl.lambda-url.ap-south-1.on.aws/api",
         "EXPO_PUBLIC_ENABLE_SOCKET_FALLBACK": "false",
-        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU"
+        "EXPO_PUBLIC_SOCKET_URL": "https://rqcbhpv4g5pxcvqn2nn2gl5qha0wkuhl.lambda-url.ap-south-1.on.aws"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
+        "EXPO_PUBLIC_API_URL": "https://rqcbhpv4g5pxcvqn2nn2gl5qha0wkuhl.lambda-url.ap-south-1.on.aws/api",
         "EXPO_PUBLIC_ENABLE_SOCKET_FALLBACK": "false",
-        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU"
+        "EXPO_PUBLIC_SOCKET_URL": "https://rqcbhpv4g5pxcvqn2nn2gl5qha0wkuhl.lambda-url.ap-south-1.on.aws"
       }
     },
     "apk": {
@@ -32,8 +30,7 @@
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
         "EXPO_PUBLIC_API_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
         "EXPO_PUBLIC_ENABLE_SOCKET_FALLBACK": "false",
-        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU"
+        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws"
       }
     },
     "production": {
@@ -41,8 +38,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api",
         "EXPO_PUBLIC_ENABLE_SOCKET_FALLBACK": "false",
-        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU"
+        "EXPO_PUBLIC_SOCKET_URL": "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws"
       },
       "ios": {
         "resourceClass": "m-medium"

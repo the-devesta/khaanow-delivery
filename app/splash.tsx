@@ -3,13 +3,12 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
 import Animated, {
   Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
   withSequence,
   withTiming,
@@ -24,7 +23,6 @@ interface AnimatedSplashScreenProps {
 }
 
 const MIN_DISPLAY_MS = 2400;
-const TEXT_ENTER_DELAY_MS = 600;
 const BRAND_COLOR = "#FFD230";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -42,9 +40,6 @@ export function Splash({
   const containerScale = useSharedValue(1);
   const logoScale = useSharedValue(0.85);
   const logoOpacity = useSharedValue(0);
-  const textOpacity = useSharedValue(0);
-  const textTranslateY = useSharedValue(28);
-  const taglineOpacity = useSharedValue(0);
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
@@ -68,22 +63,9 @@ export function Splash({
       ),
     );
 
-    textOpacity.value = withDelay(
-      TEXT_ENTER_DELAY_MS,
-      withTiming(1, { duration: 520 }),
-    );
-    textTranslateY.value = withDelay(
-      TEXT_ENTER_DELAY_MS,
-      withTiming(0, { duration: 520, easing: Easing.out(Easing.cubic) }),
-    );
-    taglineOpacity.value = withDelay(
-      TEXT_ENTER_DELAY_MS + 250,
-      withTiming(1, { duration: 480 }),
-    );
-
     const timer = setTimeout(() => setMinTimeElapsed(true), MIN_DISPLAY_MS);
     return () => clearTimeout(timer);
-  }, [logoOpacity, logoScale, textOpacity, textTranslateY, taglineOpacity]);
+  }, [logoOpacity, logoScale]);
 
   useEffect(() => {
     if (!isAppReady || !minTimeElapsed || exitStarted.current) return;
@@ -114,15 +96,6 @@ export function Splash({
     transform: [{ scale: logoScale.value }],
   }));
 
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-    transform: [{ translateY: textTranslateY.value }],
-  }));
-
-  const taglineStyle = useAnimatedStyle(() => ({
-    opacity: taglineOpacity.value,
-  }));
-
   if (!isVisible) return null;
 
   return (
@@ -134,23 +107,6 @@ export function Splash({
           contentFit="contain"
           cachePolicy="memory-disk"
         />
-      </Animated.View>
-
-      <Animated.View style={[styles.textGroup, textStyle]}>
-        <Text
-          style={styles.brandText}
-          allowFontScaling={false}
-          adjustsFontSizeToFit={true}
-          numberOfLines={1}>
-          {fontsLoaded ? "KhaaoNow" : " "}
-        </Text>
-        <Animated.Text
-          style={[styles.tagline, taglineStyle]}
-          allowFontScaling={false}
-          adjustsFontSizeToFit={true}
-          numberOfLines={1}>
-          {fontsLoaded ? "Delivery Partner" : " "}
-        </Animated.Text>
       </Animated.View>
     </Animated.View>
   );
@@ -166,25 +122,8 @@ const styles = StyleSheet.create({
     elevation: 9999,
   },
   logo: {
-    width: 300,
-    height: 300,
-  },
-  textGroup: {
-    alignItems: "center",
-  },
-  brandText: {
-    fontFamily: "Poppins-Bold",
-    fontSize: 36,
-    color: "#ffffff",
-    letterSpacing: 1.4,
-  },
-  tagline: {
-    fontFamily: "Poppins-Medium",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.85)",
-    letterSpacing: 1.2,
-    marginTop: 6,
-    textTransform: "uppercase",
+    width: 260,
+    height: 260,
   },
 });
 

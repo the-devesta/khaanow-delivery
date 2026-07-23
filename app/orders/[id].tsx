@@ -11,6 +11,11 @@ import { socketService } from "@/services/socket";
 import { uploadImageToFirebase } from "@/services/storage";
 import { Location, useOrderStore } from "@/store/orders";
 import { openPhoneDialer } from "@/utils/phone";
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import * as Device from "expo-device";
 import * as ExpoLocation from "expo-location";
@@ -48,6 +53,18 @@ const STEPS = [
   { label: "Picked Up", icon: "bicycle-outline" },
   { label: "Arrived", icon: "location-outline" },
 ];
+
+const CONTACT_SHEET_SNAP_POINTS = ["34%"];
+
+const renderContactBackdrop = (props: any) => (
+  <BottomSheetBackdrop
+    {...props}
+    appearsOnIndex={0}
+    disappearsOnIndex={-1}
+    opacity={0.45}
+    pressBehavior="close"
+  />
+);
 
 function formatAddressText(address: string | Record<string, any> | undefined | null) {
   if (!address) return "Address unavailable";
@@ -121,6 +138,13 @@ function transformApiOrder(raw: any) {
     restaurant?.name ||
     restaurantAddr?.name ||
     "Unknown Restaurant";
+  const restaurantPhone =
+    restaurant?.phone ||
+    restaurant?.phoneNumber ||
+    restaurant?.mobile ||
+    restaurant?.ownerPhone ||
+    restaurantAddr?.phone ||
+    "";
 
   const restaurantAddress =
     restaurant?.address?.street ||
@@ -173,6 +197,7 @@ function transformApiOrder(raw: any) {
     orderNumber: raw.orderNumber || raw._id || raw.id || "",
     status: raw.status,
     restaurantName,
+    restaurantPhone,
     restaurantAddress,
     customerName,
     customerPhone,
@@ -232,6 +257,7 @@ export default function OrderDetailsScreen() {
   > | null>(null);
   const [driverLocation, setDriverLoc] = useState<Location | null>(null);
   const [isMapCollapsed, setIsMapCollapsed] = useState(false);
+  const contactSheetRef = useRef<BottomSheetModal>(null);
   const mapHeightAnim = useRef(new Animated.Value(1)).current; // 1 = full, 0 = collapsed
 
   // Navigation mode state
@@ -774,6 +800,77 @@ export default function OrderDetailsScreen() {
           : currentStep === 4
             ? "Arriving"
             : "Delivered";
+  const contactName =
+    navPhase === "pickup" ? displayOrder.restaurantName : displayOrder.customerName;
+  const contactRole = navPhase === "pickup" ? "Restaurant" : "Customer";
+  const contactPhone =
+    navPhase === "pickup"
+      ? (displayOrder as any).restaurantPhone || displayOrder.customerPhone
+      : displayOrder.customerPhone || (displayOrder as any).restaurantPhone;
+
+  const openContactSheet = () => {
+    if (!contactPhone) {
+      Alert.alert("Phone unavailable", `${contactRole} phone number is not available.`);
+      return;
+    }
+    contactSheetRef.current?.present();
+  };
+
+  const callContact = () => {
+    if (!contactPhone) return;
+    openPhoneDialer(contactPhone);
+  };
+
+  const orderOverlays = (
+    <>
+      {/* Payment sheet — must be mounted in normal and fullscreen navigation modes. */}
+      <PaymentOptionsModal
+        visible={paymentModalVisible}
+        orderId={String(displayOrder.id)}
+        orderNumber={String((displayOrder as any).orderNumber || displayOrder.id)}
+        totalAmount={(displayOrder as any).totalAmount || 0}
+        paymentMethod={
+          (displayOrder as any).rawPaymentMethod || displayOrder.paymentType
+        }
+        paymentStatus={(displayOrder as any).paymentStatus || "pending"}
+        onPaymentConfirmed={handlePaymentConfirmed}
+        onClose={() => setPaymentModalVisible(false)}
+      />
+
+      <BottomSheetModal
+        ref={contactSheetRef}
+        snapPoints={CONTACT_SHEET_SNAP_POINTS}
+        enablePanDownToClose
+        backdropComponent={renderContactBackdrop}
+        backgroundStyle={{ backgroundColor: "#FFFFFF", borderRadius: 28 }}
+        handleIndicatorStyle={{ backgroundColor: "#D1D5DB", width: 42 }}>
+        <BottomSheetView style={orderStyles.contactSheetContent}>
+          <View style={orderStyles.contactSheetIcon}>
+            <Ionicons name="call" size={26} color="#FF6A00" />
+          </View>
+          <Text style={orderStyles.contactSheetTitle}>
+            Call {contactRole}
+          </Text>
+          <Text style={orderStyles.contactSheetName} numberOfLines={1}>
+            {contactName}
+          </Text>
+          <TouchableOpacity
+            onPress={callContact}
+            activeOpacity={0.85}
+            style={orderStyles.contactSheetCallButton}>
+            <Ionicons name="call" size={18} color="#FFFFFF" />
+            <Text style={orderStyles.contactSheetCallButtonText}>Call now</Text>
+          </TouchableOpacity>
+          <Text selectable style={orderStyles.contactSheetPhone}>
+            {contactPhone || "Phone number unavailable"}
+          </Text>
+          <Text style={orderStyles.contactSheetHint}>
+            If the call button does not open, long-press/copy this number and dial manually.
+          </Text>
+        </BottomSheetView>
+      </BottomSheetModal>
+    </>
+  );
 
   // Use real GPS for driver marker; fall back to null (shows no driver pin)
   const safeDriverLoc = driverLocation;
@@ -880,6 +977,7 @@ export default function OrderDetailsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        {orderOverlays}
       </View>
     );
   }
@@ -1070,13 +1168,21 @@ export default function OrderDetailsScreen() {
                     Open Maps
                   </Text>
                 </TouchableOpacity>
-                {displayOrder.customerPhone ? (
-                  <TouchableOpacity
-                    onPress={() => openPhoneDialer(displayOrder.customerPhone)}
-                    style={orderStyles.secondaryQuickAction}
-                    activeOpacity={0.78}>
-                    <Ionicons name="call" size={17} color="#111827" />
-                  </TouchableOpacity>
+                {contactPhone ? (
+                  <View style={orderStyles.callQuickActionWrap}>
+                    <TouchableOpacity
+                      onPress={openContactSheet}
+                      style={orderStyles.secondaryQuickAction}
+                      activeOpacity={0.78}>
+                      <Ionicons name="call" size={17} color="#111827" />
+                    </TouchableOpacity>
+                    <Text
+                      selectable
+                      numberOfLines={1}
+                      style={orderStyles.callQuickActionPhone}>
+                      {contactPhone}
+                    </Text>
+                  </View>
                 ) : null}
                 <TouchableOpacity
                   onPress={triggerSOS}
@@ -1336,21 +1442,7 @@ export default function OrderDetailsScreen() {
             />
           )}
 
-        {/* Payment Modal — shown when driver reaches customer with a cash/pay-at-delivery order */}
-        <PaymentOptionsModal
-          visible={paymentModalVisible}
-          orderId={String(displayOrder.id)}
-          orderNumber={String(
-            (displayOrder as any).orderNumber || displayOrder.id,
-          )}
-          totalAmount={(displayOrder as any).totalAmount || 0}
-          paymentMethod={
-            (displayOrder as any).rawPaymentMethod || displayOrder.paymentType
-          }
-          paymentStatus={(displayOrder as any).paymentStatus || "pending"}
-          onPaymentConfirmed={handlePaymentConfirmed}
-          onClose={() => setPaymentModalVisible(false)}
-        />
+        {orderOverlays}
       </View>
     </SafeAreaView>
   );
@@ -1681,6 +1773,18 @@ const orderStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  callQuickActionWrap: {
+    alignItems: "center",
+    gap: 5,
+    maxWidth: 82,
+  },
+  callQuickActionPhone: {
+    color: "#D1D5DB",
+    fontSize: 9,
+    fontWeight: "800",
+    maxWidth: 82,
+    textAlign: "center",
+  },
   sosQuickAction: {
     width: 46,
     height: 46,
@@ -1690,6 +1794,65 @@ const orderStyles = StyleSheet.create({
     borderColor: "#FECACA",
     alignItems: "center",
     justifyContent: "center",
+  },
+  contactSheetContent: {
+    paddingHorizontal: 22,
+    paddingTop: 10,
+    paddingBottom: 28,
+    alignItems: "center",
+  },
+  contactSheetIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#FFF7ED",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  contactSheetTitle: {
+    color: "#111827",
+    fontSize: 24,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  contactSheetName: {
+    color: "#6B7280",
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 5,
+    maxWidth: "100%",
+    textAlign: "center",
+  },
+  contactSheetCallButton: {
+    width: "100%",
+    minHeight: 52,
+    borderRadius: 26,
+    backgroundColor: "#FF6A00",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 18,
+  },
+  contactSheetCallButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  contactSheetPhone: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "900",
+    marginTop: 14,
+    textAlign: "center",
+  },
+  contactSheetHint: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
+    textAlign: "center",
   },
   stopsCard: {
     backgroundColor: "#FFFFFF",

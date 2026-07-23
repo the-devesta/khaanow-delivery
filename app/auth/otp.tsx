@@ -24,7 +24,7 @@ interface OtpBoxProps {
 }
 
 function OtpBox({ digit, isFocused }: OtpBoxProps) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const [scale] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     if (digit) {
@@ -41,7 +41,7 @@ function OtpBox({ digit, isFocused }: OtpBoxProps) {
         }),
       ]).start();
     }
-  }, [digit]);
+  }, [digit, scale]);
 
   return (
     <Animated.View
@@ -63,7 +63,7 @@ export default function OtpScreen() {
   const phoneNumber = params.phoneNumber as string;
 
   const { sendOtp, verifyOtp, loading, error, clearError } = useWhatsAppAuth();
-  const { setAuthenticated, fetchProfile, getNavigationRoute } = useAuthStore();
+  const { setAuthenticated, fetchProfile } = useAuthStore();
 
   const [resendLoading, setResendLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
@@ -117,7 +117,7 @@ export default function OtpScreen() {
         await fetchProfile();
 
         // Get the correct navigation route based on the latest profile state
-        const route = getNavigationRoute();
+        const route = useAuthStore.getState().getNavigationRoute();
         console.log("🧭 [OTP] Navigating to:", route);
 
         router.replace(route as any);

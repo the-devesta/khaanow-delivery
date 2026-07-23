@@ -175,10 +175,13 @@ export default function AccountPendingScreen() {
     setRefreshing(true);
 
     try {
-      await fetchProfile();
-      if (isApproved) {
+      const latestPartner = await fetchProfile();
+      const approved =
+        latestPartner?.isApproved ?? useAuthStore.getState().isApproved;
+
+      if (approved) {
         console.log("✅ [Pending] User approved! Navigating to home...");
-        router.replace("/(tabs)");
+        router.replace(useAuthStore.getState().getNavigationRoute() as any);
       }
     } catch (error) {
       console.error("❌ [Pending] Failed to refresh:", error);

@@ -1,7 +1,26 @@
+import { Platform } from "react-native";
+
 /**
  * Environment Configuration
  * Centralizes all environment variables for the delivery app
  */
+
+const requiredEnv = (key: string, value?: string) => {
+  if (!value) {
+    throw new Error(`${key} is required. Configure it in Expo/EAS env.`);
+  }
+  return value;
+};
+
+const googleMapsApiKey = requiredEnv(
+  Platform.OS === "ios"
+    ? "EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY"
+    : "EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY",
+  (Platform.OS === "ios"
+    ? process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY
+    : process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY) ||
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+);
 
 const ENV = {
   // API Configuration
@@ -37,6 +56,7 @@ const ENV = {
   // App Configuration
   APP_NAME: process.env.EXPO_PUBLIC_APP_NAME || "KhaaoNow Delivery",
   APP_VERSION: process.env.EXPO_PUBLIC_APP_VERSION || "1.0.0",
+  GOOGLE_MAPS_API_KEY: googleMapsApiKey,
 };
 
 export default ENV;

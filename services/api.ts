@@ -5,12 +5,6 @@ import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { parseApiError } from "@/utils/errorHandler";
 
-// API Configuration
-// Priority order:
-// 1. EXPO_PUBLIC_API_URL environment variable (for production builds)
-// 2. __DEV__ mode: Uses local backend
-// 3. Fallback: Production backend
-
 const getApiUrl = () => {
   // Check environment variable first (set in .env.local or eas.json)
   const envApiUrl =
@@ -21,24 +15,10 @@ const getApiUrl = () => {
     return envApiUrl;
   }
 
-  // Development mode fallback
-  if (__DEV__) {
-    // If you are testing with a local backend, change this to your machine's IP address (e.g., "http://192.168.1.100:3001/api")
-    // Note: 'localhost' will not work on physical devices or Android emulators.
-    const fallbackUrl =
-      "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api";
-    console.log("🌐 [API] DEV mode fallback URL:", fallbackUrl);
-    console.log(
-      "💡 [API] To use a different URL locally, make sure EXPO_PUBLIC_API_URL is loaded by clearing metro cache (npm start -c)",
-    );
-    return fallbackUrl;
-  }
-
-  // Production fallback
-  const productionUrl =
-    "https://5axnuhvpz7h2mjnrp2ledb7nmy0hmwkh.lambda-url.ap-south-1.on.aws/api";
-  console.log("🌐 [API] Using production backend:", productionUrl);
-  return productionUrl;
+  const message =
+    "EXPO_PUBLIC_API_URL is required. Refusing to use a hardcoded backend fallback.";
+  console.error(`🌐 [API] ${message}`);
+  throw new Error(message);
 };
 
 export const API_BASE_URL = getApiUrl();
@@ -111,6 +91,85 @@ interface LoginResponse {
 interface ProfileData {
   name: string;
   email: string;
+}
+
+export type DeliveryPayoutPeriod = "today" | "week" | "month" | "all";
+
+export interface DeliveryPayoutLedgerOrder {
+  id: string;
+  orderNumber: string;
+  restaurantName: string;
+  deliveredAt: string;
+  totalAmount: number;
+  subtotal?: number | null;
+  couponCode?: string | null;
+  couponDiscount?: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  cashCollected: number;
+  earning: number;
+  distanceKm?: number | null;
+  slabLabel?: string | null;
+  fallbackApplied?: boolean;
+}
+
+export interface DeliveryPayoutSettlement {
+  id: string;
+  source?: "settlement" | "legacy_payout";
+  payeeType?: "delivery_partner";
+  amount: number;
+  status: "pending" | "paid";
+  cycle?: "daily" | "weekly" | "manual";
+  periodStart: string;
+  periodEnd: string;
+  paidAt?: string;
+  proofUrl?: string;
+  notes?: string;
+  breakdown?: {
+    orderCount?: number;
+    grossAmount?: number;
+    platformCommission?: number;
+    restaurantEarnings?: number;
+    deliveryEarnings?: number;
+  };
+  createdAt: string;
+}
+
+export interface DeliveryCashRemittance {
+  id: string;
+  amount: number;
+  remittedAt: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface DeliveryPayoutLedger {
+  period: {
+    label: DeliveryPayoutPeriod | string;
+    start: string;
+    end: string;
+  };
+  summary: {
+    totalEarned: number;
+    periodEarned: number;
+    grossPayableAmount?: number;
+    payableAmount: number;
+    cashAdjustedAmount?: number;
+    paidAmount: number;
+    scheduledAmount: number;
+    deliveredOrders: number;
+    periodOrders: number;
+    nextPayoutDate?: string;
+  };
+  cash: {
+    cashInHand: number;
+    totalCollected: number;
+    totalRemitted: number;
+    deliveredCashOrders: number;
+    remittances: DeliveryCashRemittance[];
+  };
+  settlements: DeliveryPayoutSettlement[];
+  orders: DeliveryPayoutLedgerOrder[];
 }
 
 interface DocumentsData {
@@ -881,6 +940,50 @@ export const ApiService = {
       return {
         success: false,
         message: getApiErrorMessage(error, "Failed to request withdrawal"),
+      };
+    }
+  },
+
+  async getPayoutLedger(
+    period: DeliveryPayoutPeriod = "week",
+  ): Promise<ApiResponse<DeliveryPayoutLedger>> {
+    try {
+      const response = await apiClient.get<ApiResponse<DeliveryPayoutLedger>>(
+        `/delivery-partners/payouts/ledger?period=${period}`,
+      );
+      return response;
+    } catch (error: any) {
+      console.error("Get payout ledger error:", error);
+      return {
+        success: false,
+        message: getApiErrorMessage(error, "Failed to get payout ledger"),
+        data: {
+          period: {
+            label: period,
+            start: new Date().toISOString(),
+            end: new Date().toISOString(),
+          },
+          summary: {
+            totalEarned: 0,
+            periodEarned: 0,
+            grossPayableAmount: 0,
+            payableAmount: 0,
+            cashAdjustedAmount: 0,
+            paidAmount: 0,
+            scheduledAmount: 0,
+            deliveredOrders: 0,
+            periodOrders: 0,
+          },
+          cash: {
+            cashInHand: 0,
+            totalCollected: 0,
+            totalRemitted: 0,
+            deliveredCashOrders: 0,
+            remittances: [],
+          },
+          settlements: [],
+          orders: [],
+        },
       };
     }
   },

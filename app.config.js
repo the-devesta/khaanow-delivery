@@ -1,19 +1,27 @@
 // Dynamic Expo config for EAS/Expo builds.
 
-const GOOGLE_MAPS_API_KEY =
-  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
-  process.env.GOOGLE_MAPS_API_KEY ||
-  "AIzaSyAgvK2OviEztEkLdb3dAizrEdLDtP12pzU";
+const GOOGLE_MAPS_ANDROID_API_KEY =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ||
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+const GOOGLE_MAPS_IOS_API_KEY =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY ||
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+if (!GOOGLE_MAPS_ANDROID_API_KEY || !GOOGLE_MAPS_IOS_API_KEY) {
+  throw new Error(
+    "Google Maps API key is required for native map builds. Configure EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY and EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY, or EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.",
+  );
+}
 
 const plugins = [
   "expo-router",
   [
     "expo-splash-screen",
     {
-      image: "./assets/images/logo.png",
+      image: "./assets/images/DeliveryKhaaoNow.png",
       imageWidth: 260,
       resizeMode: "contain",
-      backgroundColor: "#111111",
+      backgroundColor: "#FFD230",
     },
   ],
   "expo-font",
@@ -53,8 +61,8 @@ const plugins = [
   [
     "react-native-maps",
     {
-      iosGoogleMapsApiKey: GOOGLE_MAPS_API_KEY,
-      androidGoogleMapsApiKey: GOOGLE_MAPS_API_KEY,
+      iosGoogleMapsApiKey: GOOGLE_MAPS_IOS_API_KEY,
+      androidGoogleMapsApiKey: GOOGLE_MAPS_ANDROID_API_KEY,
     },
   ],
   "./plugins/withPodfileFix.js",
@@ -65,7 +73,7 @@ module.exports = {
   expo: {
     name: "KhaaoNow Delivery",
     slug: "khaaonow-delivery",
-    version: "1.0.9",
+    version: "1.0.10",
     orientation: "portrait",
     icon: "./assets/images/DeliveryKhaaoNow.png",
     scheme: "khaaonowdelivery",
@@ -96,9 +104,9 @@ module.exports = {
       supportsTablet: false,
       requireFullScreen: true,
       bundleIdentifier: "com.khaaonow.delivery",
-      buildNumber: "2026071605",
+      buildNumber: "2026072301",
       config: {
-        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+        googleMapsApiKey: GOOGLE_MAPS_IOS_API_KEY,
       },
       googleServicesFile:
         process.env.IOS_GOOGLE_SERVICES_PLIST || "./GoogleService-Info.plist",
@@ -107,11 +115,13 @@ module.exports = {
       },
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
-        GMSApiKey: GOOGLE_MAPS_API_KEY,
+        GMSApiKey: GOOGLE_MAPS_IOS_API_KEY,
         LSApplicationQueriesSchemes: ["comgooglemaps"],
         NSLocationWhenInUseUsageDescription:
           "Allow KhaaoNow Delivery to use your location to navigate to pickup and drop-off points.",
         NSLocationAlwaysAndWhenInUseUsageDescription:
+          "Allow KhaaoNow Delivery to use your location in the background so nearby orders can find you even when the app isn't open.",
+        NSLocationAlwaysUsageDescription:
           "Allow KhaaoNow Delivery to use your location in the background so nearby orders can find you even when the app isn't open.",
         UIBackgroundModes: ["location"],
         NSCameraUsageDescription:
@@ -125,10 +135,10 @@ module.exports = {
     android: {
       package: "com.khaaonow.delivery",
       softwareKeyboardLayoutMode: "resize",
-      versionCode: 2026071604,
+      versionCode: 2026072301,
       config: {
         googleMaps: {
-          apiKey: GOOGLE_MAPS_API_KEY,
+          apiKey: GOOGLE_MAPS_ANDROID_API_KEY,
         },
       },
       googleServicesFile:

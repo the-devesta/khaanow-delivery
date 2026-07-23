@@ -5,17 +5,13 @@
  */
 import { Ionicons } from "@expo/vector-icons";
 import {
-  IOSGlassSurface,
-  supportsLiquidGlass,
-} from "@/components/ui/ios-liquid-glass";
-import React, { useEffect, useRef, useState } from "react";
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetScrollView,
+} from "@gorhom/bottom-sheet";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
-  Dimensions,
   Keyboard,
-  Modal,
-  Platform,
-  Pressable,
   Text,
   TouchableOpacity,
   View,
@@ -37,8 +33,6 @@ interface Props {
   onClose: () => void;
 }
 
-const { height } = Dimensions.get("window");
-
 type SubView = "menu" | "cod_otp" | "payment_link" | "upi_qr";
 
 export default function PaymentOptionsModal({
@@ -51,9 +45,13 @@ export default function PaymentOptionsModal({
   onPaymentConfirmed,
   onClose,
 }: Props) {
-  const slideAnim = useRef(new Animated.Value(height)).current;
-  const keyboardOffset = useRef(new Animated.Value(0)).current;
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const closingRef = useRef(false);
   const [subView, setSubView] = useState<SubView>("menu");
+  const snapPoints = useMemo(
+    () => (subView === "menu" ? ["58%", "82%"] : ["72%", "94%"]),
+    [subView],
+  );
 
   // Determine payment type from order's paymentMethod field
   const payType: DeliveryPaymentType =
@@ -65,54 +63,40 @@ export default function PaymentOptionsModal({
 
   useEffect(() => {
     if (visible) {
+      closingRef.current = false;
       setSubView("menu");
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: false,
-        tension: 65,
-        friction: 11,
-      }).start();
+      requestAnimationFrame(() => sheetRef.current?.present());
     } else {
-      Animated.timing(slideAnim, {
-        toValue: height,
-        duration: 250,
-        useNativeDriver: false,
-      }).start();
+      sheetRef.current?.dismiss();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
-
-  useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const animateKeyboard = (toValue: number, duration = 220) => {
-      Animated.timing(keyboardOffset, {
-        toValue,
-        duration,
-        useNativeDriver: false,
-      }).start();
-    };
-
-    const showSub = Keyboard.addListener(showEvent, (event) => {
-      animateKeyboard(event.endCoordinates?.height || 0, event.duration || 220);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, (event) => {
-      animateKeyboard(0, event.duration || 200);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, [keyboardOffset]);
 
   const handleClose = () => {
     Keyboard.dismiss();
-    onClose();
+    closingRef.current = true;
+    sheetRef.current?.dismiss();
   };
+
+  const handleDismiss = useCallback(() => {
+    Keyboard.dismiss();
+    if (visible || closingRef.current) {
+      closingRef.current = false;
+      onClose();
+    }
+  }, [onClose, visible]);
+
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        opacity={0.5}
+        pressBehavior="close"
+      />
+    ),
+    [],
+  );
 
   const alreadyPaid =
     paymentStatus === "paid" ||
@@ -120,44 +104,21 @@ export default function PaymentOptionsModal({
     payType === "prepaid";
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
-      onRequestClose={handleClose}>
-      <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}>
-      <Pressable
-        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        onPress={handleClose}
-      />
-      <Animated.View
-        style={{
-          position: "absolute",
-          bottom: keyboardOffset,
-          left: 0,
-          right: 0,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          transform: [{ translateY: slideAnim }],
-        }}>
-        <IOSGlassSurface
-          shape="rect"
-          cornerRadius={24}
-          intensity={supportsLiquidGlass ? 40 : 0}
-          fallbackBackgroundColor={
-            supportsLiquidGlass ? "rgba(255,255,255,0.80)" : "#fff"
-          }
-          fallbackBorderColor="rgba(255,255,255,0.72)"
-          style={{
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            paddingBottom: 34,
-          }}>
+    <BottomSheetModal
+      ref={sheetRef}
+      snapPoints={snapPoints}
+      enablePanDownToClose
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      backdropComponent={renderBackdrop}
+      backgroundStyle={{ backgroundColor: "#FFFFFF", borderRadius: 28 }}
+      handleIndicatorStyle={{ backgroundColor: "#D1D5DB", width: 42 }}
+      onDismiss={handleDismiss}>
+      <BottomSheetScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 34 }}>
         {/* Handle + Header */}
-        <View className="items-center pt-3 pb-4 px-6">
-          <View className="w-10 h-1 bg-gray-200 rounded-full mb-4" />
+        <View className="items-center pt-1 pb-4 px-6">
           <View className="flex-row items-center justify-between w-full">
             {subView !== "menu" ? (
               <TouchableOpacity
@@ -291,10 +252,8 @@ export default function PaymentOptionsModal({
             }}
           />
         )}
-        </IOSGlassSurface>
-      </Animated.View>
-      </View>
-    </Modal>
+      </BottomSheetScrollView>
+    </BottomSheetModal>
   );
 }
 

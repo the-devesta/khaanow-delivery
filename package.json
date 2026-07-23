@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@gorhom/bottom-sheet": "^5.2.14",
     "@react-native-async-storage/async-storage": "2.2.0",
     "axios": "^1.13.2",
     "expo": "~56.0.16",
@@ -83,6 +84,7 @@
     "@types/react": "~19.2.14",
     "babel-plugin-react-compiler": "^1.0.0",
     "babel-preset-expo": "~56.0.0",
+    "baseline-browser-mapping": "^2.11.1",
     "eas-cli": "^18.10.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~56.0.4",

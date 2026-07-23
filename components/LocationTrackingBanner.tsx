@@ -14,6 +14,7 @@ interface LocationTrackingBannerProps {
   backgroundPermissionDenied: boolean;
   lastSuccessfulUpdateAt: number | null;
   onRetry: () => void;
+  className?: string;
 }
 
 export default function LocationTrackingBanner({
@@ -23,6 +24,7 @@ export default function LocationTrackingBanner({
   backgroundPermissionDenied,
   lastSuccessfulUpdateAt,
   onRetry,
+  className = "mx-4 mt-3",
 }: LocationTrackingBannerProps) {
   // Staleness is time-based, not driven by a prop change - tick every 15s
   // while online so the banner actually appears/disappears without
@@ -68,7 +70,8 @@ export default function LocationTrackingBanner({
       };
 
   return (
-    <View className="mx-4 mt-3 rounded-2xl bg-red-50 border border-red-200 px-4 py-3 flex-row items-center justify-between">
+    <View
+      className={`${className} rounded-2xl bg-red-50 border border-red-200 px-4 py-3 flex-row items-center justify-between`}>
       <View className="flex-1 pr-3">
         <Text className="text-red-700 font-bold text-sm">{title}</Text>
         <Text className="text-red-600/80 text-xs mt-0.5">{message}</Text>

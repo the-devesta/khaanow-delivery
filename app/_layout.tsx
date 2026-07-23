@@ -7,6 +7,7 @@ import {
 } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AppStatusGate from "@/components/AppStatusGate";
@@ -22,60 +23,34 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider
-          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-        >
-          <AppStatusGate>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="splash" options={{ headerShown: false }} />
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="auth/login" options={{ headerShown: false }} />
-              <Stack.Screen name="auth/otp" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="registration/basic-details"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="registration/vehicle-details"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="registration/kyc-documents"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="registration/profile-photo"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="registration/bank-details"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="registration/review-submit"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="registration/account-pending"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="registration/account-rejected"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="modal"
-                options={{
-                  presentation: "modal",
-                  title: "Profile",
-                  headerShown: true,
-                }}
-              />
-            </Stack>
-          </AppStatusGate>
-          <StatusBar style="auto" />
-        </ThemeProvider>
+        <BottomSheetModalProvider>
+          <ThemeProvider
+            value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+          >
+            <AppStatusGate>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="splash" options={{ headerShown: false }} />
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+                <Stack.Screen name="auth/otp" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="registration"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="modal"
+                  options={{
+                    presentation: "modal",
+                    title: "Profile",
+                    headerShown: true,
+                  }}
+                />
+              </Stack>
+            </AppStatusGate>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </BottomSheetModalProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -1,6 +1,7 @@
 import { useOrderStore } from "@/store/orders";
 import { usePartnerStore } from "@/store/partner";
 import { BACKGROUND_LOCATION_TASK } from "@/tasks/backgroundLocationTask";
+import Constants from "expo-constants";
 import * as Location from "expo-location";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, AppStateStatus } from "react-native";
@@ -28,6 +29,7 @@ interface LocationTrackingState {
 // every 30s. Idle riders stay on the caller-provided (slow) profile.
 const ACTIVE_DELIVERY_UPDATE_INTERVAL = 5000; // 5 seconds
 const ACTIVE_DELIVERY_DISTANCE_THRESHOLD = 10; // 10 meters
+const IS_EXPO_GO = Constants.appOwnership === "expo";
 
 export function useLocationTracking(options: LocationTrackingOptions = {}) {
   const {
@@ -82,20 +84,30 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
         error: null,
       }));
 
-      // Background permission is separate from foreground and can be denied
-      // independently (or unsupported on some OS versions) - don't block
-      // foreground tracking on it, but it's required for the background
-      // task to actually receive updates while the app isn't focused.
-      try {
-        const { status: backgroundStatus } =
-          await Location.requestBackgroundPermissionsAsync();
+      if (IS_EXPO_GO) {
+        // Expo Go cannot carry this app's Info.plist background-location keys
+        // or background task capabilities. Keep foreground tracking alive for
+        // testing, and let real dev/prod builds request background access.
         setState((prev) => ({
           ...prev,
-          backgroundPermissionDenied: backgroundStatus !== "granted",
+          backgroundPermissionDenied: false,
         }));
-      } catch (error) {
-        console.warn("Background location permission request failed:", error);
-        setState((prev) => ({ ...prev, backgroundPermissionDenied: true }));
+      } else {
+        // Background permission is separate from foreground and can be denied
+        // independently (or unsupported on some OS versions) - don't block
+        // foreground tracking on it, but it's required for the background
+        // task to actually receive updates while the app isn't focused.
+        try {
+          const { status: backgroundStatus } =
+            await Location.requestBackgroundPermissionsAsync();
+          setState((prev) => ({
+            ...prev,
+            backgroundPermissionDenied: backgroundStatus !== "granted",
+          }));
+        } catch (error) {
+          console.warn("Background location permission request failed:", error);
+          setState((prev) => ({ ...prev, backgroundPermissionDenied: true }));
+        }
       }
 
       return true;
@@ -115,6 +127,11 @@ export function useLocationTracking(options: LocationTrackingOptions = {}) {
   // below get throttled or fully paused in that state, which previously let
   // "online" riders silently go stale and drop out of dispatch eligibility.
   const startBackgroundTracking = useCallback(async () => {
+    if (IS_EXPO_GO) {
+      setState((prev) => ({ ...prev, backgroundPermissionDenied: false }));
+      return;
+    }
+
     try {
       const { status: backgroundStatus } =
         await Location.getBackgroundPermissionsAsync();

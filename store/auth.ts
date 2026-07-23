@@ -56,7 +56,7 @@ interface AuthState {
   setPartner: (partner: DeliveryPartner | null) => void;
   logout: () => Promise<void>;
   initializeAuth: () => Promise<void>;
-  fetchProfile: () => Promise<void>;
+  fetchProfile: () => Promise<DeliveryPartner | null>;
   updateProfile: (updates: Partial<DeliveryPartner>) => void;
   updateOnboardingStatus: (status: string, progress: number) => Promise<void>;
   getNavigationRoute: () => string;
@@ -340,12 +340,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
 
         await get().setPartner(partner);
+        return partner;
       } else {
         console.warn("⚠️ [Auth] Failed to fetch profile:", response.message);
       }
     } catch (error) {
       console.error("❌ [Auth] Failed to fetch profile:", error);
     }
+
+    return null;
   },
 
   updateProfile: (updates) => {
@@ -381,6 +384,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     );
     const approved = partner?.isApproved || isApproved;
     const progress = partner?.onboardingProgress || get().onboardingProgress || 0;
+    const profileLooksComplete = Boolean(partner?.name && partner?.email);
 
     // Check for rejection
     if (status === OnboardingStatus.REJECTED) {
@@ -389,7 +393,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     // Registration completed - check approval status
-    if (status === OnboardingStatus.COMPLETED || (approved && progress >= 100)) {
+    if (
+      status === OnboardingStatus.COMPLETED ||
+      (approved && (progress >= 100 || profileLooksComplete))
+    ) {
       if (approved) {
         console.log("➡️ [Auth] Route: /(tabs) (approved)");
         return "/(tabs)";

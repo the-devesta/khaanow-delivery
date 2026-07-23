@@ -10,7 +10,7 @@ import { SafeBlurView } from "@/components/ui/safe-blur-view";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Formik } from "formik";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -28,8 +28,41 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function BasicDetailsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const { updateOnboardingStatus } = useAuthStore();
+  const {
+    updateOnboardingStatus,
+    initializeAuth,
+    fetchProfile,
+    getNavigationRoute,
+  } = useAuthStore();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const leaveIfAlreadyOnboarded = async () => {
+      try {
+        await initializeAuth();
+        await fetchProfile();
+
+        if (!mounted) {
+          return;
+        }
+
+        const route = useAuthStore.getState().getNavigationRoute();
+        if (route !== "/registration/basic-details") {
+          router.replace(route as never);
+        }
+      } catch (error) {
+        console.error("❌ [BasicDetails] Onboarding route repair failed:", error);
+      }
+    };
+
+    leaveIfAlreadyOnboarded();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetchProfile, getNavigationRoute, initializeAuth, router]);
 
   const handleNext = async (values: { name: string; email: string }) => {
     setLoading(true);
@@ -121,7 +154,7 @@ export default function BasicDetailsScreen() {
                 Personal Info
               </Text>
               <Text className="text-lg text-white/80 font-medium tracking-wide">
-                Let's start with the basics.
+                Let&apos;s start with the basics.
               </Text>
             </View>
 

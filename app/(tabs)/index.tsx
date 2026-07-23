@@ -277,22 +277,6 @@ export default function HomeScreen() {
     <View className="flex-1 bg-[#F3E0D9]">
       <StatusBar barStyle="dark-content" backgroundColor="#F3E0D9" />
 
-      <LocationTrackingBanner
-        isOnline={isOnline}
-        isTracking={locationTracking.isTracking}
-        permissionStatus={locationTracking.permissionStatus}
-        backgroundPermissionDenied={locationTracking.backgroundPermissionDenied}
-        lastSuccessfulUpdateAt={locationTracking.lastSuccessfulUpdateAt}
-        onRetry={() => {
-          // stopTracking() then startTracking() instead of starting on top
-          // of an already-running session — startTracking() doesn't clear
-          // its own watchers/intervals first, so calling it twice would
-          // leak an orphaned duplicate watcher.
-          locationTracking.stopTracking();
-          void locationTracking.startTracking();
-        }}
-      />
-
       {/* Background Gradient Elements for depth */}
       <View className="absolute top-0 left-0 right-0 h-96 opacity-60">
         <LinearGradient
@@ -343,6 +327,25 @@ export default function HomeScreen() {
               <View className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
             </TouchableOpacity>
           </View>
+
+          <LocationTrackingBanner
+            className="mb-6"
+            isOnline={isOnline}
+            isTracking={locationTracking.isTracking}
+            permissionStatus={locationTracking.permissionStatus}
+            backgroundPermissionDenied={
+              locationTracking.backgroundPermissionDenied
+            }
+            lastSuccessfulUpdateAt={locationTracking.lastSuccessfulUpdateAt}
+            onRetry={() => {
+              // stopTracking() then startTracking() instead of starting on top
+              // of an already-running session — startTracking() doesn't clear
+              // its own watchers/intervals first, so calling it twice would
+              // leak an orphaned duplicate watcher.
+              locationTracking.stopTracking();
+              void locationTracking.startTracking();
+            }}
+          />
 
           {/* Status Toggle Card */}
           <View className="mb-6 bg-white rounded-[32px] p-1" style={glassStyle}>

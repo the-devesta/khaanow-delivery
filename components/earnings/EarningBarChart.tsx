@@ -15,14 +15,20 @@ export default function EarningBarChart({
   maxValue,
 }: EarningBarChartProps) {
   const chartHeight = 160;
+  const isDense = data.length > 14;
+  const showXAxisLabel = (index: number) => {
+    if (!isDense) return true;
+    return index === 0 || index === data.length - 1 || (index + 1) % 5 === 0;
+  };
 
   return (
-    <View className="w-full">
+    <View className="w-full overflow-hidden">
       <View
         style={{
           flexDirection: "row",
           alignItems: "flex-end",
           height: chartHeight,
+          paddingHorizontal: isDense ? 6 : 2,
         }}
       >
         {data.map((item, index) => {
@@ -41,11 +47,11 @@ export default function EarningBarChart({
                 alignItems: "center",
                 justifyContent: "flex-end",
                 height: chartHeight,
-                paddingHorizontal: 2,
+                paddingHorizontal: isDense ? 1 : 2,
               }}
             >
               {/* Value label */}
-              {item.value > 0 && (
+              {item.value > 0 && !isDense && (
                 <Text
                   style={{
                     fontSize: 9,
@@ -66,7 +72,8 @@ export default function EarningBarChart({
               {/* Bar */}
               <View
                 style={{
-                  width: "75%",
+                  width: isDense ? 7 : "75%",
+                  maxWidth: 18,
                   height: barH,
                   borderRadius: 12,
                   backgroundColor: isToday
@@ -111,19 +118,33 @@ export default function EarningBarChart({
       <View className="h-px bg-gray-100 mt-1 mb-2" />
 
       {/* Day labels */}
-      <View style={{ flexDirection: "row" }}>
+      <View
+        style={{
+          flexDirection: "row",
+          paddingHorizontal: isDense ? 6 : 2,
+        }}>
         {data.map((item, index) => {
           const isToday = index === data.length - 1;
           return (
-            <View key={index} style={{ flex: 1, alignItems: "center" }}>
+            <View
+              key={index}
+              style={{
+                flex: 1,
+                alignItems: "center",
+                minHeight: 22,
+              }}>
               <Text
+                numberOfLines={1}
                 style={{
-                  fontSize: data.length > 10 ? 8 : 10,
+                  fontSize: isDense ? 9 : 10,
                   fontWeight: isToday ? "800" : "600",
-                  color: isToday ? "#F59E0B" : "#9CA3AF",
-                }}
-              >
-                {item.label}
+                  color: isToday
+                    ? "#F59E0B"
+                    : showXAxisLabel(index)
+                      ? "#9CA3AF"
+                      : "transparent",
+                }}>
+                {showXAxisLabel(index) ? item.label : "•"}
               </Text>
               {isToday && (
                 <View
