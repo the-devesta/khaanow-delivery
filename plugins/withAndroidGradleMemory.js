@@ -9,6 +9,9 @@ const MEMORY_PROPS = {
   "kotlin.daemon.jvmargs": "-Xmx2g -XX:MaxMetaspaceSize=768m",
 };
 
+const STABLE_GRADLE_DISTRIBUTION =
+  "https\\://services.gradle.org/distributions/gradle-8.14.3-bin.zip";
+
 function upsertGradleProperties(contents) {
   const lines = contents.split(/\r?\n/);
 
@@ -42,6 +45,33 @@ module.exports = function withAndroidGradleMemory(config) {
         gradlePropertiesPath,
         upsertGradleProperties(current)
       );
+
+      const wrapperPath = path.join(
+        config.modRequest.platformProjectRoot,
+        "gradle",
+        "wrapper",
+        "gradle-wrapper.properties"
+      );
+
+      if (fs.existsSync(wrapperPath)) {
+        const wrapperContents = fs.readFileSync(wrapperPath, "utf8");
+        const wrapperLines = wrapperContents.split(/\r?\n/);
+        const nextDistributionLine = `distributionUrl=${STABLE_GRADLE_DISTRIBUTION}`;
+        const distributionIndex = wrapperLines.findIndex((line) =>
+          line.startsWith("distributionUrl=")
+        );
+
+        if (distributionIndex >= 0) {
+          wrapperLines[distributionIndex] = nextDistributionLine;
+        } else {
+          wrapperLines.push(nextDistributionLine);
+        }
+
+        fs.writeFileSync(
+          wrapperPath,
+          `${wrapperLines.filter(Boolean).join("\n")}\n`
+        );
+      }
 
       return config;
     },
