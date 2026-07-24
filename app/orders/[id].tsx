@@ -248,6 +248,7 @@ export default function OrderDetailsScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentModalOpenTrigger, setPaymentModalOpenTrigger] = useState(0);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [proofUploading, setProofUploading] = useState(false);
   const [reportingIssue, setReportingIssue] = useState(false);
@@ -604,6 +605,32 @@ export default function OrderDetailsScreen() {
     }
   };
 
+  const isPaymentAlreadySettled =
+    displayOrder?.paymentType === "online" ||
+    paymentConfirmed ||
+    displayOrder?.paymentStatus === "completed" ||
+    displayOrder?.paymentStatus === "paid";
+
+  const isCollectPaymentAction =
+    (displayOrder.status === "delivery_partner_reached_user_dest" ||
+      displayOrder.status === "on_the_way") &&
+    !isPaymentAlreadySettled;
+
+  const openPaymentModal = useCallback(() => {
+    setLoading(false);
+    setPaymentModalVisible(true);
+    setPaymentModalOpenTrigger((value) => value + 1);
+  }, []);
+
+  const handlePrimaryActionPress = () => {
+    if (isCollectPaymentAction) {
+      openPaymentModal();
+      return;
+    }
+
+    void handleAction();
+  };
+
   const handleAction = async () => {
     if (!isActiveOrder) return;
 
@@ -631,10 +658,8 @@ export default function OrderDetailsScreen() {
         case "delivery_partner_reached_user_dest":
         case "on_the_way":
           // Always verify customer handoff OTP before proof/photo completion.
-          setLoading(false);
-          setPaymentModalVisible(true);
+          openPaymentModal();
           return;
-          break;
       }
       // Refresh order display after status change
       await fetchOrder();
@@ -826,6 +851,7 @@ export default function OrderDetailsScreen() {
       {/* Payment sheet — must be mounted in normal and fullscreen navigation modes. */}
       <PaymentOptionsModal
         visible={paymentModalVisible}
+        openTrigger={paymentModalOpenTrigger}
         orderId={String(displayOrder.id)}
         orderNumber={String((displayOrder as any).orderNumber || displayOrder.id)}
         totalAmount={(displayOrder as any).totalAmount || 0}
@@ -966,7 +992,7 @@ export default function OrderDetailsScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={navStyles.actionBtn}
-              onPress={handleAction}
+              onPress={handlePrimaryActionPress}
               disabled={loading}
               activeOpacity={0.85}>
               {loading ? (
@@ -1437,7 +1463,7 @@ export default function OrderDetailsScreen() {
           displayOrder.status !== "returning_to_restaurant" && (
             <ActionFooter
               label={proofUploading ? "Uploading Proof..." : getActionLabel()}
-              onPress={handleAction}
+              onPress={handlePrimaryActionPress}
               loading={loading || proofUploading}
             />
           )}

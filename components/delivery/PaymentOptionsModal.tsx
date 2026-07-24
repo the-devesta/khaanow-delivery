@@ -24,6 +24,7 @@ export type DeliveryPaymentType = "prepaid" | "cod" | "pay_at_delivery";
 
 interface Props {
   visible: boolean;
+  openTrigger?: number;
   orderId: string;
   orderNumber: string;
   totalAmount: number;
@@ -37,6 +38,7 @@ type SubView = "menu" | "cod_otp" | "payment_link" | "upi_qr";
 
 export default function PaymentOptionsModal({
   visible,
+  openTrigger = 0,
   orderId,
   orderNumber,
   totalAmount,
@@ -62,14 +64,20 @@ export default function PaymentOptionsModal({
         : "pay_at_delivery";
 
   useEffect(() => {
-    if (visible) {
-      closingRef.current = false;
-      setSubView("menu");
-      requestAnimationFrame(() => sheetRef.current?.present());
-    } else {
+    if (!visible) {
       sheetRef.current?.dismiss();
+      return;
     }
-  }, [visible]);
+
+    closingRef.current = false;
+    setSubView("menu");
+
+    const raf = requestAnimationFrame(() => {
+      sheetRef.current?.present();
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [visible, openTrigger]);
 
   const handleClose = () => {
     Keyboard.dismiss();
