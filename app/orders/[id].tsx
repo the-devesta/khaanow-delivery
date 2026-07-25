@@ -1,4 +1,6 @@
-import PaymentOptionsModal from "@/components/delivery/PaymentOptionsModal";
+import PaymentOptionsModal, {
+  PaymentOptionsModalHandle,
+} from "@/components/delivery/PaymentOptionsModal";
 import DeliveryMap, {
   RouteInfo,
   haversineM,
@@ -55,6 +57,12 @@ const STEPS = [
 ];
 
 const CONTACT_SHEET_SNAP_POINTS = ["34%"];
+
+const debugPaymentSheet = (message: string, details?: Record<string, unknown>) => {
+  if (__DEV__) {
+    console.log(`[PaymentSheetDebug] ${message}`, details ?? "");
+  }
+};
 
 const renderContactBackdrop = (props: any) => (
   <BottomSheetBackdrop
@@ -248,7 +256,7 @@ export default function OrderDetailsScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [paymentModalOpenTrigger, setPaymentModalOpenTrigger] = useState(0);
+  const paymentSheetRef = useRef<PaymentOptionsModalHandle>(null);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [proofUploading, setProofUploading] = useState(false);
   const [reportingIssue, setReportingIssue] = useState(false);
@@ -357,6 +365,21 @@ export default function OrderDetailsScreen() {
     await fetchOrder();
     setRefreshing(false);
   };
+
+  const openPaymentModal = useCallback(() => {
+    debugPaymentSheet("openPaymentModal called", {
+      orderId: id,
+      previousVisible: paymentModalVisible,
+    });
+    setLoading(false);
+    setPaymentModalVisible(true);
+    requestAnimationFrame(() => {
+      debugPaymentSheet("parent presenting sheet", {
+        orderId: id,
+      });
+      paymentSheetRef.current?.present();
+    });
+  }, [id, paymentModalVisible]);
 
   // Advance turn-by-turn step when driver gets close to step end-point
   useEffect(() => {
@@ -616,13 +639,22 @@ export default function OrderDetailsScreen() {
       displayOrder.status === "on_the_way") &&
     !isPaymentAlreadySettled;
 
-  const openPaymentModal = useCallback(() => {
-    setLoading(false);
-    setPaymentModalVisible(true);
-    setPaymentModalOpenTrigger((value) => value + 1);
-  }, []);
-
   const handlePrimaryActionPress = () => {
+    debugPaymentSheet("primary action pressed", {
+      orderId: displayOrder.id,
+      orderNumber: (displayOrder as any).orderNumber,
+      status: displayOrder.status,
+      paymentType: displayOrder.paymentType,
+      rawPaymentMethod: (displayOrder as any).rawPaymentMethod,
+      paymentStatus: (displayOrder as any).paymentStatus,
+      paymentConfirmed,
+      isPaymentAlreadySettled,
+      isCollectPaymentAction,
+      actionLabel: getActionLabel(),
+      loading,
+      paymentModalVisible,
+      isNavigating,
+    });
     if (isCollectPaymentAction) {
       openPaymentModal();
       return;
@@ -658,6 +690,14 @@ export default function OrderDetailsScreen() {
         case "delivery_partner_reached_user_dest":
         case "on_the_way":
           // Always verify customer handoff OTP before proof/photo completion.
+          debugPaymentSheet("handleAction reached collect-payment status", {
+            orderId: displayOrder.id,
+            orderNumber: (displayOrder as any).orderNumber,
+            status: displayOrder.status,
+            paymentType: displayOrder.paymentType,
+            rawPaymentMethod: (displayOrder as any).rawPaymentMethod,
+            paymentStatus: (displayOrder as any).paymentStatus,
+          });
           openPaymentModal();
           return;
       }
@@ -850,8 +890,8 @@ export default function OrderDetailsScreen() {
     <>
       {/* Payment sheet — must be mounted in normal and fullscreen navigation modes. */}
       <PaymentOptionsModal
+        ref={paymentSheetRef}
         visible={paymentModalVisible}
-        openTrigger={paymentModalOpenTrigger}
         orderId={String(displayOrder.id)}
         orderNumber={String((displayOrder as any).orderNumber || displayOrder.id)}
         totalAmount={(displayOrder as any).totalAmount || 0}
@@ -860,7 +900,13 @@ export default function OrderDetailsScreen() {
         }
         paymentStatus={(displayOrder as any).paymentStatus || "pending"}
         onPaymentConfirmed={handlePaymentConfirmed}
-        onClose={() => setPaymentModalVisible(false)}
+        onClose={() => {
+          debugPaymentSheet("payment modal onClose", {
+            orderId: displayOrder.id,
+            orderNumber: (displayOrder as any).orderNumber,
+          });
+          setPaymentModalVisible(false);
+        }}
       />
 
       <BottomSheetModal
@@ -1522,6 +1568,7 @@ const navStyles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 30,
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

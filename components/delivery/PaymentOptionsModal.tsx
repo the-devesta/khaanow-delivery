@@ -9,7 +9,14 @@ import {
   BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Keyboard,
   Text,
@@ -24,7 +31,6 @@ export type DeliveryPaymentType = "prepaid" | "cod" | "pay_at_delivery";
 
 interface Props {
   visible: boolean;
-  openTrigger?: number;
   orderId: string;
   orderNumber: string;
   totalAmount: number;
@@ -36,17 +42,30 @@ interface Props {
 
 type SubView = "menu" | "cod_otp" | "payment_link" | "upi_qr";
 
-export default function PaymentOptionsModal({
-  visible,
-  openTrigger = 0,
-  orderId,
-  orderNumber,
-  totalAmount,
-  paymentMethod,
-  paymentStatus,
-  onPaymentConfirmed,
-  onClose,
-}: Props) {
+export type PaymentOptionsModalHandle = {
+  present: () => void;
+  dismiss: () => void;
+};
+
+const debugPaymentSheet = (message: string, details?: Record<string, unknown>) => {
+  if (__DEV__) {
+    console.log(`[PaymentSheetDebug] ${message}`, details ?? "");
+  }
+};
+
+function PaymentOptionsModal(
+  {
+    visible,
+    orderId,
+    orderNumber,
+    totalAmount,
+    paymentMethod,
+    paymentStatus,
+    onPaymentConfirmed,
+    onClose,
+  }: Props,
+  ref: React.ForwardedRef<PaymentOptionsModalHandle>,
+) {
   const sheetRef = useRef<BottomSheetModal>(null);
   const closingRef = useRef(false);
   const [subView, setSubView] = useState<SubView>("menu");
@@ -55,43 +74,44 @@ export default function PaymentOptionsModal({
     [subView],
   );
 
-  // Determine payment type from order's paymentMethod field
+  // Determine payment type from order's paymentMethod field.
+  // Backend values are not perfectly consistent across old/new orders:
+  // examples seen: COD, cash, online, razorpay, pay_at_delivery.
+  const normalizedPaymentMethod = paymentMethod?.toLowerCase?.().trim() ?? "";
   const payType: DeliveryPaymentType =
-    paymentMethod === "cash"
+    ["cod", "cash", "cash_on_delivery", "pay_on_delivery"].includes(
+      normalizedPaymentMethod,
+    )
       ? "cod"
-      : paymentMethod === "razorpay" || paymentMethod === "online"
+      : ["razorpay", "online", "prepaid", "paid_online"].includes(
+            normalizedPaymentMethod,
+          )
         ? "prepaid"
         : "pay_at_delivery";
 
-  useEffect(() => {
-    if (!visible) {
-      sheetRef.current?.dismiss();
-      return;
-    }
-
-    closingRef.current = false;
-    setSubView("menu");
-
-    const raf = requestAnimationFrame(() => {
-      sheetRef.current?.present();
-    });
-
-    return () => cancelAnimationFrame(raf);
-  }, [visible, openTrigger]);
-
   const handleClose = () => {
+    debugPaymentSheet("modal close button pressed", {
+      orderId,
+      orderNumber,
+    });
     Keyboard.dismiss();
     closingRef.current = true;
     sheetRef.current?.dismiss();
   };
 
   const handleDismiss = useCallback(() => {
+    debugPaymentSheet("modal dismissed", {
+      orderId,
+      orderNumber,
+      visible,
+      closing: closingRef.current,
+    });
     Keyboard.dismiss();
     if (visible || closingRef.current) {
       closingRef.current = false;
       onClose();
     }
-  }, [onClose, visible]);
+  }, [onClose, visible, orderId, orderNumber]);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -111,6 +131,35 @@ export default function PaymentOptionsModal({
     paymentStatus === "completed" ||
     payType === "prepaid";
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      present: () => {
+        debugPaymentSheet("imperative present", {
+          orderId,
+          orderNumber,
+          paymentMethod,
+          paymentStatus,
+          payType,
+          visible,
+        });
+        Keyboard.dismiss();
+        closingRef.current = false;
+        setSubView("menu");
+        sheetRef.current?.present();
+      },
+      dismiss: () => {
+        debugPaymentSheet("imperative dismiss", {
+          orderId,
+          orderNumber,
+        });
+        closingRef.current = true;
+        sheetRef.current?.dismiss();
+      },
+    }),
+    [orderId, orderNumber, paymentMethod, paymentStatus, payType, visible],
+  );
+
   return (
     <BottomSheetModal
       ref={sheetRef}
@@ -121,6 +170,13 @@ export default function PaymentOptionsModal({
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#FFFFFF", borderRadius: 28 }}
       handleIndicatorStyle={{ backgroundColor: "#D1D5DB", width: 42 }}
+      onChange={(index) =>
+        debugPaymentSheet("bottom sheet index changed", {
+          orderId,
+          orderNumber,
+          index,
+        })
+      }
       onDismiss={handleDismiss}>
       <BottomSheetScrollView
         keyboardShouldPersistTaps="handled"
@@ -194,19 +250,40 @@ export default function PaymentOptionsModal({
                   icon="cash-outline"
                   title="Verify Cash with OTP"
                   subtitle="Send OTP to customer to confirm cash receipt"
-                  onPress={() => setSubView("cod_otp")}
+                  onPress={() => {
+                    debugPaymentSheet("option selected", {
+                      orderId,
+                      orderNumber,
+                      option: "cod_otp",
+                    });
+                    setSubView("cod_otp");
+                  }}
                 />
                 <OptionButton
                   icon="qr-code-outline"
                   title="Accept UPI / QR Payment"
                   subtitle="Customer scans QR and pays digitally instead of cash"
-                  onPress={() => setSubView("upi_qr")}
+                  onPress={() => {
+                    debugPaymentSheet("option selected", {
+                      orderId,
+                      orderNumber,
+                      option: "upi_qr",
+                    });
+                    setSubView("upi_qr");
+                  }}
                 />
                 <OptionButton
                   icon="link-outline"
                   title="Send Payment Link"
                   subtitle="Customer taps a link to pay online via Razorpay"
-                  onPress={() => setSubView("payment_link")}
+                  onPress={() => {
+                    debugPaymentSheet("option selected", {
+                      orderId,
+                      orderNumber,
+                      option: "payment_link",
+                    });
+                    setSubView("payment_link");
+                  }}
                 />
               </View>
             ) : (
@@ -216,13 +293,27 @@ export default function PaymentOptionsModal({
                   icon="link-outline"
                   title="Send Payment Link"
                   subtitle="Customer pays via Razorpay link on their phone"
-                  onPress={() => setSubView("payment_link")}
+                  onPress={() => {
+                    debugPaymentSheet("option selected", {
+                      orderId,
+                      orderNumber,
+                      option: "payment_link",
+                    });
+                    setSubView("payment_link");
+                  }}
                 />
                 <OptionButton
                   icon="qr-code-outline"
                   title="Show UPI QR Code"
                   subtitle="Customer scans QR and pays with any UPI app"
-                  onPress={() => setSubView("upi_qr")}
+                  onPress={() => {
+                    debugPaymentSheet("option selected", {
+                      orderId,
+                      orderNumber,
+                      option: "upi_qr",
+                    });
+                    setSubView("upi_qr");
+                  }}
                 />
               </View>
             )}
@@ -294,3 +385,5 @@ function OptionButton({
     </TouchableOpacity>
   );
 }
+
+export default forwardRef<PaymentOptionsModalHandle, Props>(PaymentOptionsModal);
