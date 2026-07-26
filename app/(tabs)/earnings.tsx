@@ -22,6 +22,7 @@ import {
   ScrollView,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -64,6 +65,10 @@ const formatDateTime = (value?: string | Date | null) => {
 export default function EarningsScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 390;
+  const pagePadding = isCompact ? 18 : 24;
+  const sectionStyle = { paddingHorizontal: pagePadding };
   const { orderHistory, fetchOrderHistory } = useOrderStore();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<DayGroup | null>(null);
@@ -273,17 +278,21 @@ export default function EarningsScreen() {
           />
         }
         contentContainerStyle={{
-          paddingBottom: 110,
+          paddingBottom: Math.max(insets.bottom, 12) + 168,
           paddingTop: insets.top + 10,
         }}>
         {/* ── Header ── */}
-        <View className="px-6 pb-5">
+        <View className="pb-5" style={sectionStyle}>
           <View className="flex-row items-center justify-between mb-2">
             <View className="flex-1">
               <Text className="text-sm font-medium text-[#7A7A7A] uppercase tracking-wider">
                 {t("earnings.overview")}
               </Text>
-              <Text className="text-3xl font-extrabold text-[#1A1A1A] mt-1">
+              <Text
+                className="font-extrabold text-[#1A1A1A] mt-1"
+                style={{ fontSize: isCompact ? 28 : 30, lineHeight: isCompact ? 34 : 36 }}
+                numberOfLines={2}
+                adjustsFontSizeToFit>
                 {t("earnings.trackIncome")}
               </Text>
             </View>
@@ -296,7 +305,7 @@ export default function EarningsScreen() {
         </View>
 
         {/* ── Hero Card – Today's Earnings ── */}
-        <View className="px-6 mt-2">
+        <View className="mt-2" style={sectionStyle}>
           <View className="bg-white rounded-[32px] p-1 ">
             <View className="bg-gray-50 rounded-[28px] overflow-hidden">
               <EarningSummaryCard
@@ -320,8 +329,10 @@ export default function EarningsScreen() {
         </View>
 
         {/* ── Mini Stats ── */}
-        <View className="px-6 mt-4 flex-row gap-4">
-          <View className="flex-1 bg-white rounded-[28px] p-5  relative overflow-hidden">
+        <View className="mt-4 flex-row gap-3" style={sectionStyle}>
+          <View
+            className="flex-1 bg-white rounded-[28px] relative overflow-hidden"
+            style={{ padding: isCompact ? 16 : 20 }}>
             <View className="absolute right-0 top-0 w-16 h-16 bg-[#3B82F6]/10 rounded-full -mr-6 -mt-6" />
             <View className="w-10 h-10 bg-[#DBEAFE] rounded-2xl items-center justify-center mb-3">
               <Ionicons name="calendar" size={20} color="#3B82F6" />
@@ -333,7 +344,9 @@ export default function EarningsScreen() {
               ₹{weeklyEarnings.toLocaleString()}
             </Text>
           </View>
-          <View className="flex-1 bg-white rounded-[28px] p-5  relative overflow-hidden">
+          <View
+            className="flex-1 bg-white rounded-[28px] relative overflow-hidden"
+            style={{ padding: isCompact ? 16 : 20 }}>
             <View className="absolute right-0 top-0 w-16 h-16 bg-[#10B981]/10 rounded-full -mr-6 -mt-6" />
             <View className="w-10 h-10 bg-[#D1FAE5] rounded-2xl items-center justify-center mb-3">
               <Ionicons name="checkmark-done" size={20} color="#10B981" />
@@ -348,9 +361,16 @@ export default function EarningsScreen() {
         </View>
 
         {/* ── Payout Visibility ── */}
-        <View className="px-6 mt-4">
-          <View className="bg-white rounded-[28px] p-5 border border-gray-100">
-            <View className="flex-row items-center justify-between mb-3">
+        <View className="mt-4" style={sectionStyle}>
+          <View
+            className="bg-white rounded-[28px] border border-gray-100"
+            style={{ padding: isCompact ? 16 : 20 }}>
+            <View
+              className="items-start justify-between mb-3"
+              style={{
+                flexDirection: isCompact ? "column" : "row",
+                gap: isCompact ? 12 : 8,
+              }}>
               <View className="flex-row items-center flex-1">
                 <View className="w-10 h-10 bg-[#ECFDF5] rounded-2xl items-center justify-center mr-3">
                   <Ionicons name="card-outline" size={20} color="#10B981" />
@@ -368,7 +388,9 @@ export default function EarningsScreen() {
                   </Text>
                 </View>
               </View>
-              <Text className="text-xl font-extrabold text-[#10B981]">
+              <Text
+                className="text-xl font-extrabold text-[#10B981]"
+                style={{ alignSelf: isCompact ? "flex-end" : "center" }}>
                 {formatMoney(
                   ledger?.summary.payableAmount ??
                     payout?.nextPayoutAmount ??
@@ -377,8 +399,8 @@ export default function EarningsScreen() {
               </Text>
             </View>
             <View className="mb-3 rounded-2xl bg-[#F8FAFC] p-3">
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-xs font-medium text-[#6B7280]">
+              <View className="flex-row justify-between mb-2 gap-3">
+                <Text className="text-xs font-medium text-[#6B7280] flex-1">
                   {t("earnings.grossPending")}
                 </Text>
                 <Text className="text-xs font-extrabold text-[#1A1A1A]">
@@ -390,16 +412,16 @@ export default function EarningsScreen() {
                   )}
                 </Text>
               </View>
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-xs font-medium text-[#F97316]">
+              <View className="flex-row justify-between mb-2 gap-3">
+                <Text className="text-xs font-medium text-[#F97316] flex-1">
                   {t("earnings.lessCash")}
                 </Text>
                 <Text className="text-xs font-extrabold text-[#F97316]">
                   -{formatMoney(ledger?.summary.cashAdjustedAmount ?? 0)}
                 </Text>
               </View>
-              <View className="flex-row justify-between border-t border-white pt-2">
-                <Text className="text-xs font-bold text-[#10B981]">
+              <View className="flex-row justify-between border-t border-white pt-2 gap-3">
+                <Text className="text-xs font-bold text-[#10B981] flex-1">
                   {t("earnings.payableAfterCash")}
                 </Text>
                 <Text className="text-sm font-extrabold text-[#10B981]">
@@ -427,7 +449,12 @@ export default function EarningsScreen() {
                 </View>
               ))}
             </View>
-            <View className="mt-4 flex-row items-center justify-between">
+            <View
+              className="mt-4 items-start justify-between"
+              style={{
+                flexDirection: isCompact ? "column" : "row",
+                gap: isCompact ? 12 : 10,
+              }}>
               <Text className="text-xs text-[#6B7280] flex-1">
                 {ledgerLoading
                   ? t("earnings.loadingLedger")
@@ -442,7 +469,8 @@ export default function EarningsScreen() {
                 disabled={requestingPayout || !(payout?.withdrawalAvailable)}
                 className={`px-4 py-2 rounded-full ${
                   payout?.withdrawalAvailable ? "bg-[#10B981]" : "bg-gray-200"
-                }`}>
+                }`}
+                style={{ alignSelf: isCompact ? "flex-end" : "center" }}>
                 <Text className="text-white text-xs font-bold">
                   {requestingPayout
                     ? t("common.requesting")
@@ -454,9 +482,16 @@ export default function EarningsScreen() {
         </View>
 
         {/* ── Cash in hand ── */}
-        <View className="px-6 mt-4">
-          <View className="bg-white rounded-[28px] p-5 border border-orange-100">
-            <View className="flex-row items-center justify-between mb-4">
+        <View className="mt-4" style={sectionStyle}>
+          <View
+            className="bg-white rounded-[28px] border border-orange-100"
+            style={{ padding: isCompact ? 16 : 20 }}>
+            <View
+              className="items-start justify-between mb-4"
+              style={{
+                flexDirection: isCompact ? "column" : "row",
+                gap: isCompact ? 10 : 8,
+              }}>
               <View className="flex-row items-center flex-1">
                 <View className="w-10 h-10 bg-orange-50 rounded-2xl items-center justify-center mr-3">
                   <Ionicons name="cash-outline" size={20} color="#F97316" />
@@ -470,13 +505,19 @@ export default function EarningsScreen() {
                   </Text>
                 </View>
               </View>
-              <Text className="text-xl font-extrabold text-[#F97316]">
+              <Text
+                className="text-xl font-extrabold text-[#F97316]"
+                style={{ alignSelf: isCompact ? "flex-end" : "center" }}>
                 {formatMoney(ledger?.cash.cashInHand ?? 0)}
               </Text>
             </View>
-            <View className="flex-row gap-2">
-              <View className="flex-1 rounded-2xl bg-orange-50 p-3">
-                  <Text className="text-[10px] font-bold uppercase tracking-wide text-orange-500">
+            <View
+              className="gap-2"
+              style={{ flexDirection: isCompact ? "column" : "row" }}>
+              <View
+                className="rounded-2xl bg-orange-50 p-3"
+                style={isCompact ? { width: "100%" } : { flex: 1 }}>
+                <Text className="text-[10px] font-bold uppercase tracking-wide text-orange-500">
                     {t("earnings.collected")}
                 </Text>
                 <Text className="mt-1 text-base font-extrabold text-[#1A1A1A]">
@@ -488,8 +529,10 @@ export default function EarningsScreen() {
                   })}
                 </Text>
               </View>
-              <View className="flex-1 rounded-2xl bg-green-50 p-3">
-                  <Text className="text-[10px] font-bold uppercase tracking-wide text-green-600">
+              <View
+                className="rounded-2xl bg-green-50 p-3"
+                style={isCompact ? { width: "100%" } : { flex: 1 }}>
+                <Text className="text-[10px] font-bold uppercase tracking-wide text-green-600">
                   {t("earnings.handedToAdmin")}
                 </Text>
                 <Text className="mt-1 text-base font-extrabold text-[#1A1A1A]">
@@ -504,9 +547,14 @@ export default function EarningsScreen() {
         </View>
 
         {/* ── Admin payout transactions ── */}
-        <View className="px-6 mt-6">
-          <View className="flex-row items-center justify-between mb-4 ml-1">
-            <Text className="text-lg font-bold text-[#1A1A1A]">
+        <View className="mt-6" style={sectionStyle}>
+          <View
+            className="items-start justify-between mb-4 ml-1"
+            style={{
+              flexDirection: isCompact ? "column" : "row",
+              gap: isCompact ? 12 : 8,
+            }}>
+            <Text className="text-lg font-bold text-[#1A1A1A] flex-1">
               {t("earnings.adminPayoutTransactions")}
             </Text>
             <View className="flex-row bg-white rounded-full p-1">
@@ -561,12 +609,14 @@ export default function EarningsScreen() {
                     </Text>
                     <Text className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[#9CA3AF]">
                       {settlement.source === "legacy_payout"
-                        ? "Legacy payout"
-                        : `${settlement.cycle ?? "manual"} settlement`}
+                        ? t("earnings.legacyPayout")
+                        : t("earnings.manualSettlement", {
+                            cycle: settlement.cycle ?? "manual",
+                          })}
                     </Text>
                     {settlement.proofUrl && (
                       <Text className="mt-1 text-xs font-bold text-[#F97316]">
-                        Payment proof available
+                        {t("earnings.paymentProofAvailable")}
                       </Text>
                     )}
                   </View>
@@ -588,7 +638,7 @@ export default function EarningsScreen() {
         </View>
 
         {/* ── Cash remittance transactions ── */}
-        <View className="px-6 mt-6">
+        <View className="mt-6" style={sectionStyle}>
           <Text className="text-lg font-bold text-[#1A1A1A] mb-4 ml-1">
             {t("earnings.cashPaidToAdmin")}
           </Text>
@@ -633,20 +683,30 @@ export default function EarningsScreen() {
         </View>
 
         {/* ── Chart ── */}
-        <View className="px-6 mt-6">
-          <View className="bg-white rounded-[32px] p-6 ">
+        <View className="mt-6" style={sectionStyle}>
+          <View
+            className="bg-white rounded-[32px]"
+            style={{ padding: isCompact ? 18 : 24 }}>
             {/* Period Toggle */}
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-lg font-bold text-[#1A1A1A]">
+            <View
+              className="items-start justify-between mb-4"
+              style={{
+                flexDirection: isCompact ? "column" : "row",
+                gap: isCompact ? 12 : 8,
+              }}>
+              <Text className="text-lg font-bold text-[#1A1A1A] flex-1">
                 {t("earnings.earningsChart")}
               </Text>
-              <View className="flex-row bg-gray-100 rounded-full p-1">
+              <View
+                className="flex-row bg-gray-100 rounded-full p-1"
+                style={{ alignSelf: isCompact ? "stretch" : "center" }}>
                 {(["7d", "30d"] as const).map((p) => (
                   <TouchableOpacity
                     key={p}
                     onPress={() => setChartPeriod(p)}
                     style={{
-                      paddingHorizontal: 14,
+                      flex: isCompact ? 1 : undefined,
+                      paddingHorizontal: isCompact ? 10 : 14,
                       paddingVertical: 6,
                       borderRadius: 50,
                       backgroundColor:
@@ -659,7 +719,7 @@ export default function EarningsScreen() {
                         fontWeight: "700",
                         color: chartPeriod === p ? "#F59E0B" : "#9CA3AF",
                       }}>
-                      {p === "7d" ? "7 Days" : "30 Days"}
+                      {p === "7d" ? t("earnings.sevenDays") : t("earnings.thirtyDays")}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -669,31 +729,35 @@ export default function EarningsScreen() {
             {completedOrders.length === 0 ? (
               <View className="items-center py-10">
                 <Ionicons name="bar-chart-outline" size={48} color="#E5E7EB" />
-                <Text className="text-sm text-[#9CA3AF] mt-3">
-                  No earnings data yet
+                <Text className="text-sm text-[#9CA3AF] mt-3 text-center">
+                  {t("earnings.noEarningsData")}
                 </Text>
-                <Text className="text-xs text-[#D1D5DB] mt-1">
-                  Complete deliveries to see your chart
+                <Text className="text-xs text-[#D1D5DB] mt-1 text-center">
+                  {t("earnings.chartHint")}
                 </Text>
               </View>
             ) : (
-              <EarningBarChart data={chartData} maxValue={maxValue} />
+              <EarningBarChart
+                data={chartData}
+                maxValue={maxValue}
+                compact={isCompact}
+              />
             )}
           </View>
         </View>
 
         {/* ── Earnings History ── */}
-        <View className="px-6 mt-6">
+        <View className="mt-6" style={sectionStyle}>
           <View className="flex-row items-center justify-between mb-4 ml-1">
             <Text className="text-lg font-bold text-[#1A1A1A]">
-              Earnings History
+              {t("earnings.history")}
             </Text>
             {allDayGroups.length > 7 && (
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => seeAllSheetRef.current?.present()}>
                 <Text className="text-sm font-bold text-[#F59E0B]">
-                  See All ({allDayGroups.length})
+                  {t("earnings.seeAll")} ({allDayGroups.length})
                 </Text>
               </TouchableOpacity>
             )}
@@ -705,10 +769,10 @@ export default function EarningsScreen() {
                 <Ionicons name="wallet-outline" size={36} color="#9CA3AF" />
               </View>
               <Text className="text-lg font-bold text-[#1A1A1A] mb-2">
-                No Earnings Yet
+                {t("earnings.noEarningsYet")}
               </Text>
               <Text className="text-sm text-[#7A7A7A] text-center max-w-[200px] leading-5">
-                Complete your first delivery to start earning!
+                {t("earnings.firstDeliveryHint")}
               </Text>
             </View>
           ) : (
@@ -943,7 +1007,7 @@ export default function EarningsScreen() {
           <View className="mb-5 flex-row items-center justify-between">
             <View>
               <Text className="text-xl font-extrabold text-[#1A1A1A]">
-                Payout receipt
+                {t("earnings.payoutReceipt")}
               </Text>
               <Text className="mt-1 text-xs text-[#9CA3AF]">
                 {formatDate(selectedSettlement?.periodStart)} →{" "}
@@ -961,16 +1025,18 @@ export default function EarningsScreen() {
           {!!selectedSettlement && (
             <View className="rounded-[24px] bg-gray-50 p-4">
               {[
-                ["Amount", formatMoney(selectedSettlement.amount)],
-                ["Status", selectedSettlement.status.toUpperCase()],
+                [t("earnings.amount"), formatMoney(selectedSettlement.amount)],
+                [t("earnings.status"), selectedSettlement.status.toUpperCase()],
                 [
-                  "Type",
+                  t("earnings.type"),
                   selectedSettlement.source === "legacy_payout"
-                    ? "Legacy payout"
-                    : `${selectedSettlement.cycle ?? "manual"} settlement`,
+                    ? t("earnings.legacyPayout")
+                    : t("earnings.manualSettlement", {
+                        cycle: selectedSettlement.cycle ?? "manual",
+                      }),
                 ],
-                ["Paid at", formatDateTime(selectedSettlement.paidAt)],
-                ["Created", formatDateTime(selectedSettlement.createdAt)],
+                [t("earnings.paidAt"), formatDateTime(selectedSettlement.paidAt)],
+                [t("earnings.created"), formatDateTime(selectedSettlement.createdAt)],
               ].map(([label, value]) => (
                 <View
                   key={label}

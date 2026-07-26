@@ -8,13 +8,15 @@ interface BarData {
 interface EarningBarChartProps {
   data: BarData[];
   maxValue: number;
+  compact?: boolean;
 }
 
 export default function EarningBarChart({
   data,
   maxValue,
+  compact = false,
 }: EarningBarChartProps) {
-  const chartHeight = 160;
+  const chartHeight = compact ? 128 : 160;
   const isDense = data.length > 14;
   const showXAxisLabel = (index: number) => {
     if (!isDense) return true;
@@ -72,7 +74,7 @@ export default function EarningBarChart({
               {/* Bar */}
               <View
                 style={{
-                  width: isDense ? 7 : "75%",
+                  width: isDense ? (compact ? 6 : 7) : "75%",
                   maxWidth: 18,
                   height: barH,
                   borderRadius: 12,
@@ -136,7 +138,7 @@ export default function EarningBarChart({
               <Text
                 numberOfLines={1}
                 style={{
-                  fontSize: isDense ? 9 : 10,
+                  fontSize: compact ? 9 : isDense ? 9 : 10,
                   fontWeight: isToday ? "800" : "600",
                   color: isToday
                     ? "#F59E0B"
