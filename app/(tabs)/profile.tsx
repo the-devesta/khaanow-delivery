@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import SettingsService from "@/services/settings.service";
+import { useTranslation } from "react-i18next";
 
 interface ProfileData {
   id: string;
@@ -50,6 +51,7 @@ const compareVersions = (current: string, target: string): number => {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { logout, phoneNumber } = useAuthStore();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,7 +138,7 @@ export default function ProfileScreen() {
       ? [
           {
             id: "app-update",
-            title: "App update available",
+            title: t("profile.appUpdateAvailable"),
             icon: "sync-outline",
             route: "",
             onPress: openAppUpdate,
@@ -148,7 +150,7 @@ export default function ProfileScreen() {
       : []),
     {
       id: 1,
-      title: "Edit Profile",
+      title: t("profile.editProfile"),
       icon: "person-outline",
       route: "/profile/edit",
       color: "#F59E0B",
@@ -156,7 +158,7 @@ export default function ProfileScreen() {
     },
     {
       id: 2,
-      title: "Payment Methods",
+      title: t("profile.paymentMethods"),
       icon: "card-outline",
       route: "/profile/payments",
       color: "#10B981",
@@ -164,7 +166,7 @@ export default function ProfileScreen() {
     },
     {
       id: 3,
-      title: "Order History",
+      title: t("profile.orderHistory"),
       icon: "receipt-outline",
       route: "/(tabs)/orders", // Link to orders tab for now
       color: "#3B82F6",
@@ -172,7 +174,7 @@ export default function ProfileScreen() {
     },
     {
       id: 4,
-      title: "Notifications",
+      title: t("profile.notifications"),
       icon: "notifications-outline",
       route: "/profile/notifications",
       color: "#8B5CF6",
@@ -180,7 +182,7 @@ export default function ProfileScreen() {
     },
     {
       id: 5,
-      title: "Settings",
+      title: t("profile.settings"),
       icon: "settings-outline",
       route: "/profile/settings",
       color: "#6B7280",
@@ -188,7 +190,7 @@ export default function ProfileScreen() {
     },
     {
       id: 6,
-      title: "Help & Support",
+      title: t("profile.helpSupport"),
       icon: "help-circle-outline",
       route: "/profile/support",
       color: "#EF4444",
@@ -201,7 +203,7 @@ export default function ProfileScreen() {
       <View className="flex-1 bg-[#F3E0D9] items-center justify-center">
         <ActivityIndicator size="large" color="#F59E0B" />
         <Text className="text-gray-500 mt-4 font-medium">
-          Loading profile...
+          {t("profile.loadingProfile")}
         </Text>
       </View>
     );
@@ -232,10 +234,10 @@ export default function ProfileScreen() {
         <View className="px-6 pt-16 pb-8">
           {/* Header */}
           <Text className="text-sm font-medium text-[#7A7A7A] uppercase tracking-wider mb-1">
-            My Account
+            {t("profile.myAccount")}
           </Text>
           <Text className="text-3xl font-extrabold text-[#1A1A1A] mb-8">
-            Profile
+            {t("profile.profile")}
           </Text>
 
           {/* Profile Card */}
@@ -248,7 +250,7 @@ export default function ProfileScreen() {
               </View>
               <View className="flex-1">
                 <Text className="text-xl font-bold text-[#1A1A1A] mb-1">
-                  {profile?.name || "Delivery Partner"}
+                  {profile?.name || t("profile.deliveryPartner")}
                 </Text>
                 <Text className="text-sm font-medium text-[#7A7A7A]">
                   {profile?.phone || phoneNumber}
@@ -261,7 +263,7 @@ export default function ProfileScreen() {
                 <View className="flex-row items-center mt-2.5">
                   <View className="px-2.5 py-1 bg-[#10B981]/10 rounded-full border border-[#10B981]/20">
                     <Text className="text-[10px] font-bold text-[#10B981] uppercase tracking-wide">
-                      Verified Partner
+                      {t("profile.verifiedPartner")}
                     </Text>
                   </View>
                 </View>
@@ -280,7 +282,7 @@ export default function ProfileScreen() {
                   {profile?.rating?.toFixed(1) || "0.0"}
                 </Text>
                 <Text className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wide">
-                  Rating
+                  {t("profile.rating")}
                 </Text>
               </View>
               <View className="w-[1px] bg-gray-200/60 my-2" />
@@ -292,7 +294,7 @@ export default function ProfileScreen() {
                   {profile?.completedOrders || 0}
                 </Text>
                 <Text className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wide">
-                  Deliveries
+                  {t("profile.deliveries")}
                 </Text>
               </View>
               <View className="w-[1px] bg-gray-200/60 my-2" />
@@ -307,7 +309,7 @@ export default function ProfileScreen() {
                   {profile?.vehicleType || "N/A"}
                 </Text>
                 <Text className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wide">
-                  Vehicle
+                  {t("profile.vehicle")}
                 </Text>
               </View>
             </View>
@@ -315,7 +317,7 @@ export default function ProfileScreen() {
 
           {/* Menu Items */}
           <Text className="text-lg font-bold text-[#1A1A1A] mb-4 ml-1">
-            General
+            {t("profile.general")}
           </Text>
           <View className="gap-3 mb-8">
             {menuItems.map((item) => (
@@ -361,7 +363,7 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <Ionicons name="log-out-outline" size={20} color="#EF4444" />
               <Text className="text-[#EF4444] text-base font-bold ml-2">
-                Logout
+                {t("profile.logout")}
               </Text>
             </View>
           </TouchableOpacity>

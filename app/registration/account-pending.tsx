@@ -27,6 +27,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 const SUPPORT_PHONE = "+919875054989";
 const SUPPORT_EMAIL = "support@khaaonow.com";
@@ -142,6 +143,7 @@ function StatusStep({
 
 export default function AccountPendingScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { logout, fetchProfile, partner, isApproved, getNavigationRoute } =
     useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -217,7 +219,7 @@ export default function AccountPendingScreen() {
 
   const handleLogout = async () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
+      { text: t("common.cancel"), style: "cancel" },
       {
         text: "Logout",
         style: "destructive",
@@ -241,10 +243,10 @@ export default function AccountPendingScreen() {
       "Hi KhaaoNow Support,\n\nI need help with my delivery partner application.\n\nApplication status: Pending\nName:\nIssue:\n",
     );
     Alert.alert(
-      "Contact Support",
-      "Choose how you want to contact KhaaoNow support.",
+      t("profile.contactSupport"),
+      t("profile.supportHint"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
           text: "Call",
           onPress: () => Linking.openURL(`tel:${SUPPORT_PHONE}`),
@@ -424,7 +426,7 @@ export default function AccountPendingScreen() {
               <>
                 <Ionicons name="refresh-outline" size={22} color="white" />
                 <Text className="text-white font-bold text-base ml-2">
-                  Check Application Status
+                  {t("onboarding.checkApplicationStatus")}
                 </Text>
               </>
             )}
@@ -447,10 +449,10 @@ export default function AccountPendingScreen() {
                 </View>
                 <View className="ml-3">
                   <Text className="text-[15px] font-semibold text-white">
-                    Need help?
+                    {t("onboarding.needHelp")}
                   </Text>
                   <Text className="text-sm text-white/50">
-                    Contact our support team
+                    {t("onboarding.contactSupportTeam")}
                   </Text>
                 </View>
               </View>

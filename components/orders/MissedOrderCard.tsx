@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   missed: MissedOrder;
@@ -33,6 +34,7 @@ function useCountdown(expiresAt: Date) {
 
 export default function MissedOrderCard({ missed }: Props) {
   const router = useRouter();
+  const { t } = useTranslation();
   const { acceptMissedOrder, dismissMissedOrder, loading } = useOrderStore();
   const secondsLeft = useCountdown(missed.expiresAt);
   const [accepting, setAccepting] = useState(false);
@@ -52,10 +54,10 @@ export default function MissedOrderCard({ missed }: Props) {
   };
 
   const handleReject = () => {
-    Alert.alert("Reject Order", "Are you sure you want to reject this order?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("missedOrder.rejectTitle"), t("missedOrder.rejectMessage"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Reject",
+        text: t("missedOrder.reject"),
         style: "destructive",
         onPress: () => dismissMissedOrder(missed.order.id),
       },
@@ -68,28 +70,28 @@ export default function MissedOrderCard({ missed }: Props) {
       return {
         bg: "#F3F4F6",
         text: "#9CA3AF",
-        label: "Expired",
+        label: t("missedOrder.expired"),
         icon: "time-outline" as const,
       };
     if (missed.reason === "taken")
       return {
         bg: "#FEE2E2",
         text: "#EF4444",
-        label: "Taken by Another",
+        label: t("missedOrder.takenByAnother"),
         icon: "person-outline" as const,
       };
     if (missed.reason === "cancelled")
       return {
         bg: "#FEE2E2",
         text: "#EF4444",
-        label: "Cancelled",
+        label: t("missedOrder.cancelled"),
         icon: "close-circle-outline" as const,
       };
     // timeout — still potentially available
     return {
       bg: "#FEF3C7",
       text: "#D97706",
-      label: "Missed",
+      label: t("missedOrder.missed"),
       icon: "alert-circle-outline" as const,
     };
   })();
@@ -222,7 +224,7 @@ export default function MissedOrderCard({ missed }: Props) {
                 fontWeight: "600",
                 marginBottom: 2,
               }}>
-              PICKUP
+              {t("missedOrder.pickup")}
             </Text>
             <Text
               style={{
@@ -241,7 +243,7 @@ export default function MissedOrderCard({ missed }: Props) {
                 fontWeight: "600",
                 marginBottom: 2,
               }}>
-              DROP
+              {t("missedOrder.drop")}
             </Text>
             <Text
               style={{ fontSize: 14, fontWeight: "700", color: "#1A1A1A" }}
@@ -272,7 +274,7 @@ export default function MissedOrderCard({ missed }: Props) {
               alignItems: "center",
             }}>
             <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600" }}>
-              Distance
+              {t("missedOrder.distance")}
             </Text>
             <Text
               style={{
@@ -295,7 +297,7 @@ export default function MissedOrderCard({ missed }: Props) {
               alignItems: "center",
             }}>
             <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600" }}>
-              Est. Time
+              {t("missedOrder.estTime")}
             </Text>
             <Text
               style={{
@@ -316,7 +318,7 @@ export default function MissedOrderCard({ missed }: Props) {
               alignItems: "center",
             }}>
             <Text style={{ fontSize: 11, color: "#059669", fontWeight: "600" }}>
-              Earnings
+              {t("missedOrder.earnings")}
             </Text>
             <Text
               style={{
@@ -359,7 +361,7 @@ export default function MissedOrderCard({ missed }: Props) {
                   fontSize: 14,
                   marginLeft: 6,
                 }}>
-                Reject
+                {t("missedOrder.reject")}
               </Text>
             </TouchableOpacity>
 
@@ -390,7 +392,7 @@ export default function MissedOrderCard({ missed }: Props) {
                       fontSize: 14,
                       marginLeft: 6,
                     }}>
-                    Accept
+                    {t("missedOrder.accept")}
                   </Text>
                   <Text
                     style={{
@@ -399,7 +401,7 @@ export default function MissedOrderCard({ missed }: Props) {
                       marginLeft: 4,
                       fontWeight: "600",
                     }}>
-                    ({minutesLeft}m left)
+                    ({t("missedOrder.minutesLeft", { count: minutesLeft })})
                   </Text>
                 </>
               )}
@@ -425,7 +427,7 @@ export default function MissedOrderCard({ missed }: Props) {
                 fontSize: 13,
                 marginLeft: 6,
               }}>
-              Dismiss
+              {t("missedOrder.dismiss")}
             </Text>
           </TouchableOpacity>
         )}

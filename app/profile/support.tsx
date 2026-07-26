@@ -3,6 +3,7 @@ import { openPhoneDialer } from "@/utils/phone";
 import { useRouter } from "expo-router";
 import { Linking, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 const SUPPORT_PHONE = "+919875054989";
 const SUPPORT_PHONE_DISPLAY = "+91 98750 54989";
@@ -11,6 +12,7 @@ const SUPPORT_WHATSAPP_PHONE = "919875054989";
 
 export default function SupportScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const handleCall = () => {
@@ -44,7 +46,7 @@ export default function SupportScreen() {
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-[#1A1A1A]">
-            Help & Support
+            {t("profile.helpSupport")}
           </Text>
           <View className="w-10" />
         </View>
@@ -53,10 +55,10 @@ export default function SupportScreen() {
       <View className="p-6">
         <View className="bg-white rounded-3xl p-6  mb-4">
           <Text className="text-lg font-bold text-gray-900 mb-2">
-            Contact Support
+            {t("profile.contactSupport")}
           </Text>
           <Text className="text-gray-600 mb-6">
-            Need help with an order or your account? Our team is available 24/7.
+            {t("profile.supportHint")}
           </Text>
 
           <TouchableOpacity
@@ -66,7 +68,7 @@ export default function SupportScreen() {
               <Ionicons name="call" size={20} color="#10B981" />
             </View>
             <View>
-              <Text className="font-bold text-gray-900">Call Us</Text>
+              <Text className="font-bold text-gray-900">{t("profile.callUs")}</Text>
               <Text className="text-gray-500 text-sm">{SUPPORT_PHONE_DISPLAY}</Text>
             </View>
           </TouchableOpacity>
@@ -78,7 +80,7 @@ export default function SupportScreen() {
               <Ionicons name="mail" size={20} color="#3B82F6" />
             </View>
             <View>
-              <Text className="font-bold text-gray-900">Email Us</Text>
+              <Text className="font-bold text-gray-900">{t("profile.emailUs")}</Text>
               <Text className="text-gray-500 text-sm">{SUPPORT_EMAIL}</Text>
             </View>
           </TouchableOpacity>
@@ -90,9 +92,9 @@ export default function SupportScreen() {
               <Ionicons name="logo-whatsapp" size={20} color="#10B981" />
             </View>
             <View>
-              <Text className="font-bold text-gray-900">WhatsApp Us</Text>
+              <Text className="font-bold text-gray-900">{t("profile.whatsappUs")}</Text>
               <Text className="text-gray-500 text-sm">
-                Chat with support on WhatsApp
+                {t("profile.whatsappHint")}
               </Text>
             </View>
           </TouchableOpacity>

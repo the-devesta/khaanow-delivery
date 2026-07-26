@@ -378,12 +378,12 @@ export default function HomeScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-lg font-bold text-[#1A1A1A]">
-                    {isOnline ? "You are Online" : "You are Offline"}
+                    {isOnline ? t("home.youAreOnline") : t("home.youAreOffline")}
                   </Text>
                   <Text className="text-sm text-gray-500 font-medium">
                     {isOnline
-                      ? "Ready for orders"
-                      : "Go online to start earning"}
+                      ? t("home.readyForOrders")
+                      : t("home.goOnlineToStartEarning")}
                   </Text>
                 </View>
               </View>
@@ -403,7 +403,7 @@ export default function HomeScreen() {
           {activePendingRequests.length > 0 && (
             <>
               <Text className="text-lg font-bold text-[#1A1A1A] mb-4 ml-1">
-                Pending Requests
+                {t("home.pendingRequests")}
               </Text>
               {activePendingRequests.map((missed) => (
                 <MissedOrderCard key={missed.order.id} missed={missed} />
@@ -469,7 +469,7 @@ export default function HomeScreen() {
             {activeBatchCount > 1 && (
               <View className="bg-orange-100 px-3 py-1 rounded-full">
                 <Text className="text-xs font-bold text-orange-600">
-                  Batch {activeBatchCount}
+                  {t("home.batch")} {activeBatchCount}
                 </Text>
               </View>
             )}
@@ -491,18 +491,18 @@ export default function HomeScreen() {
                         {(() => {
                           const s = currentActiveOrder.status;
                           const labels: Record<string, string> = {
-                            delivery_partner_accepted: "Accepted",
-                            accepted: "Accepted",
-                            delivery_partner_reached: "At Restaurant",
-                            delivery_partner_picked_up: "Picked Up",
-                            picked_up: "Picked Up",
-                            delivery_partner_reached_user_dest: "On The Way",
-                            on_the_way: "On The Way",
-                            delivered: "Delivered",
-                            confirmed: "Confirmed",
-                            preparing: "Preparing",
-                            ready: "Ready",
-                            out_for_delivery: "Out For Delivery",
+                            delivery_partner_accepted: t("status.accepted"),
+                            accepted: t("status.accepted"),
+                            delivery_partner_reached: t("status.atRestaurant"),
+                            delivery_partner_picked_up: t("status.pickedUp"),
+                            picked_up: t("status.pickedUp"),
+                            delivery_partner_reached_user_dest: t("status.onTheWay"),
+                            on_the_way: t("status.onTheWay"),
+                            delivered: t("status.delivered"),
+                            confirmed: t("status.confirmed"),
+                            preparing: t("status.preparing"),
+                            ready: t("status.ready"),
+                            out_for_delivery: t("status.outForDelivery"),
                           };
                           return (
                             labels[s] ??
@@ -538,7 +538,7 @@ export default function HomeScreen() {
                     </View>
                     <View className="ml-4 flex-1 justify-center">
                       <Text className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">
-                        Pick Up
+                        {t("home.pickup")}
                       </Text>
                       <Text
                         className="text-lg font-bold text-[#1A1A1A] leading-tight"
@@ -560,7 +560,7 @@ export default function HomeScreen() {
                     </View>
                     <View className="ml-4 flex-1 justify-center">
                       <Text className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">
-                        Drop Off
+                        {t("home.dropoff")}
                       </Text>
                       <Text
                         className="text-lg font-bold text-[#1A1A1A] leading-tight"
@@ -588,7 +588,7 @@ export default function HomeScreen() {
 
                     <View className="bg-[#F59E0B] px-5 py-2.5 rounded-2xl flex-row items-center shadow-lg shadow-amber-200">
                       <Text className="text-white font-bold mr-2">
-                        {t("common.orders")}
+                        {t("home.viewOrder")}
                       </Text>
                       <Ionicons name="arrow-forward" size={16} color="white" />
                     </View>
@@ -604,12 +604,12 @@ export default function HomeScreen() {
                 <Ionicons name="cube-outline" size={36} color="#9CA3AF" />
               </View>
               <Text className="text-lg font-bold text-[#1A1A1A] mb-2">
-                No Active Orders
+                {t("home.noActiveOrders")}
               </Text>
               <Text className="text-gray-500 text-center mb-6 max-w-[250px] leading-5">
                 {isOnline
-                  ? "Relax! We'll notify you when a new delivery request arrives."
-                  : "Go online to start receiving delivery requests nearby."}
+                  ? t("home.noActiveOrdersOnline")
+                  : t("home.noActiveOrdersOffline")}
               </Text>
               {!isOnline && (
                 <TouchableOpacity
@@ -617,7 +617,7 @@ export default function HomeScreen() {
                   className="bg-[#F59E0B] px-8 py-3.5 rounded-full shadow-lg shadow-amber-200"
                   activeOpacity={0.8}>
                   <Text className="text-white font-bold text-base">
-                    Go Online Now
+                    {t("home.goOnlineNow")}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -633,10 +633,10 @@ export default function HomeScreen() {
               <View className="flex-row items-center justify-between mb-3">
                 <View>
                   <Text className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">
-                    Route Sequence
+                    {t("common.routeSequence")}
                   </Text>
                   <Text className="text-lg font-extrabold text-[#1A1A1A] mt-1">
-                    {routePlan.stops.length} stops • {routePlan.totalDistanceKm} km
+                    {routePlan.stops.length} {t("common.stops")} • {routePlan.totalDistanceKm} km
                   </Text>
                 </View>
                 <Ionicons name="git-branch-outline" size={22} color="#F59E0B" />
@@ -651,7 +651,7 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                   <Text className="flex-1 text-sm font-semibold text-[#1A1A1A]" numberOfLines={1}>
-                    {stop.type === "pickup" ? "Pickup" : "Drop"} •{" "}
+                    {stop.type === "pickup" ? t("ordersScreen.pickup") : t("ordersScreen.drop")} •{" "}
                     {stop.type === "pickup" ? stop.restaurantName : stop.customerName}
                   </Text>
                   <Text className="text-xs font-bold text-[#9CA3AF]">
@@ -664,7 +664,7 @@ export default function HomeScreen() {
 
           {/* Quick Actions */}
           <Text className="text-lg font-bold text-[#1A1A1A] mb-4 ml-1">
-            Quick Actions
+            {t("home.quickActions")}
           </Text>
           <View className="flex-row gap-4 mb-8">
             <TouchableOpacity
@@ -675,8 +675,8 @@ export default function HomeScreen() {
               <View className="w-14 h-14 bg-[#FFF7ED] rounded-2xl items-center justify-center mb-3 ">
                 <Ionicons name="time" size={26} color="#F59E0B" />
               </View>
-              <Text className="text-sm font-bold text-[#1A1A1A]">History</Text>
-              <Text className="text-xs text-gray-400 mt-1">Past orders</Text>
+              <Text className="text-sm font-bold text-[#1A1A1A]">{t("home.history")}</Text>
+              <Text className="text-xs text-gray-400 mt-1">{t("home.pastOrders")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -687,8 +687,8 @@ export default function HomeScreen() {
               <View className="w-14 h-14 bg-[#EFF6FF] rounded-2xl items-center justify-center mb-3 ">
                 <Ionicons name="bar-chart" size={26} color="#3B82F6" />
               </View>
-              <Text className="text-sm font-bold text-[#1A1A1A]">Reports</Text>
-              <Text className="text-xs text-gray-400 mt-1">Check stats</Text>
+              <Text className="text-sm font-bold text-[#1A1A1A]">{t("home.reports")}</Text>
+              <Text className="text-xs text-gray-400 mt-1">{t("home.checkStats")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -699,11 +699,10 @@ export default function HomeScreen() {
             </View>
             <View className="ml-5 flex-1">
               <Text className="text-base font-bold text-[#1A1A1A] mb-1">
-                Pro Tip
+                {t("home.proTip")}
               </Text>
               <Text className="text-sm text-[#7A7A7A] leading-5">
-                Going online during peak hours (12-2 PM & 7-9 PM) helps you earn
-                more!
+                {t("home.proTipText")}
               </Text>
             </View>
           </View>

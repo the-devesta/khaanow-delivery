@@ -16,9 +16,11 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 export default function PaymentsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -144,7 +146,7 @@ export default function PaymentsScreen() {
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-[#1A1A1A]">
-            Payment Methods
+            {t("profile.paymentMethods")}
           </Text>
           {/* Edit Button */}
           {!loading && !isEditing && (
@@ -173,7 +175,7 @@ export default function PaymentsScreen() {
             <View className="bg-white rounded-3xl p-6  mb-6">
               <View className="flex-row items-center justify-between mb-6">
                 <Text className="text-lg font-bold text-gray-900">
-                  Bank Account
+                  {t("profile.bankAccount")}
                 </Text>
                 <Ionicons name="card" size={24} color="#10B981" />
               </View>
@@ -181,29 +183,29 @@ export default function PaymentsScreen() {
               {isEditing ? (
                 <>
                   {renderEditableField(
-                    "Account Holder",
+                    t("profile.accountHolder"),
                     formData.accountName,
                     "accountName",
                     "Enter name",
                   )}
                   {renderEditableField(
-                    "Account Number",
+                    t("profile.accountNumber"),
                     formData.accountNumber,
                     "accountNumber",
                     "Enter account number",
                   )}
                   {renderEditableField(
-                    "IFSC Code",
+                    t("profile.ifscCode"),
                     formData.ifsc,
                     "ifsc",
-                    "Enter IFSC code",
+                    t("profile.enterIfsc"),
                   )}
                 </>
               ) : profile?.bankDetails?.accountNumber ? (
                 <>
                   <View className="mb-4">
                     <Text className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                      Account Holder
+                      {t("profile.accountHolder")}
                     </Text>
                     <Text className="text-base font-semibold text-gray-900">
                       {profile.bankDetails.accountName || "N/A"}
@@ -211,7 +213,7 @@ export default function PaymentsScreen() {
                   </View>
                   <View className="mb-4">
                     <Text className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                      Account Number
+                      {t("profile.accountNumber")}
                     </Text>
                     <Text className="text-base font-semibold text-gray-900">
                       {profile.bankDetails.accountNumber}
@@ -219,7 +221,7 @@ export default function PaymentsScreen() {
                   </View>
                   <View className="mb-4">
                     <Text className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                      IFSC Code
+                      {t("profile.ifscCode")}
                     </Text>
                     <Text className="text-base font-semibold text-gray-900">
                       {profile.bankDetails.ifsc || "N/A"}
@@ -256,29 +258,29 @@ export default function PaymentsScreen() {
             <View className="bg-white rounded-3xl p-6  mb-6">
               <View className="flex-row items-center justify-between mb-6">
                 <Text className="text-lg font-bold text-gray-900">
-                  UPI Information
+                  {t("profile.upiInformation")}
                 </Text>
                 <Ionicons name="qr-code" size={24} color="#F59E0B" />
               </View>
 
               {isEditing ? (
                 renderEditableField(
-                  "UPI ID",
+                  t("profile.upiId"),
                   formData.upiId,
                   "upiId",
-                  "Enter UPI ID",
+                  t("profile.enterUpi"),
                 )
               ) : profile?.upiId ? (
                 <View className="mb-4">
                   <Text className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                    UPI ID
+                    {t("profile.upiId")}
                   </Text>
                   <Text className="text-base font-semibold text-gray-900">
                     {profile.upiId}
                   </Text>
                 </View>
               ) : (
-                <Text className="text-gray-500 italic">No UPI ID added.</Text>
+                <Text className="text-gray-500 italic">{t("profile.noUpiAdded")}</Text>
               )}
             </View>
 
@@ -289,7 +291,7 @@ export default function PaymentsScreen() {
                   onPress={() => setIsEditing(false)}
                   className="flex-1 bg-gray-200 py-4 rounded-xl items-center"
                   disabled={saving}>
-                  <Text className="font-bold text-gray-700">Cancel</Text>
+                  <Text className="font-bold text-gray-700">{t("common.cancel")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleSave}
@@ -298,7 +300,7 @@ export default function PaymentsScreen() {
                   {saving ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text className="font-bold text-white">Save Changes</Text>
+                    <Text className="font-bold text-white">{t("profile.saveChanges")}</Text>
                   )}
                 </TouchableOpacity>
               </View>

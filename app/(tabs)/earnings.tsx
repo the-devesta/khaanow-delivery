@@ -745,7 +745,7 @@ export default function EarningsScreen() {
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
           <View className="mb-5 flex-row items-center justify-between">
             <Text className="text-xl font-extrabold text-[#1A1A1A]">
-              All Earnings
+              {t("earnings.allEarnings")}
             </Text>
             <TouchableOpacity
               onPress={() => seeAllSheetRef.current?.dismiss()}
@@ -758,7 +758,7 @@ export default function EarningsScreen() {
             <View className="items-center py-12">
               <Ionicons name="wallet-outline" size={48} color="#D1D5DB" />
               <Text className="text-gray-400 mt-4 text-sm">
-                No earnings yet
+                {t("earnings.noEarningsYet")}
               </Text>
             </View>
           ) : (
@@ -795,10 +795,10 @@ export default function EarningsScreen() {
           <View className="mb-5 flex-row items-center justify-between">
             <View>
               <Text className="text-xs font-bold text-[#9CA3AF] uppercase tracking-widest mb-1">
-                Earnings for
+                {t("earnings.earningsFor")}
               </Text>
               <Text className="text-xl font-extrabold text-[#1A1A1A]">
-                {selectedGroup?.date ?? "Selected day"}
+                {selectedGroup?.date ?? t("earnings.selectedDay")}
               </Text>
             </View>
             <TouchableOpacity
@@ -816,7 +816,7 @@ export default function EarningsScreen() {
                   {formatMoney(selectedGroup.amount)}
                 </Text>
                 <Text className="text-xs text-[#6B7280] font-medium mt-0.5">
-                  Total Earned
+                  {t("earnings.totalEarned")}
                 </Text>
               </View>
               <View className="flex-1 items-center">
@@ -824,14 +824,14 @@ export default function EarningsScreen() {
                   {selectedGroup.orderCount}
                 </Text>
                 <Text className="text-xs text-[#6B7280] font-medium mt-0.5">
-                  Deliveries
+                  {t("earnings.deliveries")}
                 </Text>
               </View>
             </View>
           )}
 
           <Text className="text-sm font-bold text-[#6B7280] uppercase tracking-widest mb-3">
-            Orders
+            {t("earnings.orders")}
           </Text>
           {(selectedGroup?.orders ?? []).map((order, idx) => {
             const deliveredAt = order.deliveredAt || order.createdAt;
@@ -847,7 +847,7 @@ export default function EarningsScreen() {
                   </Text>
                   <View className="bg-[#D1FAE5] px-3 py-1 rounded-full">
                     <Text className="text-xs font-bold text-[#10B981]">
-                      Delivered
+                      {t("earnings.delivered")}
                     </Text>
                   </View>
                 </View>
@@ -871,7 +871,7 @@ export default function EarningsScreen() {
 
                 <View className="mt-3 rounded-2xl bg-gray-50 p-3">
                   <View className="flex-row justify-between mb-2">
-                    <Text className="text-xs text-[#6B7280]">Order amount</Text>
+                    <Text className="text-xs text-[#6B7280]">{t("earnings.orderAmount")}</Text>
                     <Text className="text-xs font-bold text-[#1A1A1A]">
                       {formatMoney(order.totalAmount)}
                     </Text>
@@ -887,13 +887,13 @@ export default function EarningsScreen() {
                     </View>
                   )}
                   <View className="flex-row justify-between mb-2">
-                    <Text className="text-xs text-[#6B7280]">Cash collected</Text>
+                    <Text className="text-xs text-[#6B7280]">{t("earnings.cashCollected")}</Text>
                     <Text className="text-xs font-bold text-[#1A1A1A]">
                       {formatMoney(order.cashCollected ?? 0)}
                     </Text>
                   </View>
                   <View className="flex-row justify-between">
-                    <Text className="text-xs text-[#6B7280]">Your earning</Text>
+                    <Text className="text-xs text-[#6B7280]">{t("earnings.yourEarning")}</Text>
                     <Text className="text-sm font-extrabold text-[#10B981]">
                       {formatMoney(order.earnings ?? order.earning ?? 0)}
                     </Text>
@@ -912,7 +912,7 @@ export default function EarningsScreen() {
                       style={{
                         color: paymentType === "online" ? "#3B82F6" : "#10B981",
                       }}>
-                      {paymentType === "online" ? "Online" : "Cash"}
+                      {paymentType === "online" ? t("earnings.online") : t("earnings.cash")}
                     </Text>
                   </View>
                   {!!order.distance && (

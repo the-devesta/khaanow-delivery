@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 const SUPPORT_PHONE = "+919875054989";
 const SUPPORT_EMAIL = "support@khaaonow.com";
@@ -22,6 +23,7 @@ const SUPPORT_WHATSAPP_PHONE = "919875054989";
 
 export default function AccountRejectedScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { logout } = useAuthStore();
   const insets = useSafeAreaInsets();
 
@@ -42,10 +44,10 @@ export default function AccountRejectedScreen() {
       "Hi KhaaoNow Support,\n\nI need help with my delivery partner application.\n\nApplication status: Rejected\nName:\nIssue:\n",
     );
     Alert.alert(
-      "Contact Support",
-      "Choose how you want to contact KhaaoNow support.",
+      t("profile.contactSupport"),
+      t("profile.supportHint"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
           text: "Call",
           onPress: () => Linking.openURL(`tel:${SUPPORT_PHONE}`),
@@ -79,7 +81,7 @@ export default function AccountRejectedScreen() {
           onPress: handleLogout,
         },
         {
-          text: "Contact Support",
+          text: t("profile.contactSupport"),
           onPress: handleContactSupport,
         },
       ],
@@ -216,10 +218,10 @@ export default function AccountRejectedScreen() {
                 </View>
                 <View className="ml-4 flex-1">
                   <Text className="text-[15px] font-bold text-gray-900">
-                    Contact Support
+                    {t("profile.contactSupport")}
                   </Text>
                   <Text className="text-sm text-gray-500">
-                    Get help with your application
+                    {t("profile.supportHint")}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />

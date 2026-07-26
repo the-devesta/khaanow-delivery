@@ -21,6 +21,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import * as Yup from "yup";
 
 const EditProfileSchema = Yup.object().shape({
@@ -35,6 +36,7 @@ const EditProfileSchema = Yup.object().shape({
 
 export default function EditProfileScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [initialValues, setInitialValues] = useState({ name: "", email: "" });
   const [fetching, setFetching] = useState(true);
@@ -141,10 +143,10 @@ export default function EditProfileScreen() {
           <View className="px-6 flex-1 justify-end pb-8">
             <View className="mb-8">
               <Text className="text-4xl font-extrabold text-white mb-2  tracking-tight">
-                Edit Profile
+                {t("profile.editProfile")}
               </Text>
               <Text className="text-lg text-white/80 font-medium tracking-wide">
-                Update your personal information.
+                {t("profile.updateInfo")}
               </Text>
             </View>
 
@@ -174,7 +176,7 @@ export default function EditProfileScreen() {
                     {/* Name Input */}
                     <View className="mb-5">
                       <Text className="text-xs font-bold text-black/70 mb-2 ml-1 uppercase tracking-wider">
-                        Full Name
+                        {t("profile.fullName")}
                       </Text>
                       <View className="flex-row items-center bg-gray-100 rounded-2xl h-14 px-4 overflow-hidden border border-gray-200">
                         <Ionicons
@@ -203,7 +205,7 @@ export default function EditProfileScreen() {
                     {/* Email Input */}
                     <View className="mb-6">
                       <Text className="text-xs font-bold text-black/70 mb-2 ml-1 uppercase tracking-wider">
-                        Email Address
+                        {t("profile.emailAddress")}
                       </Text>
                       <View className="flex-row items-center bg-gray-100 rounded-2xl h-14 px-4 overflow-hidden border border-gray-200">
                         <Ionicons
@@ -232,7 +234,7 @@ export default function EditProfileScreen() {
                     </View>
 
                     <PrimaryButton
-                      title="Save Changes"
+                      title={t("profile.saveChanges")}
                       onPress={handleSubmit}
                       loading={loading}
                     />

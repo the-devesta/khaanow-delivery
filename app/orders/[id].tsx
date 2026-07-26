@@ -49,10 +49,10 @@ import { useTranslation } from "react-i18next";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 const STEPS = [
-  { label: "Accepted", icon: "checkmark-done-outline" },
-  { label: "At Restaurant", icon: "restaurant-outline" },
-  { label: "Picked Up", icon: "bicycle-outline" },
-  { label: "Arrived", icon: "location-outline" },
+  { labelKey: "orderDetail.accepted", icon: "checkmark-done-outline" },
+  { labelKey: "orderDetail.atRestaurant", icon: "restaurant-outline" },
+  { labelKey: "orderDetail.pickedUp", icon: "bicycle-outline" },
+  { labelKey: "orderDetail.arriving", icon: "location-outline" },
 ];
 
 const CONTACT_SHEET_SNAP_POINTS = ["34%"];
@@ -73,13 +73,16 @@ const renderContactBackdrop = (props: any) => (
   />
 );
 
-function formatAddressText(address: string | Record<string, any> | undefined | null) {
-  if (!address) return "Address unavailable";
-  if (typeof address === "string") return address || "Address unavailable";
+function formatAddressText(
+  address: string | Record<string, any> | undefined | null,
+  fallback = "Address unavailable",
+) {
+  if (!address) return fallback;
+  if (typeof address === "string") return address || fallback;
   const a = address as any;
   if (a.fullAddress) return a.fullAddress;
   const parts = [a.street, a.city, a.state, a.postalCode].filter(Boolean);
-  return parts.length > 0 ? parts.join(", ") : "Address unavailable";
+  return parts.length > 0 ? parts.join(", ") : fallback;
 }
 
 // ── Navigation helpers ────────────────────────────────────────────────────
@@ -834,30 +837,30 @@ export default function OrderDetailsScreen() {
       : "pickup";
   const phaseTitle =
     displayOrder.status === "delivered"
-      ? "Delivery completed"
+      ? t("orderDetail.deliveryCompleted")
       : navPhase === "pickup"
-        ? "Pickup from restaurant"
-        : "Deliver to customer";
+        ? t("orderDetail.pickupFromRestaurant")
+        : t("orderDetail.deliverToCustomer");
   const phaseName =
     navPhase === "pickup" ? displayOrder.restaurantName : displayOrder.customerName;
   const phaseAddress =
     navPhase === "pickup"
-      ? formatAddressText(displayOrder.restaurantAddress)
-      : formatAddressText(displayOrder.customerAddress);
+      ? formatAddressText(displayOrder.restaurantAddress, t("orderDetail.addressUnavailable"))
+      : formatAddressText(displayOrder.customerAddress, t("orderDetail.addressUnavailable"));
   const routeEtaText =
     routeInfo.etaMin > 0 && routeInfo.distKm > 0
       ? `${routeInfo.etaMin} min • ${routeInfo.distKm} km`
-      : "Calculating route";
+      : t("orderDetail.calculatingRoute");
   const statusText =
     currentStep <= 1
-      ? "Accepted"
+      ? t("orderDetail.accepted")
       : currentStep === 2
-        ? "At restaurant"
+        ? t("orderDetail.atRestaurant")
         : currentStep === 3
-          ? "Picked up"
+          ? t("orderDetail.pickedUp")
           : currentStep === 4
-            ? "Arriving"
-            : "Delivered";
+            ? t("orderDetail.arriving")
+            : t("orderDetail.delivered");
   const contactName =
     navPhase === "pickup" ? displayOrder.restaurantName : displayOrder.customerName;
   const contactRole = navPhase === "pickup" ? "Restaurant" : "Customer";
@@ -1058,7 +1061,7 @@ export default function OrderDetailsScreen() {
             <Ionicons name="arrow-back" size={20} color="#1A1A1A" />
           </TouchableOpacity>
           <Text className="text-base font-bold text-gray-900" numberOfLines={1}>
-            Order #{String(displayOrder.id).slice(-6)}
+            {t("orderDetail.orderNumber", { number: String(displayOrder.id).slice(-6) })}
           </Text>
           <TouchableOpacity
             onPress={handleRefresh}
@@ -1105,7 +1108,9 @@ export default function OrderDetailsScreen() {
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={orderStyles.mapRouteLabel} numberOfLines={1}>
-                  {navPhase === "pickup" ? "Go to pickup" : "Go to customer"}
+                  {navPhase === "pickup"
+                    ? t("orderDetail.goToPickup")
+                    : t("orderDetail.goToCustomer")}
                 </Text>
                 <Text style={orderStyles.mapRouteMeta} numberOfLines={1}>
                   {routeEtaText}
@@ -1122,7 +1127,7 @@ export default function OrderDetailsScreen() {
                     style={orderStyles.mapRouteButton}
                     activeOpacity={0.85}>
                     <Ionicons name="navigate" size={16} color="#fff" />
-                    <Text style={orderStyles.mapRouteButtonText}>Start</Text>
+                    <Text style={orderStyles.mapRouteButtonText}>{t("common.start")}</Text>
                   </TouchableOpacity>
                 )}
             </View>
@@ -1147,7 +1152,7 @@ export default function OrderDetailsScreen() {
               const isActive = stepNumber === currentStep;
               return (
                 <View
-                  key={step.label}
+                  key={step.labelKey}
                   style={[
                     orderStyles.statusPill,
                     isActive && orderStyles.statusPillActive,
@@ -1168,7 +1173,7 @@ export default function OrderDetailsScreen() {
                       (isActive || isDone) && orderStyles.statusPillTextActive,
                     ]}
                     numberOfLines={1}>
-                    {step.label}
+                    {t(step.labelKey)}
                   </Text>
                 </View>
               );
@@ -1229,7 +1234,7 @@ export default function OrderDetailsScreen() {
                   activeOpacity={0.78}>
                   <Ionicons name="navigate" size={17} color="#FFFFFF" />
                   <Text style={orderStyles.primaryQuickActionText}>
-                    Open Maps
+                    {t("orderDetail.openMaps")}
                   </Text>
                 </TouchableOpacity>
                 {contactPhone ? (
@@ -1437,7 +1442,7 @@ export default function OrderDetailsScreen() {
               )}
               {(displayOrder.items || []).length === 0 && (
                 <Text className="text-xs text-gray-400 py-2">
-                  No items found
+                  {t("orderDetail.noItemsFound")}
                 </Text>
               )}
             </View>
@@ -1452,13 +1457,13 @@ export default function OrderDetailsScreen() {
                   <Text
                     className="text-sm font-bold text-gray-900 ml-3"
                     numberOfLines={1}>
-                    Payment Details
+                    {t("orderDetail.paymentDetails")}
                   </Text>
                 </View>
               </View>
               <View className="flex-row justify-between py-2 border-b border-gray-100">
                 <Text className="text-xs text-gray-600" numberOfLines={1}>
-                  Payment Type
+                  {t("orderDetail.paymentType")}
                 </Text>
                 <View className="px-2.5 py-1 rounded-full bg-gray-100">
                   <Text
@@ -1470,7 +1475,7 @@ export default function OrderDetailsScreen() {
               </View>
               <View className="flex-row justify-between py-2 border-b border-gray-100">
                 <Text className="text-xs text-gray-600" numberOfLines={1}>
-                  Distance
+                  {t("orderDetail.distance")}
                 </Text>
                 <Text
                   className="text-xs font-semibold text-gray-800"
@@ -1482,7 +1487,7 @@ export default function OrderDetailsScreen() {
                 <Text
                   className="text-sm font-bold text-gray-900"
                   numberOfLines={1}>
-                  Your Earnings
+                  {t("orderDetail.yourEarnings")}
                 </Text>
                 <Text
                   className="text-lg font-bold text-green-600"
@@ -1500,7 +1505,7 @@ export default function OrderDetailsScreen() {
           displayOrder.status !== "cancelled" &&
           displayOrder.status !== "returning_to_restaurant" && (
             <ActionFooter
-              label={proofUploading ? "Uploading Proof..." : getActionLabel()}
+              label={proofUploading ? t("orderDetail.uploadingProof") : getActionLabel()}
               onPress={handlePrimaryActionPress}
               loading={loading || proofUploading}
             />

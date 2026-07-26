@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 const { width, height } = Dimensions.get("window");
 
@@ -39,6 +40,7 @@ export default function OrderRequestModal({
   onReject,
   initialTimeLeft,
 }: OrderRequestModalProps) {
+  const { t } = useTranslation();
   const visible = order !== null;
   const timeoutSeconds = order?.acceptanceTimeoutSeconds || 30;
   const [timeLeft, setTimeLeft] = useState(
@@ -351,10 +353,10 @@ export default function OrderRequestModal({
                   fontWeight: "bold",
                   color: "#1A1A1A",
                 }}>
-                New Order Request
+                {t("orderRequest.newOrderRequest")}
               </Text>
               <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>
-                Accept within {formatTime(timeLeft)}
+                {t("orderRequest.acceptWithin", { time: formatTime(timeLeft) })}
               </Text>
             </View>
 
@@ -387,7 +389,7 @@ export default function OrderRequestModal({
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text
                     style={{ fontSize: 12, color: "#6B7280", marginBottom: 2 }}>
-                    Pickup
+                    {t("orderRequest.pickup")}
                   </Text>
                   <Text
                     style={{
@@ -434,7 +436,7 @@ export default function OrderRequestModal({
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text
                     style={{ fontSize: 12, color: "#6B7280", marginBottom: 2 }}>
-                    Drop
+                    {t("orderRequest.drop")}
                   </Text>
                   <Text
                     style={{
@@ -471,7 +473,7 @@ export default function OrderRequestModal({
                 }}>
                 <Text
                   style={{ fontSize: 12, color: "#6B7280", marginBottom: 4 }}>
-                  Distance
+                  {t("orderRequest.distance")}
                 </Text>
                 <Text
                   style={{
@@ -492,7 +494,7 @@ export default function OrderRequestModal({
                 }}>
                 <Text
                   style={{ fontSize: 12, color: "#6B7280", marginBottom: 4 }}>
-                  Time
+                  {t("orderRequest.time")}
                 </Text>
                 <Text
                   style={{
@@ -515,7 +517,7 @@ export default function OrderRequestModal({
                 }}>
                 <Text
                   style={{ fontSize: 12, color: "#10B981", marginBottom: 4 }}>
-                  Earnings
+                  {t("orderRequest.earnings")}
                 </Text>
                 <Text
                   style={{
@@ -538,7 +540,7 @@ export default function OrderRequestModal({
                   }}>
                   <Text
                     style={{ fontSize: 12, color: "#FF6A00", marginBottom: 4 }}>
-                    Prep Time
+                    {t("orderRequest.prepTime")}
                   </Text>
                   <Text
                     style={{
@@ -593,7 +595,7 @@ export default function OrderRequestModal({
                     color: "#FF6A00",
                     letterSpacing: 0.3,
                   }}>
-                  Swipe to Accept →
+                  {t("orderRequest.swipeToAccept")} →
                 </Text>
               </View>
 
@@ -637,7 +639,7 @@ export default function OrderRequestModal({
               activeOpacity={0.75}>
               <Text
                 style={{ fontSize: 15, fontWeight: "700", color: "#EF4444" }}>
-                Reject Order
+                {t("orderRequest.rejectOrder")}
               </Text>
             </TouchableOpacity>
           </IOSGlassSurface>

@@ -11,11 +11,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function OrdersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t, i18n } = useTranslation();
   const {
     orderHistory,
     activeOrder,
@@ -117,36 +119,33 @@ export default function OrdersScreen() {
   const getStatusStyle = (status: string) => {
     switch (status) {
       case "delivered":
-        return { bg: "#D1FAE5", text: "#10B981", label: "Delivered" };
+        return { bg: "#D1FAE5", text: "#10B981", label: t("status.delivered") };
       case "cancelled":
-        return { bg: "#FEE2E2", text: "#EF4444", label: "Cancelled" };
+        return { bg: "#FEE2E2", text: "#EF4444", label: t("status.cancelled") };
       case "delivery_partner_accepted":
       case "accepted":
-        return { bg: "#DBEAFE", text: "#3B82F6", label: "Accepted" };
+        return { bg: "#DBEAFE", text: "#3B82F6", label: t("status.accepted") };
       case "delivery_partner_reached":
-        return { bg: "#EDE9FE", text: "#7C3AED", label: "At Restaurant" };
+        return { bg: "#EDE9FE", text: "#7C3AED", label: t("status.atRestaurant") };
       case "delivery_partner_picked_up":
       case "picked_up":
-        return { bg: "#FEF3C7", text: "#D97706", label: "Picked Up" };
+        return { bg: "#FEF3C7", text: "#D97706", label: t("status.pickedUp") };
       case "delivery_partner_reached_user_dest":
       case "on_the_way":
-        return { bg: "#FFF5EB", text: "#FF6A00", label: "On The Way" };
+        return { bg: "#FFF5EB", text: "#FF6A00", label: t("status.onTheWay") };
       case "confirmed":
+        return { bg: "#FEF3C7", text: "#D97706", label: t("status.confirmed") };
       case "preparing":
+        return { bg: "#FEF3C7", text: "#D97706", label: t("status.preparing") };
       case "ready":
+        return { bg: "#FEF3C7", text: "#D97706", label: t("status.ready") };
       case "out_for_delivery":
-        return {
-          bg: "#FEF3C7",
-          text: "#D97706",
-          label: status
-            .replace(/_/g, " ")
-            .replace(/\b\w/g, (c) => c.toUpperCase()),
-        };
+        return { bg: "#FEF3C7", text: "#D97706", label: t("status.outForDelivery") };
       default:
         return {
           bg: "#F3F4F6",
           text: "#6B7280",
-          label: status.replace(/_/g, " ") || "Pending",
+          label: status.replace(/_/g, " ") || t("status.pending"),
         };
     }
   };
@@ -172,10 +171,10 @@ export default function OrdersScreen() {
           <View className="flex-row items-center justify-between mb-2">
             <View className="flex-1">
               <Text className="text-sm font-medium text-[#7A7A7A] uppercase tracking-wider">
-                Order History
+                {t("ordersScreen.historyEyebrow")}
               </Text>
               <Text className="text-3xl font-extrabold text-[#1A1A1A] mt-1">
-                Your Deliveries 📦
+                {t("ordersScreen.yourDeliveries")}
               </Text>
             </View>
             <IOSGlassIconButton
@@ -199,7 +198,7 @@ export default function OrdersScreen() {
               />
             </View>
             <Text className="text-xs font-bold text-[#6B7280] uppercase tracking-wide mb-1">
-              Completed
+              {t("ordersScreen.completed")}
             </Text>
             <Text className="text-2xl font-extrabold text-[#1A1A1A]">
               {completedCount}
@@ -211,7 +210,7 @@ export default function OrdersScreen() {
               <Ionicons name="wallet" size={20} color="#F59E0B" />
             </View>
             <Text className="text-xs font-bold text-[#6B7280] uppercase tracking-wide mb-1">
-              Total Earned
+              {t("ordersScreen.totalEarned")}
             </Text>
             <Text className="text-2xl font-extrabold text-[#1A1A1A]">
               ₹{totalEarnings}
@@ -224,12 +223,14 @@ export default function OrdersScreen() {
           <View className="px-6 mt-6">
             <View className="flex-row items-center justify-between mb-4 ml-1">
               <Text className="text-lg font-bold text-[#1A1A1A]">
-                Pending Requests
+                {t("ordersScreen.pendingRequests")}
               </Text>
               <View className="bg-orange-100 px-3 py-1 rounded-full">
                 <Text className="text-xs font-bold text-orange-600">
                   {activePendingRequests.length}{" "}
-                  {activePendingRequests.length === 1 ? "Request" : "Requests"}
+                  {activePendingRequests.length === 1
+                    ? t("ordersScreen.request")
+                    : t("ordersScreen.requests")}
                 </Text>
               </View>
             </View>
@@ -245,15 +246,15 @@ export default function OrdersScreen() {
               <View className="flex-row items-center justify-between mb-4">
                 <View>
                   <Text className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">
-                    Optimized Route
+                    {t("ordersScreen.optimizedRoute")}
                   </Text>
                   <Text className="text-lg font-extrabold text-[#1A1A1A] mt-1">
-                    {routePlan.activeOrderCount} active • {routePlan.totalDistanceKm} km
+                    {routePlan.activeOrderCount} {t("ordersScreen.active")} • {routePlan.totalDistanceKm} km
                   </Text>
                 </View>
                 <View className="bg-orange-50 px-3 py-1.5 rounded-full">
                   <Text className="text-xs font-bold text-orange-600">
-                    Max {routePlan.maxActiveBatch}
+                    {t("common.max")} {routePlan.maxActiveBatch}
                   </Text>
                 </View>
               </View>
@@ -278,7 +279,9 @@ export default function OrdersScreen() {
                   </View>
                   <View className="flex-1">
                     <Text className="text-sm font-bold text-[#1A1A1A]">
-                      {stop.type === "pickup" ? "Pickup" : "Drop"} •{" "}
+                      {stop.type === "pickup"
+                        ? t("ordersScreen.pickup")
+                        : t("ordersScreen.drop")} •{" "}
                       {stop.type === "pickup"
                         ? stop.restaurantName
                         : stop.customerName}
@@ -304,10 +307,10 @@ export default function OrdersScreen() {
             contentContainerStyle={{ gap: 12 }}>
             {(
               [
-                { key: "all", label: "All Orders" },
-                { key: "active", label: "In Progress" },
-                { key: "delivered", label: "Completed" },
-                { key: "cancelled", label: "Cancelled" },
+                { key: "all", label: t("ordersScreen.allOrders") },
+                { key: "active", label: t("ordersScreen.inProgress") },
+                { key: "delivered", label: t("ordersScreen.completed") },
+                { key: "cancelled", label: t("ordersScreen.cancelled") },
               ] as const
             ).map((filter) => (
               <TouchableOpacity
@@ -344,17 +347,17 @@ export default function OrdersScreen() {
           <View className="flex-row items-center justify-between mb-4 ml-1">
             <Text className="text-lg font-bold text-[#1A1A1A]">
               {activeFilter === "all"
-                ? "All Orders"
+                ? t("ordersScreen.allOrders")
                 : activeFilter === "active"
-                  ? "In Progress Orders"
+                  ? t("ordersScreen.inProgressOrders")
                 : activeFilter === "delivered"
-                  ? "Completed Orders"
-                  : "Cancelled Orders"}
+                  ? t("ordersScreen.completedOrders")
+                  : t("ordersScreen.cancelledOrders")}
             </Text>
             <View className="bg-gray-100 px-3 py-1 rounded-full">
               <Text className="text-xs font-bold text-[#6B7280]">
                 {filteredOrders.length}{" "}
-                {filteredOrders.length === 1 ? "Order" : "Orders"}
+                {filteredOrders.length === 1 ? t("common.order") : t("common.orderPlural")}
               </Text>
             </View>
           </View>
@@ -365,19 +368,19 @@ export default function OrdersScreen() {
                 <Ionicons name="receipt-outline" size={36} color="#9CA3AF" />
               </View>
               <Text className="text-lg font-bold text-[#1A1A1A] mb-2">
-                No Orders Yet
+                {t("ordersScreen.noOrdersYet")}
               </Text>
               <Text className="text-sm text-[#7A7A7A] text-center max-w-[200px] leading-5">
                 {activeFilter === "active"
-                  ? "No active deliveries right now"
-                  : "Complete your first delivery to see your order history"}
+                  ? t("ordersScreen.noActiveDeliveries")
+                  : t("ordersScreen.completeFirstDelivery")}
               </Text>
             </View>
           ) : (
             filteredOrders.map((order) => {
               const statusStyle = getStatusStyle(order.status);
               const orderDate = new Date(order.createdAt).toLocaleDateString(
-                "en-US",
+                i18n.language === "gu" ? "gu-IN" : i18n.language === "hi" ? "hi-IN" : "en-IN",
                 {
                   month: "short",
                   day: "numeric",
@@ -398,7 +401,7 @@ export default function OrdersScreen() {
                     <View className="flex-row items-center justify-between mb-4">
                       <View className="flex-1">
                         <Text className="text-xs font-bold text-[#9CA3AF] mb-1 tracking-wider">
-                          ORDER ID
+                          {t("ordersScreen.orderId")}
                         </Text>
                         <Text className="text-sm font-bold text-[#1A1A1A]">
                           #{order.id.slice(-8)}
@@ -438,7 +441,7 @@ export default function OrdersScreen() {
                       </View>
                       <View className="ml-4 flex-1">
                         <Text className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">
-                          Pickup From
+                          {t("ordersScreen.pickupFrom")}
                         </Text>
                         <Text
                           className="text-base font-bold text-[#1A1A1A] leading-tight"
