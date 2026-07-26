@@ -524,11 +524,7 @@ export default function OrderRequestModal({
                     color: "#10B981",
                   }}>
                   ₹
-                  {order.earnings > 0
-                    ? order.earnings.toFixed(0)
-                    : order.totalAmount
-                      ? Math.max(50, order.totalAmount * 0.1).toFixed(0)
-                      : "—"}
+                  {order.earnings > 0 ? order.earnings.toFixed(0) : "—"}
                 </Text>
               </View>
               {order.preparationTime ? (

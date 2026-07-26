@@ -6,10 +6,12 @@ import { useOrderStore } from "@/store/orders";
 import { Tabs } from "expo-router";
 import { useEffect } from "react";
 import { AppState } from "react-native";
+import { useTranslation } from "react-i18next";
 
 function TabsContent() {
   const { isDockVisible } = useDock();
   const { initializeSocket } = useOrderStore();
+  const { t } = useTranslation();
 
   useEffect(() => {
     initializeSocket();
@@ -34,10 +36,10 @@ function TabsContent() {
       tabBar={(props) => (
         <AnimatedBottomDock {...props} isVisible={isDockVisible} />
       )}>
-      <Tabs.Screen name="index" options={{ title: "Home" }} />
-      <Tabs.Screen name="orders" options={{ title: "Orders" }} />
-      <Tabs.Screen name="earnings" options={{ title: "Earnings" }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+      <Tabs.Screen name="index" options={{ title: t("common.home") }} />
+      <Tabs.Screen name="orders" options={{ title: t("common.orders") }} />
+      <Tabs.Screen name="earnings" options={{ title: t("common.earnings") }} />
+      <Tabs.Screen name="profile" options={{ title: t("common.profile") }} />
     </Tabs>
   );
 }

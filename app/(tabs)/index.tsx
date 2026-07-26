@@ -25,6 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface DashboardData {
@@ -49,6 +50,10 @@ interface DashboardData {
     restaurantName: string;
     customerAddress: string;
     totalAmount: number;
+    earnings?: number;
+    deliveryEarnings?: number;
+    deliveryFee?: number;
+    estimatedDeliveryFee?: number;
     estimatedTime?: string;
   } | null;
 }
@@ -61,6 +66,7 @@ interface ProfileData {
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t, i18n } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toggleLoading, setToggleLoading] = useState(false);
@@ -227,7 +233,7 @@ export default function HomeScreen() {
   };
 
   const partnerName = profile?.name || "Delivery Partner";
-  const currentDate = new Date().toLocaleDateString("en-US", {
+  const currentDate = new Date().toLocaleDateString(i18n.language || "en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
@@ -248,7 +254,12 @@ export default function HomeScreen() {
             restaurantName: dashboardData.activeOrder.restaurantName,
             customerName: "Customer",
             customerAddress: dashboardData.activeOrder.customerAddress,
-            earnings: dashboardData.activeOrder.totalAmount * 0.1,
+            earnings:
+              dashboardData.activeOrder.earnings ??
+              dashboardData.activeOrder.deliveryEarnings ??
+              dashboardData.activeOrder.estimatedDeliveryFee ??
+              dashboardData.activeOrder.deliveryFee ??
+              0,
             status: dashboardData.activeOrder.status,
             estimatedTime: dashboardData.activeOrder.estimatedTime || "15 mins",
           }
@@ -259,7 +270,7 @@ export default function HomeScreen() {
       <View className="flex-1 bg-[#F3E0D9] items-center justify-center">
         <ActivityIndicator size="large" color="#F59E0B" />
         <Text className="text-gray-500 mt-4 font-medium">
-          Loading dashboard...
+          {t("common.loadingDashboard")}
         </Text>
       </View>
     );
@@ -312,7 +323,7 @@ export default function HomeScreen() {
                 {currentDate}
               </Text>
               <Text className="text-3xl font-extrabold text-[#1A1A1A]">
-                Hello, {partnerName}! 👋
+                {t("home.welcomeBack")} {partnerName}
               </Text>
             </View>
             <TouchableOpacity
@@ -392,7 +403,7 @@ export default function HomeScreen() {
           {activePendingRequests.length > 0 && (
             <>
               <Text className="text-lg font-bold text-[#1A1A1A] mb-4 ml-1">
-                Pending Requests 🔔
+                Pending Requests
               </Text>
               {activePendingRequests.map((missed) => (
                 <MissedOrderCard key={missed.order.id} missed={missed} />
@@ -403,7 +414,7 @@ export default function HomeScreen() {
 
           {/* Stats Overview */}
           <Text className="text-lg font-bold text-[#1A1A1A] mb-4 ml-1">
-            Today&apos;s Overview
+            {t("home.todaysPerformance")}
           </Text>
 
           <View className="flex-row gap-4 mb-8">
@@ -422,7 +433,7 @@ export default function HomeScreen() {
                 ₹{todayEarnings.toFixed(0)}
               </Text>
               <Text className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                Earnings
+                {t("common.earnings")}
               </Text>
             </TouchableOpacity>
 
@@ -445,7 +456,7 @@ export default function HomeScreen() {
                 {completedOrders}
               </Text>
               <Text className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                Delivered
+                {t("earnings.completed")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -453,7 +464,7 @@ export default function HomeScreen() {
           {/* Active Order Section */}
           <View className="flex-row items-center justify-between mb-4 ml-1">
             <Text className="text-lg font-bold text-[#1A1A1A]">
-              Active Order
+              {t("home.activeOrders")}
             </Text>
             {activeBatchCount > 1 && (
               <View className="bg-orange-100 px-3 py-1 rounded-full">
@@ -568,7 +579,7 @@ export default function HomeScreen() {
                   <View className="flex-row items-center justify-between pt-4 border-t border-gray-100">
                     <View>
                       <Text className="text-xs text-gray-400 font-bold uppercase mb-0.5">
-                        Est. Earnings
+                        {t("common.earnings")}
                       </Text>
                       <Text className="text-xl font-bold text-[#10B981]">
                         ₹{currentActiveOrder.earnings || 0}
@@ -577,7 +588,7 @@ export default function HomeScreen() {
 
                     <View className="bg-[#F59E0B] px-5 py-2.5 rounded-2xl flex-row items-center shadow-lg shadow-amber-200">
                       <Text className="text-white font-bold mr-2">
-                        View Order
+                        {t("common.orders")}
                       </Text>
                       <Ionicons name="arrow-forward" size={16} color="white" />
                     </View>

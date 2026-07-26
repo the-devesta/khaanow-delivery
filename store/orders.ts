@@ -206,6 +206,7 @@ interface OrderState {
 function transformSocketOrder(order: any): Order {
   const earnings =
     order.earnings ??
+    order.deliveryEarnings ??
     order.estimatedDeliveryFee ??
     order.deliveryFee ??
     0;
@@ -1271,6 +1272,7 @@ export const useOrderStore = create<OrderState>()(
               estimatedTime: "30 min",
               earnings:
                 order.earnings ??
+                order.deliveryEarnings ??
                 order.estimatedDeliveryFee ??
                 order.deliveryFee ??
                 0,

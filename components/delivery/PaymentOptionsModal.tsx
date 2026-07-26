@@ -4,25 +4,23 @@
  * Handles: PREPAID delivery OTP, COD OTP, Payment Link, UPI QR
  */
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
 import React, {
   forwardRef,
-  useCallback,
+  useEffect,
   useImperativeHandle,
-  useMemo,
-  useRef,
   useState,
 } from "react";
 import {
   Keyboard,
+  Modal,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CODOtpVerification from "./CODOtpVerification";
 import PaymentLinkGenerator from "./PaymentLinkGenerator";
 import UPIQRCodeView from "./UPIQRCodeView";
@@ -66,13 +64,16 @@ function PaymentOptionsModal(
   }: Props,
   ref: React.ForwardedRef<PaymentOptionsModalHandle>,
 ) {
-  const sheetRef = useRef<BottomSheetModal>(null);
-  const closingRef = useRef(false);
+  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [subView, setSubView] = useState<SubView>("menu");
-  const snapPoints = useMemo(
-    () => (subView === "menu" ? ["58%", "82%"] : ["72%", "94%"]),
-    [subView],
-  );
+
+  useEffect(() => {
+    if (visible) {
+      Keyboard.dismiss();
+      setSubView("menu");
+    }
+  }, [orderId, visible]);
 
   // Determine payment type from order's paymentMethod field.
   // Backend values are not perfectly consistent across old/new orders:
@@ -95,36 +96,9 @@ function PaymentOptionsModal(
       orderNumber,
     });
     Keyboard.dismiss();
-    closingRef.current = true;
-    sheetRef.current?.dismiss();
+    setSubView("menu");
+    onClose();
   };
-
-  const handleDismiss = useCallback(() => {
-    debugPaymentSheet("modal dismissed", {
-      orderId,
-      orderNumber,
-      visible,
-      closing: closingRef.current,
-    });
-    Keyboard.dismiss();
-    if (visible || closingRef.current) {
-      closingRef.current = false;
-      onClose();
-    }
-  }, [onClose, visible, orderId, orderNumber]);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.5}
-        pressBehavior="close"
-      />
-    ),
-    [],
-  );
 
   const alreadyPaid =
     paymentStatus === "paid" ||
@@ -144,43 +118,45 @@ function PaymentOptionsModal(
           visible,
         });
         Keyboard.dismiss();
-        closingRef.current = false;
         setSubView("menu");
-        sheetRef.current?.present();
       },
       dismiss: () => {
         debugPaymentSheet("imperative dismiss", {
           orderId,
           orderNumber,
         });
-        closingRef.current = true;
-        sheetRef.current?.dismiss();
+        handleClose();
       },
     }),
     [orderId, orderNumber, paymentMethod, paymentStatus, payType, visible],
   );
 
   return (
-    <BottomSheetModal
-      ref={sheetRef}
-      snapPoints={snapPoints}
-      enablePanDownToClose
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: "#FFFFFF", borderRadius: 28 }}
-      handleIndicatorStyle={{ backgroundColor: "#D1D5DB", width: 42 }}
-      onChange={(index) =>
-        debugPaymentSheet("bottom sheet index changed", {
-          orderId,
-          orderNumber,
-          index,
-        })
-      }
-      onDismiss={handleDismiss}>
-      <BottomSheetScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 34 }}>
+    <Modal
+      animationType="slide"
+      transparent
+      visible={visible}
+      statusBarTranslucent
+      onRequestClose={handleClose}>
+      <View style={styles.backdrop}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={handleClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          style={[
+            styles.sheet,
+            {
+              maxHeight: subView === "menu" ? "84%" : "94%",
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}>
+          <View style={styles.handle} />
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 24 }}>
         {/* Handle + Header */}
         <View className="items-center pt-1 pb-4 px-6">
           <View className="flex-row items-center justify-between w-full">
@@ -198,12 +174,12 @@ function PaymentOptionsModal(
             )}
             <Text className="text-lg font-bold text-gray-900">
               {subView === "menu"
-                ? "Collect Payment"
+                ? t("payment.collectPayment")
                 : subView === "cod_otp"
-                  ? "Delivery Verification"
+                  ? t("payment.deliveryVerification")
                   : subView === "payment_link"
-                    ? "Payment Link"
-                    : "UPI QR Code"}
+                    ? t("payment.paymentLink")
+                    : t("payment.upiQrCode")}
             </Text>
             <TouchableOpacity onPress={handleClose} hitSlop={8}>
               <Ionicons name="close" size={22} color="#6B7280" />
@@ -214,7 +190,7 @@ function PaymentOptionsModal(
         {/* Amount chip */}
         <View className="mx-6 mb-5 bg-gray-50 rounded-2xl p-4 flex-row items-center justify-between">
           <Text className="text-gray-500 font-medium">
-            Order #{orderNumber.slice(-6)}
+            {t("payment.orderNumber", { number: orderNumber.slice(-6) })}
           </Text>
           <Text className="text-2xl font-bold text-gray-900">
             ₹{totalAmount}
@@ -231,15 +207,15 @@ function PaymentOptionsModal(
                   <Ionicons name="checkmark-circle" size={24} color="#16A34A" />
                   <Text className="text-green-700 font-semibold flex-1">
                     {payType === "prepaid"
-                      ? "Payment received online. Verify delivery OTP before completing."
-                      : "Payment confirmed!"}
+                      ? t("payment.prepaidHint")
+                      : t("payment.paymentConfirmed")}
                   </Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setSubView("cod_otp")}
                   className="bg-green-600 rounded-2xl py-4 items-center">
                   <Text className="text-white font-bold text-base">
-                    Verify Delivery OTP
+                    {t("payment.verifyDeliveryOtp")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -248,8 +224,8 @@ function PaymentOptionsModal(
               <View className="px-6 gap-3">
                 <OptionButton
                   icon="cash-outline"
-                  title="Verify Cash with OTP"
-                  subtitle="Send OTP to customer to confirm cash receipt"
+                  title={t("payment.verifyCashWithOtp")}
+                  subtitle={t("payment.cashOtpSubtitle")}
                   onPress={() => {
                     debugPaymentSheet("option selected", {
                       orderId,
@@ -261,8 +237,8 @@ function PaymentOptionsModal(
                 />
                 <OptionButton
                   icon="qr-code-outline"
-                  title="Accept UPI / QR Payment"
-                  subtitle="Customer scans QR and pays digitally instead of cash"
+                  title={t("payment.acceptUpiQr")}
+                  subtitle={t("payment.upiQrSubtitle")}
                   onPress={() => {
                     debugPaymentSheet("option selected", {
                       orderId,
@@ -274,8 +250,8 @@ function PaymentOptionsModal(
                 />
                 <OptionButton
                   icon="link-outline"
-                  title="Send Payment Link"
-                  subtitle="Customer taps a link to pay online via Razorpay"
+                  title={t("payment.sendPaymentLink")}
+                  subtitle={t("payment.linkSubtitle")}
                   onPress={() => {
                     debugPaymentSheet("option selected", {
                       orderId,
@@ -291,8 +267,8 @@ function PaymentOptionsModal(
               <View className="px-6 gap-3">
                 <OptionButton
                   icon="link-outline"
-                  title="Send Payment Link"
-                  subtitle="Customer pays via Razorpay link on their phone"
+                  title={t("payment.sendPaymentLink")}
+                  subtitle={t("payment.linkSubtitleShort")}
                   onPress={() => {
                     debugPaymentSheet("option selected", {
                       orderId,
@@ -304,8 +280,8 @@ function PaymentOptionsModal(
                 />
                 <OptionButton
                   icon="qr-code-outline"
-                  title="Show UPI QR Code"
-                  subtitle="Customer scans QR and pays with any UPI app"
+                  title={t("payment.showUpiQr")}
+                  subtitle={t("payment.showUpiQrSubtitle")}
                   onPress={() => {
                     debugPaymentSheet("option selected", {
                       orderId,
@@ -351,10 +327,35 @@ function PaymentOptionsModal(
             }}
           />
         )}
-      </BottomSheetScrollView>
-    </BottomSheetModal>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(17, 24, 39, 0.52)",
+  },
+  sheet: {
+    width: "100%",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: "#FFFFFF",
+    paddingTop: 10,
+  },
+  handle: {
+    alignSelf: "center",
+    width: 42,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#D1D5DB",
+    marginBottom: 10,
+  },
+});
 
 function OptionButton({
   icon,

@@ -1,6 +1,4 @@
-import PaymentOptionsModal, {
-  PaymentOptionsModalHandle,
-} from "@/components/delivery/PaymentOptionsModal";
+import PaymentOptionsModal from "@/components/delivery/PaymentOptionsModal";
 import DeliveryMap, {
   RouteInfo,
   haversineM,
@@ -47,6 +45,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 const STEPS = [
@@ -241,6 +240,7 @@ export default function OrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const {
     activeOrder,
     activeOrders,
@@ -256,7 +256,6 @@ export default function OrderDetailsScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const paymentSheetRef = useRef<PaymentOptionsModalHandle>(null);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [proofUploading, setProofUploading] = useState(false);
   const [reportingIssue, setReportingIssue] = useState(false);
@@ -373,12 +372,6 @@ export default function OrderDetailsScreen() {
     });
     setLoading(false);
     setPaymentModalVisible(true);
-    requestAnimationFrame(() => {
-      debugPaymentSheet("parent presenting sheet", {
-        orderId: id,
-      });
-      paymentSheetRef.current?.present();
-    });
   }, [id, paymentModalVisible]);
 
   // Advance turn-by-turn step when driver gets close to step end-point
@@ -606,12 +599,12 @@ export default function OrderDetailsScreen() {
     switch (displayOrder.status) {
       case "delivery_partner_accepted":
       case "accepted":
-        return "Reached Restaurant";
+        return t("orderDetail.reachedRestaurant");
       case "delivery_partner_reached":
-        return "Order Picked Up";
+        return t("orderDetail.orderPickedUp");
       case "delivery_partner_picked_up":
       case "picked_up":
-        return "Reached Dropoff Location";
+        return t("orderDetail.reachedDropoff");
       case "delivery_partner_reached_user_dest":
       case "on_the_way":
         if (
@@ -620,11 +613,11 @@ export default function OrderDetailsScreen() {
           displayOrder?.paymentStatus === "completed" ||
           displayOrder?.paymentStatus === "paid"
         ) {
-          return "Complete Order";
+          return t("orderDetail.completeOrder");
         }
-        return "Collect Payment";
+        return t("payment.collectPayment");
       default:
-        return "Continue";
+        return t("orderDetail.continue");
     }
   };
 
@@ -890,7 +883,6 @@ export default function OrderDetailsScreen() {
     <>
       {/* Payment sheet — must be mounted in normal and fullscreen navigation modes. */}
       <PaymentOptionsModal
-        ref={paymentSheetRef}
         visible={paymentModalVisible}
         orderId={String(displayOrder.id)}
         orderNumber={String((displayOrder as any).orderNumber || displayOrder.id)}

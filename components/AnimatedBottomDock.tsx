@@ -6,6 +6,7 @@ import {
 import type { BottomTabBarProps } from "expo-router/build/react-navigation/bottom-tabs";
 import { JSX, useEffect, useRef } from "react";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const PRIMARY = "#F59E0B";
@@ -14,7 +15,7 @@ const ACTIVE_WIDTH = 114;
 
 const TAB_META = {
   index: {
-    label: "Home",
+    labelKey: "common.home",
     icon: (focused: boolean, color: string) => (
       <Ionicons
         name={focused ? "home" : "home-outline"}
@@ -24,7 +25,7 @@ const TAB_META = {
     ),
   },
   orders: {
-    label: "Orders",
+    labelKey: "common.orders",
     icon: (focused: boolean, color: string) => (
       <Ionicons
         name={focused ? "list" : "list-outline"}
@@ -34,7 +35,7 @@ const TAB_META = {
     ),
   },
   earnings: {
-    label: "Earnings",
+    labelKey: "common.earnings",
     icon: (focused: boolean, color: string) => (
       <Ionicons
         name={focused ? "wallet" : "wallet-outline"}
@@ -44,7 +45,7 @@ const TAB_META = {
     ),
   },
   profile: {
-    label: "Profile",
+    labelKey: "common.profile",
     icon: (focused: boolean, color: string) => (
       <Ionicons
         name={focused ? "person" : "person-outline"}
@@ -55,7 +56,7 @@ const TAB_META = {
   },
 } satisfies Record<
   string,
-  { label: string; icon: (focused: boolean, color: string) => JSX.Element }
+  { labelKey: string; icon: (focused: boolean, color: string) => JSX.Element }
 >;
 
 type TabKey = keyof typeof TAB_META;
@@ -157,6 +158,7 @@ export default function AnimatedBottomDock({
   isVisible,
 }: AnimatedBottomDockProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const translateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -241,7 +243,7 @@ export default function AnimatedBottomDock({
           };
 
           const meta = TAB_META[route.name as TabKey] ?? {
-            label: options.tabBarLabel ?? options.title ?? route.name,
+            labelKey: "",
             icon: (focused: boolean, color: string) => (
               <Ionicons
                 name={focused ? "ellipse" : "ellipse-outline"}
@@ -254,7 +256,11 @@ export default function AnimatedBottomDock({
           return (
             <TabDockItem
               key={route.key}
-              label={meta.label}
+              label={
+                meta.labelKey
+                  ? t(meta.labelKey)
+                  : String(options.tabBarLabel ?? options.title ?? route.name)
+              }
               isFocused={isFocused}
               onPress={onPress}
               onLongPress={onLongPress}
