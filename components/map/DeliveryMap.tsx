@@ -194,7 +194,12 @@ async function fetchGoogleRoutesApiRoute(
             },
           },
           travelMode: "TWO_WHEELER",
-          routingPreference: "TRAFFIC_AWARE",
+          // TRAFFIC_UNAWARE is the free Essentials-tier request shape -
+          // TRAFFIC_AWARE billed this under the paid Enterprise SKU instead,
+          // confirmed from a real GCP bill (~Rs.10,336 in one month from
+          // this and the customer app's identical call). Costs live-traffic
+          // accuracy in the drawn route/ETA; not worth real money per call.
+          routingPreference: "TRAFFIC_UNAWARE",
           computeAlternativeRoutes: false,
           polylineQuality: "HIGH_QUALITY",
           polylineEncoding: "ENCODED_POLYLINE",
