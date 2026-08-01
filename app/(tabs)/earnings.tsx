@@ -384,7 +384,7 @@ export default function EarningsScreen() {
                       ? t("earnings.nextCycle", {
                           date: formatDate(ledger.summary.nextPayoutDate),
                         })
-                      : t("earnings.netAfterCash")}
+                      : t("earnings.grossEarningsOwed")}
                   </Text>
                 </View>
               </View>
@@ -398,41 +398,9 @@ export default function EarningsScreen() {
                 )}
               </Text>
             </View>
-            <View className="mb-3 rounded-2xl bg-[#F8FAFC] p-3">
-              <View className="flex-row justify-between mb-2 gap-3">
-                <Text className="text-xs font-medium text-[#6B7280] flex-1">
-                  {t("earnings.grossPending")}
-                </Text>
-                <Text className="text-xs font-extrabold text-[#1A1A1A]">
-                  {formatMoney(
-                    ledger?.summary.grossPayableAmount ??
-                      ledger?.summary.payableAmount ??
-                      payout?.nextPayoutAmount ??
-                      0,
-                  )}
-                </Text>
-              </View>
-              <View className="flex-row justify-between mb-2 gap-3">
-                <Text className="text-xs font-medium text-[#F97316] flex-1">
-                  {t("earnings.lessCash")}
-                </Text>
-                <Text className="text-xs font-extrabold text-[#F97316]">
-                  -{formatMoney(ledger?.summary.cashAdjustedAmount ?? 0)}
-                </Text>
-              </View>
-              <View className="flex-row justify-between border-t border-white pt-2 gap-3">
-                <Text className="text-xs font-bold text-[#10B981] flex-1">
-                  {t("earnings.payableAfterCash")}
-                </Text>
-                <Text className="text-sm font-extrabold text-[#10B981]">
-                  {formatMoney(
-                    ledger?.summary.payableAmount ??
-                      payout?.nextPayoutAmount ??
-                      weeklyEarnings,
-                  )}
-                </Text>
-              </View>
-            </View>
+            {/* Cash you're holding is tracked separately under Cash in Hand /
+                Cash Handover below - it's a different debt (you owe it to
+                admin) and no longer reduces what admin owes you here. */}
             <View className="flex-row flex-wrap gap-2">
               {([
                 [t("earnings.paid"), ledger?.summary.paidAmount ?? 0, "#10B981"],

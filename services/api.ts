@@ -154,7 +154,6 @@ export interface DeliveryPayoutLedger {
     periodEarned: number;
     grossPayableAmount?: number;
     payableAmount: number;
-    cashAdjustedAmount?: number;
     paidAmount: number;
     scheduledAmount: number;
     deliveredOrders: number;
@@ -968,7 +967,6 @@ export const ApiService = {
             periodEarned: 0,
             grossPayableAmount: 0,
             payableAmount: 0,
-            cashAdjustedAmount: 0,
             paidAmount: 0,
             scheduledAmount: 0,
             deliveredOrders: 0,
