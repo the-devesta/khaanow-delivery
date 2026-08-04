@@ -1,3 +1,4 @@
+import { LanguageSwitchButton } from "@/components/LanguageSwitchButton";
 import LocationTrackingBanner from "@/components/LocationTrackingBanner";
 import MissedOrderCard from "@/components/orders/MissedOrderCard";
 import OrderRequestModal from "@/components/orders/OrderRequestModal";
@@ -326,17 +327,20 @@ export default function HomeScreen() {
                 {t("home.welcomeBack")} {partnerName}
               </Text>
             </View>
-            <TouchableOpacity
-              className="w-12 h-12 bg-white rounded-full items-center justify-center "
-              activeOpacity={0.7}
-              onPress={() => router.push("/(tabs)/profile")}>
-              <Ionicons
-                name="notifications-outline"
-                size={24}
-                color="#F59E0B"
-              />
-              <View className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
-            </TouchableOpacity>
+            <View className="flex-row items-center" style={{ gap: 10 }}>
+              <LanguageSwitchButton />
+              <TouchableOpacity
+                className="w-12 h-12 bg-white rounded-full items-center justify-center "
+                activeOpacity={0.7}
+                onPress={() => router.push("/(tabs)/profile")}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={24}
+                  color="#F59E0B"
+                />
+                <View className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <LocationTrackingBanner

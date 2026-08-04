@@ -1,5 +1,6 @@
 import { useWhatsAppAuth } from "@/hooks/use-whatsapp-auth";
 import { inputTextStyle } from "@/constants/form-styles";
+import { LanguageSwitchButton } from "@/components/LanguageSwitchButton";
 import { LoginSchema } from "@/utils/validations";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -20,11 +21,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { sendOtp, loading, error, clearError } = useWhatsAppAuth();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -48,6 +51,15 @@ export default function LoginScreen() {
   return (
     <View className="flex-1 bg-[#F3E0D9]">
       <StatusBar barStyle="dark-content" backgroundColor="#F3E0D9" />
+      <View
+        style={{
+          position: "absolute",
+          top: insets.top + 12,
+          left: 20,
+          zIndex: 10,
+        }}>
+        <LanguageSwitchButton variant="light" />
+      </View>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
@@ -71,10 +83,10 @@ export default function LoginScreen() {
             {/* Header Section */}
             <View className="items-center mb-8 px-6">
               <Text className="text-3xl font-extrabold text-[#1A1A1A] mb-2 text-center">
-                Hello Again! 👋
+                {t("auth.helloAgain")}
               </Text>
               <Text className="text-base text-gray-500 font-medium text-center">
-                Welcome back to KhaaoNow
+                {t("auth.welcomeBack")}
               </Text>
 
               <View className="mt-8 mb-4 rounded-2xl">
@@ -90,7 +102,7 @@ export default function LoginScreen() {
             <View
               className="bg-white mx-6 rounded-[32px] p-6">
               <View className="items-center mb-6">
-                <Text className="text-xl font-bold text-[#1A1A1A]">Login</Text>
+                <Text className="text-xl font-bold text-[#1A1A1A]">{t("auth.login")}</Text>
                 <View className="h-1 w-8 bg-[#F59E0B] rounded-full mt-2" />
               </View>
 
@@ -125,7 +137,7 @@ export default function LoginScreen() {
                     {/* Phone Input */}
                     <View className="mb-6">
                       <Text className="text-xs font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">
-                        Phone Number
+                        {t("auth.phoneNumber")}
                       </Text>
                       <View
                         className="flex-row items-center bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden h-14">
@@ -137,7 +149,7 @@ export default function LoginScreen() {
                           </Text>
                         </View>
                         <TextInput
-                          placeholder="Enter your number"
+                          placeholder={t("auth.enterYourNumber")}
                           keyboardType="number-pad"
                           inputMode="numeric"
                           returnKeyType="done"
@@ -186,7 +198,7 @@ export default function LoginScreen() {
                         color="#16A34A"
                       />
                       <Text className="text-xs text-gray-400 ml-2 font-medium">
-                        OTP will be sent via WhatsApp
+                        {t("auth.otpWhatsappNotice")}
                       </Text>
                     </View>
 
@@ -200,7 +212,7 @@ export default function LoginScreen() {
                         <ActivityIndicator color="#FFFFFF" />
                       ) : (
                         <Text className="text-white text-lg font-bold">
-                          Send OTP
+                          {t("auth.sendOtp")}
                         </Text>
                       )}
                     </TouchableOpacity>
@@ -212,9 +224,9 @@ export default function LoginScreen() {
             {/* Footer */}
             <View className="mt-8 items-center">
               <Text className="text-xs text-gray-400 text-center font-medium px-10 leading-5">
-                By continuing you agree to our{" "}
-                <Text className="text-[#F59E0B] font-bold">Terms</Text> &{" "}
-                <Text className="text-[#F59E0B] font-bold">Privacy Policy</Text>
+                {t("auth.termsNotice")}{" "}
+                <Text className="text-[#F59E0B] font-bold">{t("auth.terms")}</Text> &{" "}
+                <Text className="text-[#F59E0B] font-bold">{t("auth.privacyPolicy")}</Text>
               </Text>
             </View>
           </Animated.View>
