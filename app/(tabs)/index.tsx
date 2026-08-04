@@ -1,6 +1,8 @@
 import LocationTrackingBanner from "@/components/LocationTrackingBanner";
 import MissedOrderCard from "@/components/orders/MissedOrderCard";
 import OrderRequestModal from "@/components/orders/OrderRequestModal";
+import UpdateAppDialog from "@/components/UpdateAppDialog";
+import { useAppUpdateCheck } from "@/hooks/useAppUpdateCheck";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { ApiService } from "@/services/api";
 import { useOrderStore } from "@/store/orders";
@@ -74,6 +76,8 @@ export default function HomeScreen() {
     null,
   );
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const appUpdate = useAppUpdateCheck();
+  const [updateDialogDismissed, setUpdateDialogDismissed] = useState(false);
 
   const { isOnline, toggleOnline, syncOnlineStatus } = usePartnerStore();
   const {
@@ -124,6 +128,14 @@ export default function HomeScreen() {
       }),
     ]).start();
   }, [fadeAnim, slideAnim]);
+
+  // One check per app open/login — this screen is the first thing a
+  // logged-in rider lands on, whether from a fresh login or reopening the
+  // app with a persisted session.
+  useEffect(() => {
+    appUpdate.check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Location tracking
   const locationTracking = useLocationTracking({
@@ -716,6 +728,14 @@ export default function HomeScreen() {
           onAccept={handleAcceptOrder}
           onReject={handleRejectOrder}
           initialTimeLeft={pendingInitialTimeLeft}
+        />
+      )}
+
+      {appUpdate.result?.status === "update_available" && !updateDialogDismissed && (
+        <UpdateAppDialog
+          visible
+          updateInfo={appUpdate.result}
+          onDismiss={() => setUpdateDialogDismissed(true)}
         />
       )}
     </View>
